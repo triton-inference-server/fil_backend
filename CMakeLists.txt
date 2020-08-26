@@ -59,6 +59,8 @@ FetchContent_MakeAvailable(repo-common repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
+configure_file(src/libtriton_identity.ldscript libtriton_identity.ldscript COPYONLY)
+
 add_library(
   triton-identity-backend SHARED
   src/identity.cc
@@ -81,13 +83,18 @@ target_compile_options(
     -Wall -Wextra -Wno-unused-parameter -Werror>
 )
 
-set_property(TARGET triton-identity-backend PROPERTY POSITION_INDEPENDENT_CODE ON)
-set_property(TARGET triton-identity-backend PROPERTY OUTPUT_NAME triton_identity)
-
 target_link_libraries(
   triton-identity-backend
   PUBLIC
     triton-backend-utils  # from repo-backend
+)
+
+set_target_properties(
+  triton-identity-backend PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  OUTPUT_NAME triton_identity
+  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_identity.ldscript
+  LINK_FLAGS "-Wl,--version-script libtriton_identity.ldscript"
 )
 
 #
