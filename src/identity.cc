@@ -25,7 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
-#include "backend_common.h"
+#include "triton/backend/backend_common.h"
 
 namespace triton { namespace backend { namespace identity {
 
