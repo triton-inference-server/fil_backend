@@ -33,7 +33,7 @@
 An example Triton backend that demonstrates most of the Triton Backend
 API.
 
-Use cmake 3.14 or later to build and install in a local directory.
+Use cmake to build and install in a local directory.
 
 ```
 $ mkdir build
