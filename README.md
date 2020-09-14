@@ -31,7 +31,10 @@
 # Triton Inference Server Identity Backend
 
 An example Triton backend that demonstrates most of the Triton Backend
-API.
+API. You can learn more about backends in the [backend
+repo](https://github.com/triton-inference-server/backend). Ask
+questions or report problems in the main Triton [issues
+page](https://github.com/triton-inference-server/server/issues).
 
 Use cmake to build and install in a local directory.
 
