@@ -404,7 +404,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // handle... but we are just going to log the location so we don't
   // need the check. We would use the location if we wanted to load
   // something from the model's repo.
-  TRITONBACKEND_ModelArtifactType artifact_type;
+  TRITONBACKEND_ArtifactType artifact_type;
   const char* clocation;
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelRepository(model, &artifact_type, &clocation));
