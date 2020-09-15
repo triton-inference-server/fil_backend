@@ -128,8 +128,8 @@ install(
     triton-identity-backend
   EXPORT
     triton-identity-backend-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
 )
 
 install(
