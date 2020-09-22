@@ -100,7 +100,7 @@ target_compile_features(triton-identity-backend PRIVATE cxx_std_11)
 target_compile_options(
   triton-identity-backend PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wno-unused-parameter -Werror>
+    -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
 )
 
 target_link_libraries(
