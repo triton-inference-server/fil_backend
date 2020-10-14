@@ -106,7 +106,8 @@ target_compile_options(
 target_link_libraries(
   triton-identity-backend
   PRIVATE
-    triton-backend-utils  # from repo-backend
+    triton-backend-utils    # from repo-backend
+    triton-core-serverstub  # from repo-core
 )
 
 set_target_properties(
