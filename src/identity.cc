@@ -25,6 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
+#include <thread>
 #include "triton/backend/backend_common.h"
 
 namespace triton { namespace backend { namespace identity {
@@ -83,6 +84,10 @@ class ModelState {
 
   // Validate that model configuration is supported by this backend.
   TRITONSERVER_Error* ValidateModelConfig();
+
+  // Block the thread for seconds specified in 'creation_delay_sec' parameter.
+  // This function is used for testing.
+  TRITONSERVER_Error* CreationDelay();
 
  private:
   ModelState(
@@ -164,6 +169,30 @@ ModelState::SupportsFirstDimBatching(bool* supports)
   }
 
   *supports = supports_batching_;
+  return nullptr;  // success
+}
+
+TRITONSERVER_Error*
+ModelState::CreationDelay()
+{
+  // Feature for testing purpose...
+  // look for parameter 'creation_delay_sec' in model config
+  // and sleep for the value specified
+  common::TritonJson::Value parameters;
+  if (model_config_.Find("parameters", &parameters)) {
+    common::TritonJson::Value creation_delay_sec;
+    if (parameters.Find("creation_delay_sec", &creation_delay_sec)) {
+      std::string creation_delay_sec_str;
+      RETURN_IF_ERROR(creation_delay_sec.MemberAsString(
+          "string_value", &creation_delay_sec_str));
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("Creation delay is set to : ") + creation_delay_sec_str)
+              .c_str());
+      std::this_thread::sleep_for(
+          std::chrono::seconds(std::stoi(creation_delay_sec_str)));
+    }
+  }
   return nullptr;  // success
 }
 
@@ -437,6 +466,9 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // backend can support. If not, returning an error from this
   // function will prevent the model from loading.
   RETURN_IF_ERROR(model_state->ValidateModelConfig());
+
+  // For testing.. Block the thread for certain time period before returning.
+  RETURN_IF_ERROR(model_state->CreationDelay());
 
   return nullptr;  // success
 }
@@ -902,4 +934,4 @@ TRITONBACKEND_ModelInstanceExecute(
 
 }  // extern "C"
 
-}}} // namespace triton::backend::identity
+}}}  // namespace triton::backend::identity
