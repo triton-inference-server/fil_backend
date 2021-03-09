@@ -1,0 +1,6 @@
+name: triton_dev
+channels:
+  - conda-forge
+dependencies:
+  - cmake
+  - rapidjson
