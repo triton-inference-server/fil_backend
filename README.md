@@ -30,6 +30,49 @@
 
 # Triton Inference Server Identity Backend
 
+
+```
+sudo apt-get install -y rapidjson-dev
+sudo apt-get install -y libnccl2 libnccl-dev
+sudo apt-get install -y libblas-dev liblapack-dev
+sudo apt-get install -y python3.8
+sudo apt-get install -y python-is-python3
+apt-get install python-dev python3-dev
+sudo apt-get install intel-mkl-full
+pip3 install numpy
+pip3 install treelite
+git clone https://github.com/dmlc/treelite.git
+cd treelite && mkdir build && cd build
+cmake .. && make && make install
+sudo apt-get install -y libgtest-dev
+sudo apt-get install -y doxygen
+
+
+FAISS
+cmake -B build .
+make
+make install
+
+CUML
+cmake .. \
+  -DSINGLEGPU=ON \
+  -DBUILD_STATIC_FAISS=ON \
+  -DBUILD_CUML_TESTS=OFF \
+  -DBUILD_PRIMS_TESTS=OFF \
+  -DBUILD_CUML_EXAMPLES=OFF \
+  -DBUILD_CUML_BENCH=OFF \
+  -DBUILD_CUML_PRIMS_BENCH=OFF \
+  -DGPU_ARCHS="70"
+
+cmake .. \
+  -DBUILD_STATIC_FAISS=ON \
+  -DBUILD_RAFT_TESTS=OFF
+
+
+libcuml++
+
+```
+
 An example Triton backend that demonstrates most of the Triton Backend
 API. You can learn more about backends in the [backend
 repo](https://github.com/triton-inference-server/backend). Ask

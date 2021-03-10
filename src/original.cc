@@ -1,34 +1,21 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+#include <iostream>
 #include <memory>
 #include <thread>
-#include "triton/backend/backend_common.h"
 
-namespace triton { namespace backend { namespace identity {
+#include "triton/backend/backend_common.h"
+#include "cuml/fil/fil.h"
+
+
+namespace triton { namespace backend { namespace fil {
+
+int foobar()
+{
+  std::cout << "Hello CMake from inside!" << std::endl;
+  common::TritonJson::Value parameters;
+  ML::fil::algo_t foo;
+
+  return 0;
+}
 
 //
 // Simple backend that demonstrates the TRITONBACKEND API for a
@@ -214,11 +201,11 @@ ModelState::ValidateModelConfig()
   RETURN_ERROR_IF_FALSE(
       inputs.ArraySize() == 1, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected 1 input, got ") +
-          std::to_string(inputs.ArraySize()));
+      std::to_string(inputs.ArraySize()));
   RETURN_ERROR_IF_FALSE(
       outputs.ArraySize() == 1, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected 1 output, got ") +
-          std::to_string(outputs.ArraySize()));
+      std::to_string(outputs.ArraySize()));
 
   common::TritonJson::Value input, output;
   RETURN_IF_ERROR(inputs.IndexAsObject(0, &input));
@@ -232,7 +219,7 @@ ModelState::ValidateModelConfig()
   RETURN_ERROR_IF_FALSE(
       input_dtype == output_dtype, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected input and output datatype to match, got ") +
-          input_dtype + " and " + output_dtype);
+      input_dtype + " and " + output_dtype);
 
   // Input and output must have same shape
   std::vector<int64_t> input_shape, output_shape;
@@ -242,8 +229,8 @@ ModelState::ValidateModelConfig()
   RETURN_ERROR_IF_FALSE(
       input_shape == output_shape, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected input and output shape to match, got ") +
-          backend::ShapeToString(input_shape) + " and " +
-          backend::ShapeToString(output_shape));
+      backend::ShapeToString(input_shape) + " and " +
+      backend::ShapeToString(output_shape));
 
   return nullptr;  // success
 }
@@ -536,7 +523,7 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
   RETURN_ERROR_IF_FALSE(
       instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
       TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("'identity' backend only supports CPU instances"));
+      std::string("'fil' backend only supports CPU instances"));
 
   return nullptr;  // success
 }
@@ -937,4 +924,12 @@ TRITONBACKEND_ModelInstanceExecute(
 
 }  // extern "C"
 
-}}}  // namespace triton::backend::identity
+}}}  // namespace triton::backend::fil
+
+int main(int argc, char *argv[])
+{
+  std::cout << "Hello CMake from outside!" << std::endl;
+  triton::backend::fil::foobar();
+
+  return 0;
+}

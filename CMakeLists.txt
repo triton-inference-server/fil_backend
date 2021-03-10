@@ -1,65 +1,19 @@
-# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#  * Neither the name of NVIDIA CORPORATION nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# specify version
+cmake_minimum_required(VERSION 3.2)
 
-cmake_minimum_required(VERSION 3.17)
-
-project(tritonidentitybackend LANGUAGES C CXX)
-
-#
-# Options
-#
-# Must include options required for this project as well as any
-# projects included in this one by FetchContent.
-#
-# GPU support is disabled by default because identity backend doesn't
-# support GPUs.
-#
-option(TRITON_ENABLE_GPU "Enable GPU support in backend" OFF)
-option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
+# specify app
+project(fil_backend LANGUAGES C CXX)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif()
-
-#
-# Dependencies
-#
-# FetchContent's composibility isn't very good. We must include the
-# transitive closure of all repos so that we can override the tag.
-#
 include(FetchContent)
 
 FetchContent_Declare(
   repo-common
-  GIT_REPOSITORY https://github.com/wphicks/common.git
-  GIT_TAG bug-gcc9_compilation
+  GIT_REPOSITORY https://github.com/triton-inference-server/common.git
+  GIT_TAG ${TRITON_COMMON_REPO_TAG}
   GIT_SHALLOW ON
 )
 FetchContent_Declare(
@@ -79,91 +33,116 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-configure_file(src/libtriton_identity.ldscript libtriton_identity.ldscript COPYONLY)
+# TODO why do we do this? what is an ldscript?
+configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 
+# Note to self: this creates the libtriton-fil-backend.so object
 add_library(
-  triton-identity-backend SHARED
-  src/identity.cc
+        triton-fil-backend SHARED
+        src/fil.cc
 )
 
 add_library(
-  TritonIdentityBackend::triton-identity-backend ALIAS triton-identity-backend
+        TritonFILBackend::triton-fil-backend ALIAS triton-fil-backend
 )
 
 target_include_directories(
-  triton-identity-backend
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+        triton-fil-backend
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_features(triton-identity-backend PRIVATE cxx_std_11)
+target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
 target_compile_options(
-  triton-identity-backend PRIVATE
-  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
+        triton-fil-backend PRIVATE
+        $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+        -Wall -Wextra -Wno-unused-parameter -Wno-type-limits>
+)
+
+# Note to self: remove -Werror from above - sets warnings as errors
+
+##############################################################
+# Note to self: Added these lines to include cuML
+##############################################################
+# include CUDA
+find_package(CUDA  REQUIRED)
+include_directories("${CUDA_INCLUDE_DIRS}")
+
+# create executable
+add_executable(${PROJECT_NAME} src/fil.cc)
+
+# find rapids library path
+find_library(rapidsai-cuml-path cuml)
+
+# include raft
+include_directories("/home/whicks/proj_cuml_triton/cuml/cpp/build/raft/src/raft/cpp/include")
+
+target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE
+        triton-backend-utils    # from repo-backend
+        triton-core-serverstub  # from repo-core
+        ${rapidsai-cuml-path}
 )
 
 target_link_libraries(
-  triton-identity-backend
-  PRIVATE
-    triton-backend-utils    # from repo-backend
-    triton-core-serverstub  # from repo-core
+        triton-fil-backend
+        PRIVATE
+        triton-backend-utils    # from repo-backend
+        triton-core-serverstub  # from repo-core
+        ${rapidsai-cuml-path}
 )
+##############################################################
 
-set_target_properties(
-  triton-identity-backend PROPERTIES
-  POSITION_INDEPENDENT_CODE ON
-  OUTPUT_NAME triton_identity
-  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_identity.ldscript
-  LINK_FLAGS "-Wl,--version-script libtriton_identity.ldscript"
-)
 
 #
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonIdentityBackend)
+
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonFilBackend)
+
 
 install(
-  TARGETS
-    triton-identity-backend
-  EXPORT
-    triton-identity-backend-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
+        TARGETS
+        triton-fil-backend
+        EXPORT
+        triton-fil-backend-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
 )
 
 install(
-  EXPORT
-    triton-identity-backend-targets
-  FILE
-    TritonIdentityBackendTargets.cmake
-  NAMESPACE
-    TritonIdentityBackend::
-  DESTINATION
-    ${INSTALL_CONFIGDIR}
+        EXPORT
+        triton-fil-backend-targets
+        FILE
+        TritonFilBackendTargets.cmake
+        NAMESPACE
+        TritonFilBackend::
+        DESTINATION
+        ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonIdentityBackendConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
-  INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonFilBackendConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
+        INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
-  FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
-  DESTINATION ${INSTALL_CONFIGDIR}
+        FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
+        DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 #
 # Export from build tree
 #
 export(
-  EXPORT triton-identity-backend-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendTargets.cmake
-  NAMESPACE TritonIdentityBackend::
+        EXPORT triton-fil-backend-targets
+        FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendTargets.cmake
+        NAMESPACE TritonFilBackend::
 )
 
-export(PACKAGE TritonIdentityBackend)
+export(PACKAGE TritonFilBackend)
