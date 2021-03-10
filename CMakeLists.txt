@@ -26,7 +26,7 @@
 
 cmake_minimum_required(VERSION 3.17)
 
-project(tritonidentitybackend LANGUAGES C CXX)
+project(tritonfilbackend LANGUAGES C CXX)
 
 #
 # Options
@@ -79,43 +79,43 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-configure_file(src/libtriton_identity.ldscript libtriton_identity.ldscript COPYONLY)
+configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 
 add_library(
-  triton-identity-backend SHARED
-  src/identity.cc
+  triton-fil-backend SHARED
+  src/fil.cc
 )
 
 add_library(
-  TritonIdentityBackend::triton-identity-backend ALIAS triton-identity-backend
+  TritonIdentityBackend::triton-fil-backend ALIAS triton-fil-backend
 )
 
 target_include_directories(
-  triton-identity-backend
+  triton-fil-backend
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_features(triton-identity-backend PRIVATE cxx_std_11)
+target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
 target_compile_options(
-  triton-identity-backend PRIVATE
+  triton-fil-backend PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
 )
 
 target_link_libraries(
-  triton-identity-backend
+  triton-fil-backend
   PRIVATE
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
 )
 
 set_target_properties(
-  triton-identity-backend PROPERTIES
+  triton-fil-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
-  OUTPUT_NAME triton_identity
-  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_identity.ldscript
-  LINK_FLAGS "-Wl,--version-script libtriton_identity.ldscript"
+  OUTPUT_NAME triton_fil
+  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_fil.ldscript
+  LINK_FLAGS "-Wl,--version-script libtriton_fil.ldscript"
 )
 
 #
@@ -126,16 +126,16 @@ set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonIdentityBackend)
 
 install(
   TARGETS
-    triton-identity-backend
+    triton-fil-backend
   EXPORT
-    triton-identity-backend-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
+    triton-fil-backend-targets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
 )
 
 install(
   EXPORT
-    triton-identity-backend-targets
+    triton-fil-backend-targets
   FILE
     TritonIdentityBackendTargets.cmake
   NAMESPACE
@@ -161,7 +161,7 @@ install(
 # Export from build tree
 #
 export(
-  EXPORT triton-identity-backend-targets
+  EXPORT triton-fil-backend-targets
   FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendTargets.cmake
   NAMESPACE TritonIdentityBackend::
 )
