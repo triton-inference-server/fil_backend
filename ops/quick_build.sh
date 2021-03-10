@@ -13,7 +13,7 @@ docker run \
   --gpus "device=${VISIBLE_DEVICES}" \
   --name triton_dev \
   -it \
-  -v "${REPO_ROOT}:/identity_backend" \
+  -v "${REPO_ROOT}:/triton_fil_backend" \
   -v triton-ccache:/root/.ccache \
   -v triton-build:/identity_backend/build \
   triton_dev

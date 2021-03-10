@@ -27,8 +27,8 @@ RUN conda env update -f /environment.yml \
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-COPY ./ /identity_backend
+COPY ./ /triton_fil_backend
 
-WORKDIR /identity_backend
+WORKDIR /triton_fil_backend
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_dev", "/bin/bash"]
