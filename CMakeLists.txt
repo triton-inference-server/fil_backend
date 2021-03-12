@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,18 +26,12 @@
 
 cmake_minimum_required(VERSION 3.17)
 
-project(tritonfilbackend LANGUAGES C CXX)
+project(tritonfilbackend LANGUAGES C CXX CUDA)
 
 #
 # Options
 #
-# Must include options required for this project as well as any
-# projects included in this one by FetchContent.
-#
-# GPU support is disabled by default because identity backend doesn't
-# support GPUs.
-#
-option(TRITON_ENABLE_GPU "Enable GPU support in backend" OFF)
+option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
@@ -50,9 +44,6 @@ endif()
 
 #
 # Dependencies
-#
-# FetchContent's composibility isn't very good. We must include the
-# transitive closure of all repos so that we can override the tag.
 #
 include(FetchContent)
 
@@ -76,6 +67,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 
+find_package(Treelite 1.0.0 REQUIRED)
+
 #
 # Shared library implementing the Triton Backend API
 #
@@ -87,7 +80,7 @@ add_library(
 )
 
 add_library(
-  TritonIdentityBackend::triton-fil-backend ALIAS triton-fil-backend
+  TritonFilBackend::triton-fil-backend ALIAS triton-fil-backend
 )
 
 target_include_directories(
@@ -108,6 +101,7 @@ target_link_libraries(
   PRIVATE
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
+    treelite::treelite
 )
 
 set_target_properties(
@@ -122,7 +116,7 @@ set_target_properties(
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonIdentityBackend)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonFilBackend)
 
 install(
   TARGETS
@@ -137,23 +131,23 @@ install(
   EXPORT
     triton-fil-backend-targets
   FILE
-    TritonIdentityBackendTargets.cmake
+  TritonFilBackendTargets.cmake
   NAMESPACE
-    TritonIdentityBackend::
+  TritonFilBackend::
   DESTINATION
     ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonIdentityBackendConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonFilBackendConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
@@ -162,8 +156,8 @@ install(
 #
 export(
   EXPORT triton-fil-backend-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendTargets.cmake
-  NAMESPACE TritonIdentityBackend::
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendTargets.cmake
+  NAMESPACE TritonFilBackend::
 )
 
-export(PACKAGE TritonIdentityBackend)
+export(PACKAGE TritonFilBackend)

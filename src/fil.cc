@@ -24,23 +24,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <cuml/fil/fil.h>
+#include <treelite/c_api.h>
+
 #include <memory>
 #include <thread>
+
 #include "triton/backend/backend_common.h"
+#include "triton/backend/backend_model.h"
+#include "triton/backend/backend_model_instance.h"
 
-namespace triton { namespace backend { namespace identity {
+namespace triton { namespace backend { namespace fil {
 
-//
-// Simple backend that demonstrates the TRITONBACKEND API for a
-// blocking backend. A blocking backend completes execution of the
-// inference before returning from TRITONBACKED_ModelInstanceExecute.
-//
-// This backend supports any model that has exactly 1 input and
-// exactly 1 output. The input and output can have any name, datatype
-// and shape but the shape and datatype of the input and output must
-// match. The backend simply responds with the output tensor equal to
-// the input tensor.
-//
 
 #define GUARDED_RESPOND_IF_ERROR(RESPONSES, IDX, X)                     \
   do {                                                                  \
@@ -65,10 +60,15 @@ namespace triton { namespace backend { namespace identity {
 // of this class is created and associated with each
 // TRITONBACKEND_Model.
 //
-class ModelState {
+class ModelState : public BackendModel {
  public:
   static TRITONSERVER_Error* Create(
       TRITONBACKEND_Model* triton_model, ModelState** state);
+
+  TRITONSERVER_Error* LoadModel(
+      std::string artifact_name,
+      const TRITONSERVER_InstanceGroupKind instance_group_kind,
+      const int32_t instance_group_device_id);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
@@ -103,6 +103,25 @@ class ModelState {
 
   bool supports_batching_initialized_;
   bool supports_batching_;
+  ML::fil::treelite_params_t tl_params;
+
+  void* treelite_handle;
+};
+
+ML::fil::treelite_params_t
+tl_params_from_config(triton::common::TritonJson::Value config)
+{
+  ML::fil::treelite_params_t tl_params;
+  THROW_IF_BACKEND_MODEL_ERROR(config.MemberAsString("algo", &tl_params.algo));
+  THROW_IF_BACKEND_MODEL_ERROR(
+      config.MemberAsString("storage_type", &tl_params.storage_type));
+  THROW_IF_BACKEND_MODEL_ERROR(
+      config.MemberAsBool("output_class", &tl_params.output_class));
+  THROW_IF_BACKEND_MODEL_ERROR(
+      config.MemberAsFloat("threshold", &tl_params.threshold));
+  THROW_IF_BACKEND_MODEL_ERROR(
+      config.MemberAsInt("blocks_per_sm", &tl_params.blocks_per_sm));
+  return tl_params;
 };
 
 TRITONSERVER_Error*
@@ -129,6 +148,10 @@ ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state)
   RETURN_IF_ERROR(TRITONSERVER_MessageDelete(config_message));
   RETURN_IF_ERROR(err);
 
+  triton::common::TritonJSON::Value config;
+  ModelConfig().find("parameters", &config);
+  tl_params = tl_params_from_config(config);
+
   const char* model_name;
   RETURN_IF_ERROR(TRITONBACKEND_ModelName(triton_model, &model_name));
 
@@ -144,11 +167,44 @@ ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state)
   return nullptr;  // success
 }
 
+TRITONSERVER_Error*
+ModelState::LoadModel(
+    std::string artifact_name,
+    const TRITONSERVER_InstanceGroupKind instance_group_kind,
+    const int32_t instance_group_device_id)
+{
+  if (artifact_name.empty()) {
+    artifact_name = "xgboost.model";
+  }
+  std::string model_path =
+      JoinPath({RepositoryPath(), std::to_string(Version()), artifact_name});
+  {
+    bool is_dir;
+    RETURN_IF_ERROR(IsDirectory(model_path, &is_dir));
+    if (is_dir) {
+      model_path = JoinPath({model_path, "xgboost.model"});
+    }
+  }
+
+  {
+    bool exists;
+    RETURN_IF_ERROR(FileExists(model_path, &exists));
+    RETURN_ERROR_IF_FALSE(
+        exists, TRITONSERVER_ERROR_UNAVAILABLE,
+        std::string("unable to find '") + model_path +
+            "' for model instance '" + Name() + "'");
+  }
+
+  TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle);
+  // TODO: Free treelite_handle
+  return nullptr;
+}
+
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version,
     common::TritonJson::Value&& model_config)
-    : triton_server_(triton_server), triton_model_(triton_model), name_(name),
+    : BackendModel(triton_model), triton_model_(triton_model), name_(name),
       version_(version), model_config_(std::move(model_config)),
       supports_batching_initialized_(false), supports_batching_(false)
 {
@@ -254,7 +310,7 @@ ModelState::ValidateModelConfig()
 // State associated with a model instance. An object of this class is
 // created and associated with each TRITONBACKEND_ModelInstance.
 //
-class ModelInstanceState {
+class ModelInstanceState : public BackendModelInstance {
  public:
   static TRITONSERVER_Error* Create(
       ModelState* model_state,
@@ -286,6 +342,7 @@ class ModelInstanceState {
   const std::string name_;
   const TRITONSERVER_InstanceGroupKind kind_;
   const int32_t device_id_;
+  ML::fil::forest_t fil_forest;
 };
 
 TRITONSERVER_Error*
@@ -315,9 +372,12 @@ ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
     const int32_t device_id)
-    : model_state_(model_state), triton_model_instance_(triton_model_instance),
+    : BackendModelInstance(model_state, triton_model_instance),
+      model_state_(model_state), triton_model_instance_(triton_model_instance),
       name_(name), kind_(kind), device_id_(device_id)
 {
+  THROW_IF_BACKEND_INSTANCE_ERROR(
+      model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId()));
 }
 
 /////////////
@@ -497,47 +557,8 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 {
-  const char* cname;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceName(instance, &cname));
-  std::string name(cname);
-
-  int32_t device_id;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceDeviceId(instance, &device_id));
-  TRITONSERVER_InstanceGroupKind kind;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceKind(instance, &kind));
-
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
-       TRITONSERVER_InstanceGroupKindString(kind) + " device " +
-       std::to_string(device_id) + ")")
-          .c_str());
-
-  // The instance can access the corresponding model as well... here
-  // we get the model and from that get the model's state.
-  TRITONBACKEND_Model* model;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceModel(instance, &model));
-
-  void* vmodelstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vmodelstate));
-  ModelState* model_state = reinterpret_cast<ModelState*>(vmodelstate);
-
-  // With each instance we create a ModelInstanceState object and
-  // associate it with the TRITONBACKEND_ModelInstance.
-  ModelInstanceState* instance_state;
-  RETURN_IF_ERROR(
-      ModelInstanceState::Create(model_state, instance, &instance_state));
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
-      instance, reinterpret_cast<void*>(instance_state)));
-
-  // Because this backend just copies IN -> OUT and requires that
-  // input and output be in CPU memory, we fail if a GPU instances is
-  // requested.
-  RETURN_ERROR_IF_FALSE(
-      instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
-      TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("'identity' backend only supports CPU instances"));
-
+  ML::fil::from_treelite(
+      model_state_->treelite_handle, &fil_forest, &(model_state_->tl_params));
   return nullptr;  // success
 }
 
@@ -937,4 +958,4 @@ TRITONBACKEND_ModelInstanceExecute(
 
 }  // extern "C"
 
-}}}  // namespace triton::backend::identity
+}}}  // namespace triton::backend::fil
