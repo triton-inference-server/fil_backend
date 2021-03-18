@@ -1,10 +1,12 @@
-FROM nvcr.io/nvidia/tritonserver:21.02-py3
+FROM nvcr.io/nvidia/tritonserver:21.02-py3 as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 ARG PATH="/root/miniconda3/bin:${PATH}"
 
+# TODO: REMOVE GDB
 RUN apt-get update \
     && apt-get install --no-install-recommends -y wget \
+    gdb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,4 +32,28 @@ COPY ./ /triton_fil_backend
 
 WORKDIR /triton_fil_backend
 
+FROM base as dev-stage
+
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_dev", "/bin/bash"]
+
+FROM base as build-stage
+
+
+RUN conda run --no-capture-output -n triton_dev \
+  /bin/bash /triton_fil_backend/ops/build.sh \
+  && cp -r /triton_fil_backend/build/install/backends/fil \
+    /opt/tritonserver/backends/fil
+
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/root/miniconda3/envs/triton_dev/lib"
+
+WORKDIR /opt/tritonserver
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_dev", "/opt/tritonserver/nvidia_entrypoint.sh"]
+
+# FROM nvcr.io/nvidia/tritonserver:21.02-py3
+# 
+# COPY --from=build-stage \
+#   /triton_fil_backend/build/install/backends/fil \
+#   /opt/tritonserver/backends/fil
+# 
+# COPY --from=build-stage /root/miniconda3/envs/triton_dev/lib/libtreelite.so /lib

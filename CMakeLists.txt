@@ -67,6 +67,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 
+find_path(RAFT_DIR "raft"
+    HINTS
+    "$ENV{RAFT_PATH}/cpp/include"
+    "$ENV{CONDA_PREFIX}/include/cuml"
+    "$ENV{CONDA_PREFIX}/include")
+
+message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
+
 find_package(Treelite 1.0.0 REQUIRED)
 
 #
@@ -76,7 +84,7 @@ configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 
 add_library(
   triton-fil-backend SHARED
-  src/fil.cc
+  src/fil.cu
 )
 
 add_library(
@@ -87,21 +95,56 @@ target_include_directories(
   triton-fil-backend
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${RAFT_DIR}
 )
 
-target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
+target_compile_features(triton-fil-backend PRIVATE cxx_std_14)
+
+string(CONCAT CPU_OPTS "$<"
+  "$<AND:"
+    "$<OR:"
+      "$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>"
+    ">,"
+    "$<OR:"
+      "$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>"
+    ">"
+  ">:"
+  "-Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror"
+">")
+string(CONCAT GPU_OPTS "$<"
+  "$<AND:"
+    "$<OR:"
+      "$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>"
+    ">,"
+    "$<COMPILE_LANGUAGE:CUDA>"
+  ">:"
+  "-Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror"
+">")
+
 target_compile_options(
   triton-fil-backend PRIVATE
-  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
+  ${CPU_OPTS}
 )
+
+find_library(CUML_LIBRARY
+  NAMES cuml++
+  HINTS "$ENV{CONDA_PREFIX}/lib"
+)
+
+# target_link_directories(
+#   triton-fil-backend
+#   PUBLIC
+#     "/root/miniconda3/envs/triton_dev/lib"
+# )
 
 target_link_libraries(
   triton-fil-backend
+  PUBLIC
+    treelite::treelite
+    ${CUML_LIBRARY}
   PRIVATE
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
-    treelite::treelite
 )
 
 set_target_properties(
