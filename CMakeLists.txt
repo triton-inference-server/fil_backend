@@ -84,7 +84,11 @@ configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 
 add_library(
   triton-fil-backend SHARED
+  src/c_wrappers.cpp
   src/fil.cu
+  src/config.cpp
+  src/enum_conversions.cpp
+  src/model_state.cpp
 )
 
 add_library(
@@ -94,36 +98,15 @@ add_library(
 target_include_directories(
   triton-fil-backend
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${RAFT_DIR}
 )
 
 target_compile_features(triton-fil-backend PRIVATE cxx_std_14)
 
-string(CONCAT CPU_OPTS "$<"
-  "$<AND:"
-    "$<OR:"
-      "$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>"
-    ">,"
-    "$<OR:"
-      "$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>"
-    ">"
-  ">:"
-  "-Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror"
-">")
-string(CONCAT GPU_OPTS "$<"
-  "$<AND:"
-    "$<OR:"
-      "$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>"
-    ">,"
-    "$<COMPILE_LANGUAGE:CUDA>"
-  ">:"
-  "-Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror"
-">")
-
 target_compile_options(
   triton-fil-backend PRIVATE
-  ${CPU_OPTS}
+  -Wall -Wextra -Wno-unused-parameter -Wno-type-limits
 )
 
 find_library(CUML_LIBRARY

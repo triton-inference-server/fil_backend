@@ -13,8 +13,6 @@ docker run \
   --gpus "device=${VISIBLE_DEVICES}" \
   --name triton_dev \
   -it \
-  -p 8000:8000 \
-  -p 8001:8001 \
   -v "${REPO_ROOT}:/triton_fil_backend" \
   -v triton-ccache:/root/.ccache \
   -v triton-build:/triton_fil_backend/build \
