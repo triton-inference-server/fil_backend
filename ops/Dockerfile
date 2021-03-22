@@ -7,6 +7,7 @@ ARG PATH="/root/miniconda3/bin:${PATH}"
 RUN apt-get update \
     && apt-get install --no-install-recommends -y wget \
     gdb \
+    valgrind \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

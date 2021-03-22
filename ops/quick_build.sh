@@ -13,9 +13,12 @@ docker run \
   --gpus "device=${VISIBLE_DEVICES}" \
   --name triton_dev \
   -it \
+  -p 8000:8000 \
+  -p 8001:8001 \
   -v "${REPO_ROOT}:/triton_fil_backend" \
   -v triton-ccache:/root/.ccache \
   -v triton-build:/triton_fil_backend/build \
+  -v /home/whicks/proj_cuml_triton/server/docs/examples/model_repository:/models \
   triton_dev
 
 popd > /dev/null 2>&1

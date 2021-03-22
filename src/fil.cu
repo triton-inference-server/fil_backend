@@ -168,11 +168,6 @@ class ModelState : public BackendModel {
   const std::string& Name() const { return name_; }
   uint64_t Version() const { return version_; }
 
-  // Does this model support batching in the first dimension. This
-  // function should not be called until after the model is completely
-  // loaded.
-  TRITONSERVER_Error* SupportsFirstDimBatching(bool* supports);
-
   // Validate that model configuration is supported by this backend.
   TRITONSERVER_Error* ValidateModelConfig();
 
@@ -320,16 +315,20 @@ ModelState::LoadModel(
             "' for model instance '" + Name() + "'");
   }
 
-  TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle);
+  if (TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle) != 0) {
+      return TRITONSERVER_ErrorNew(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+        "Treelite model could not be loaded"
+      );
+  }
   return nullptr;
 }
 
 TRITONSERVER_Error*
 ModelState::UnloadModel() {
-  // TODO
-  /* if (treelite_handle != nullptr) {
+  if (treelite_handle != nullptr) {
     TreeliteFreeModel(treelite_handle);
-  } */
+  }
   return nullptr;
 }
 
@@ -347,24 +346,6 @@ ModelState::ModelState(
       supports_batching_initialized_(false), supports_batching_(false),
       treelite_handle(nullptr)
 {
-}
-
-TRITONSERVER_Error*
-ModelState::SupportsFirstDimBatching(bool* supports)
-{
-  // We can't determine this during model initialization because
-  // TRITONSERVER_ServerModelBatchProperties can't be called until the
-  // model is loaded. So we just cache it here.
-  if (!supports_batching_initialized_) {
-    uint32_t flags = 0;
-    RETURN_IF_ERROR(TRITONSERVER_ServerModelBatchProperties(
-        triton_server_, name_.c_str(), version_, &flags, nullptr /* voidp */));
-    supports_batching_ = ((flags & TRITONSERVER_BATCH_FIRST_DIM) != 0);
-    supports_batching_initialized_ = true;
-  }
-
-  *supports = supports_batching_;
-  return nullptr;  // success
 }
 
 TRITONSERVER_Error*
@@ -400,18 +381,27 @@ class ModelInstanceState : public BackendModelInstance {
 
   // Get the state of the model that corresponds to this instance.
   ModelState* StateForModel() const { return model_state_; }
+  void UnloadFILModel();
   TRITONSERVER_Error * predict(
       const float* data,
       float* preds,
       size_t num_rows,
       bool predict_proba = false);
+  TRITONSERVER_Error * to_device(
+      float* & buffer_d,
+      const float* buffer_h,
+      size_t size);
+  TRITONSERVER_Error * to_host(
+      float* & buffer_h,
+      const float* buffer_d,
+      size_t size);
 
- private:
   ModelInstanceState(
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance, const char* name,
       const TRITONSERVER_InstanceGroupKind kind, const int32_t device_id);
 
+ private:
   ModelState* model_state_;
   TRITONBACKEND_ModelInstance* triton_model_instance_;
   const std::string name_;
@@ -427,9 +417,6 @@ ModelInstanceState::Create(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     ModelInstanceState** state)
 {
-  (*state)->handle = std::make_unique<raft::handle_t>();
-  (*state)->handle->set_stream((*state)->stream_);
-
   const char* instance_name;
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelInstanceName(triton_model_instance, &instance_name));
@@ -457,13 +444,33 @@ TRITONSERVER_Error * ModelInstanceState::predict(
   return nullptr;
 }
 
+TRITONSERVER_Error * ModelInstanceState::to_device(
+    float* & buffer_d,
+    const float* buffer_h,
+    size_t size) {
+
+  raft::allocate(buffer_d, size * sizeof(float));
+  raft::copy(buffer_d, buffer_h, size, handle->get_stream());
+  return nullptr;
+}
+
+TRITONSERVER_Error * ModelInstanceState::to_host(
+    float* & buffer_h,
+    const float* buffer_d,
+    size_t size) {
+
+  raft::copy(buffer_h, buffer_d, size, handle->get_stream());
+  return nullptr;
+}
+
 ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
     const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state), triton_model_instance_(triton_model_instance),
-      name_(name), kind_(kind), device_id_(device_id)
+      name_(name), kind_(kind), device_id_(device_id),
+      handle(std::make_unique<raft::handle_t>())
 {
   THROW_IF_BACKEND_INSTANCE_ERROR(
       model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId()));
@@ -472,6 +479,10 @@ ModelInstanceState::ModelInstanceState(
       &fil_forest,
       model_state_->treelite_handle,
       &(model_state_->tl_params));
+}
+
+void ModelInstanceState::UnloadFILModel() {
+  ML::fil::free(*handle, fil_forest);
 }
 
 extern "C" TRITONSERVER_Error* fil_predict(
@@ -486,6 +497,44 @@ extern "C" TRITONSERVER_Error* fil_predict(
       reinterpret_cast<ModelInstanceState*>(vstate);
 
   instance_state->predict(input_buffer, output_buffer, rows);
+
+  return nullptr;
+}
+
+extern "C" TRITONSERVER_Error* unload_fil_model(
+    ModelInstanceState * instance) {
+  instance->UnloadFILModel();
+  return nullptr;
+}
+
+extern "C" TRITONSERVER_Error* fil_to_device(
+    TRITONBACKEND_ModelInstance * instance,
+    float* & buffer_d,
+    const float* buffer_h,
+    size_t size) {
+
+  void* vstate;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
+  ModelInstanceState* instance_state =
+      reinterpret_cast<ModelInstanceState*>(vstate);
+
+  instance_state->to_device(buffer_d, buffer_h, size);
+
+  return nullptr;
+}
+
+extern "C" TRITONSERVER_Error* fil_to_host(
+    TRITONBACKEND_ModelInstance * instance,
+    float* & buffer_h,
+    const float* buffer_d,
+    size_t size) {
+
+  void* vstate;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
+  ModelInstanceState* instance_state =
+      reinterpret_cast<ModelInstanceState*>(vstate);
+
+  instance_state->to_host(buffer_h, buffer_d, size);
 
   return nullptr;
 }
@@ -665,6 +714,46 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 {
+  const char* cname;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceName(instance, &cname));
+  std::string name(cname);
+
+  int32_t device_id;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceDeviceId(instance, &device_id));
+  TRITONSERVER_InstanceGroupKind kind;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceKind(instance, &kind));
+
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
+       TRITONSERVER_InstanceGroupKindString(kind) + " device " +
+       std::to_string(device_id) + ")")
+          .c_str());
+
+  // The instance can access the corresponding model as well... here
+  // we get the model and from that get the model's state.
+  TRITONBACKEND_Model* model;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceModel(instance, &model));
+
+  void* vmodelstate;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vmodelstate));
+  ModelState* model_state = reinterpret_cast<ModelState*>(vmodelstate);
+
+  // With each instance we create a ModelInstanceState object and
+  // associate it with the TRITONBACKEND_ModelInstance.
+  ModelInstanceState* instance_state;
+  RETURN_IF_ERROR(
+      ModelInstanceState::Create(model_state, instance, &instance_state));
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
+      instance, reinterpret_cast<void*>(instance_state)));
+
+  // Because this backend just copies IN -> OUT and requires that
+  // input and output be in CPU memory, we fail if a GPU instances is
+  // requested.
+  /* RETURN_ERROR_IF_FALSE(
+      instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
+      TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("'identity' backend only supports CPU instances")); */
   return nullptr;  // success
 }
 
@@ -678,6 +767,8 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
   ModelInstanceState* instance_state =
       reinterpret_cast<ModelInstanceState*>(vstate);
+
+  unload_fil_model(instance_state);
 
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
@@ -707,7 +798,6 @@ TRITONBACKEND_ModelInstanceExecute(
           .c_str());
 
   bool supports_batching = false;
-  RETURN_IF_ERROR(model_state->SupportsFirstDimBatching(&supports_batching));
 
   std::vector<TRITONBACKEND_Response*> responses;
   responses.reserve(request_count);
@@ -869,6 +959,13 @@ TRITONBACKEND_ModelInstanceExecute(
               .c_str());
       continue;
     }
+    float* output_buffer_device = nullptr;
+    fil_to_device(
+      instance,
+      output_buffer_device,
+      reinterpret_cast<const float*>(output_buffer),
+      input_byte_size / input_shape[input_dims_count - 1] / sizeof(float)
+    );
 
     // Step 3. Copy input -> output. We can only handle if the input
     // buffers are on CPU so fail otherwise.
@@ -883,6 +980,7 @@ TRITONBACKEND_ModelInstanceExecute(
           TRITONBACKEND_InputBuffer(
               input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
               &input_memory_type_id));
+
       if ((responses[r] == nullptr) ||
           (input_memory_type == TRITONSERVER_MEMORY_GPU)) {
         GUARDED_RESPOND_IF_ERROR(
@@ -892,14 +990,32 @@ TRITONBACKEND_ModelInstanceExecute(
                 "failed to get input buffer in CPU memory"));
       }
 
+      float* input_buffer_device = nullptr;
+      fil_to_device(
+        instance,
+        input_buffer_device,
+        reinterpret_cast<const float*>(input_buffer),
+        buffer_byte_size / sizeof(float)
+      );
+
       fil_predict(
         instance,
-        reinterpret_cast<const float*>(input_buffer),
-        reinterpret_cast<float*>(output_buffer) + output_buffer_offset,
+        input_buffer_device,
+        output_buffer_device + output_buffer_offset,
         static_cast<size_t>(input_shape[0])
       );
       output_buffer_offset += buffer_byte_size;
+      CUDA_CHECK(cudaFree(input_buffer_device));
     }
+
+    float * output_buffer_float = reinterpret_cast<float*>(output_buffer);
+
+    fil_to_host(
+      instance,
+      output_buffer_float,
+      output_buffer_device,
+      input_byte_size / input_shape[input_dims_count - 1] / sizeof(float)
+    );
 
     if (responses[r] == nullptr) {
       LOG_MESSAGE(
@@ -921,13 +1037,12 @@ TRITONBACKEND_ModelInstanceExecute(
             responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
             nullptr /* success */),
         "failed sending response");
-  }
 
-  // Done with requests...
-  // TODO: Release each request as follows
-    /* LOG_IF_ERROR(
+    LOG_IF_ERROR(
         TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
-        "failed releasing request"); */
+        "failed releasing request");
+    CUDA_CHECK(cudaFree(output_buffer_device));
+  }
 
   return nullptr;  // success
 }
