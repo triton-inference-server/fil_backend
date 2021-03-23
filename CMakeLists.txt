@@ -91,7 +91,6 @@ add_library(
   src/fil.cu
   src/config.cpp
   src/enum_conversions.cpp
-  src/model_instance_state.cpp
   src/model_state.cpp
 )
 

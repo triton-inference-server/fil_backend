@@ -44,13 +44,6 @@
 
 namespace triton { namespace backend { namespace fil {
 
-TRITONSERVER_Error*
-ModelState::ValidateModelConfig()
-{
-  // TODO
-  return nullptr;  // success
-}
-
 //
 // ModelInstanceState
 //

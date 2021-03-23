@@ -107,4 +107,11 @@ ModelState::UnloadModel()
   return nullptr;
 }
 
+TRITONSERVER_Error*
+ModelState::ValidateModelConfig()
+{
+  // TODO
+  return nullptr;  // success
+}
+
 }}}  // namespace triton::backend::fil
