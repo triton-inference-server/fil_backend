@@ -27,6 +27,7 @@ class ModelState : public BackendModel {
   TRITONSERVER_Error* UnloadModel();
 
   // Get the handle to the TRITONBACKEND model.
+  // TODO: Move to src
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
 
   // Get the name and version of the model.

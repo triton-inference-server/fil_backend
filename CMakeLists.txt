@@ -87,10 +87,11 @@ configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 
 add_library(
   triton-fil-backend SHARED
+  src/api.cu
   src/c_wrappers.cpp
-  src/fil.cu
   src/config.cpp
   src/enum_conversions.cpp
+  src/model_instance_state.cpp
   src/model_state.cpp
 )
 
