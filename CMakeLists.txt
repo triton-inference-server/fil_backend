@@ -38,6 +38,8 @@ set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -76,6 +78,7 @@ find_path(RAFT_DIR "raft"
 message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
 
 find_package(Treelite 1.0.0 REQUIRED)
+find_package(RMM REQUIRED MODULE)
 
 #
 # Shared library implementing the Triton Backend API
@@ -88,6 +91,7 @@ add_library(
   src/fil.cu
   src/config.cpp
   src/enum_conversions.cpp
+  src/model_instance_state.cpp
   src/model_state.cpp
 )
 
@@ -100,6 +104,7 @@ target_include_directories(
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${RAFT_DIR}
+    ${RMM_INCLUDE_DIRS}
 )
 
 target_compile_features(triton-fil-backend PRIVATE cxx_std_14)
