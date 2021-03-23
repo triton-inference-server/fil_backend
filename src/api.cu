@@ -39,9 +39,11 @@
 #include <triton_fil/c_wrappers.hpp>
 #include <triton_fil/enum_conversions.hpp>
 #include <triton_fil/config.hpp>
+#include <triton_fil/exceptions.hpp>
 #include <triton_fil/macros.h>
 #include <triton_fil/model_state.hpp>
 #include <triton_fil/model_instance_state.hpp>
+#include <triton_fil/triton_utils.hpp>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -53,45 +55,21 @@ extern "C" {
 TRITONSERVER_Error*
 TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
 {
-  const char* cname;
-  RETURN_IF_ERROR(TRITONBACKEND_BackendName(backend, &cname));
-  std::string name(cname);
+  try {
+    std::string name = get_backend_name(*backend);
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
 
-  // We should check the backend API version that Triton supports
-  // vs. what this backend was compiled against.
-  uint32_t api_version_major, api_version_minor;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ApiVersion(&api_version_major, &api_version_minor));
-
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("Triton TRITONBACKEND API version: ") +
-       std::to_string(api_version_major) + "." +
-       std::to_string(api_version_minor))
-          .c_str());
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("'") + name + "' TRITONBACKEND API version: " +
-       std::to_string(TRITONBACKEND_API_VERSION_MAJOR) + "." +
-       std::to_string(TRITONBACKEND_API_VERSION_MINOR))
-          .c_str());
-
-  if ((api_version_major != TRITONBACKEND_API_VERSION_MAJOR) ||
-      (api_version_minor < TRITONBACKEND_API_VERSION_MINOR)) {
-    return TRITONSERVER_ErrorNew(
-        TRITONSERVER_ERROR_UNSUPPORTED,
-        "triton backend API version does not support this backend");
+    if (!check_backend_version(*backend)) {
+      return TRITONSERVER_ErrorNew(
+          TRITONSERVER_ERROR_UNSUPPORTED,
+          "triton backend API version does not support this backend");
+    }
+  } catch(TritonException& err) {
+    return err.error();
   }
-  return nullptr;  // success
-}
-
-TRITONSERVER_Error*
-TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
-{
   return nullptr;  // success
 }
 
@@ -131,14 +109,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // the backend global state.
   TRITONBACKEND_Backend* backend;
   RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
-
-  void* vbackendstate;
-  RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
-  std::string* backend_state = reinterpret_cast<std::string*>(vbackendstate);
-
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("backend state is '") + *backend_state + "'").c_str());
 
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.

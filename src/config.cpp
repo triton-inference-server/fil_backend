@@ -14,8 +14,6 @@ tl_params_from_config(
     triton::common::TritonJson::Value& config,
     ML::fil::treelite_params_t& out_params)
 {
-  common::TritonJson::Value value;
-
   std::string algo_name;
   RETURN_IF_ERROR(retrieve_param(config, "algo", algo_name));
 

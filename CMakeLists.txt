@@ -93,6 +93,7 @@ add_library(
   src/enum_conversions.cpp
   src/model_instance_state.cpp
   src/model_state.cpp
+  src/triton_utils.cpp
 )
 
 add_library(
