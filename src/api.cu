@@ -86,49 +86,12 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
         TRITONSERVER_ERROR_UNSUPPORTED,
         "triton backend API version does not support this backend");
   }
-
-  // The backend configuration may contain information needed by the
-  // backend, such a command-line arguments. This backend doesn't use
-  // any such configuration but we print whatever is available.
-  TRITONSERVER_Message* backend_config_message;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_BackendConfig(backend, &backend_config_message));
-
-  const char* buffer;
-  size_t byte_size;
-  RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
-      backend_config_message, &buffer, &byte_size));
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("backend configuration:\n") + buffer).c_str());
-
-  // If we have any global backend state we create and set it here. We
-  // don't need anything for this backend but for demonstration
-  // purposes we just create something...
-  std::string* state = new std::string("backend state");
-  RETURN_IF_ERROR(
-      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(state)));
-
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_Finalize is optional unless state is set
-// using TRITONBACKEND_BackendSetState. The backend must free this
-// state and perform any other global cleanup.
 TRITONSERVER_Error*
 TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
 {
-  void* vstate;
-  RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vstate));
-  std::string* state = reinterpret_cast<std::string*>(vstate);
-
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_Finalize: state is '") + *state + "'")
-          .c_str());
-
-  delete state;
-
   return nullptr;  // success
 }
 
