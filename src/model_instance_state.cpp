@@ -2,33 +2,25 @@
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
 
+#include <memory>
 #include <triton_fil/c_wrappers.hpp>
 #include <triton_fil/model_instance_state.hpp>
 #include <triton_fil/model_state.hpp>
 
 namespace triton { namespace backend { namespace fil {
 
-TRITONSERVER_Error*
+std::unique_ptr<ModelInstanceState>
 ModelInstanceState::Create(
-    ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
-    ModelInstanceState** state)
+    ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance)
 {
-  const char* instance_name;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ModelInstanceName(triton_model_instance, &instance_name));
+  std::string instance_name = get_model_instance_name(*triton_model_instance);
+  TRITONSERVER_InstanceGroupKind instance_kind =
+      get_instance_kind(*triton_model_instance);
+  int32_t instance_id = get_device_id(*triton_model_instance);
 
-  TRITONSERVER_InstanceGroupKind instance_kind;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ModelInstanceKind(triton_model_instance, &instance_kind));
-
-  int32_t instance_id;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ModelInstanceDeviceId(triton_model_instance, &instance_id));
-
-  *state = new ModelInstanceState(
-      model_state, triton_model_instance, instance_name, instance_kind,
+  return std::make_unique<ModelInstanceState>(
+      model_state, triton_model_instance, instance_name.c_str(), instance_kind,
       instance_id);
-  return nullptr;  // success
 }
 
 TRITONSERVER_Error*

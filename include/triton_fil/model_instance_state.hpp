@@ -18,10 +18,9 @@ namespace triton { namespace backend { namespace fil {
 //
 class ModelInstanceState : public BackendModelInstance {
  public:
-  static TRITONSERVER_Error* Create(
+  static std::unique_ptr<ModelInstanceState> Create(
       ModelState* model_state,
-      TRITONBACKEND_ModelInstance* triton_model_instance,
-      ModelInstanceState** state);
+      TRITONBACKEND_ModelInstance* triton_model_instance);
 
   // Get the handle to the TRITONBACKEND model instance.
   TRITONBACKEND_ModelInstance* TritonModelInstance()

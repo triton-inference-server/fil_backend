@@ -136,13 +136,9 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 
     ModelState* model_state = get_model_state<ModelState>(*instance);
 
-    // With each instance we create a ModelInstanceState object and
-    // associate it with the TRITONBACKEND_ModelInstance.
-    ModelInstanceState* instance_state;
-    RETURN_IF_ERROR(
-        ModelInstanceState::Create(model_state, instance, &instance_state));
-    RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
-        instance, reinterpret_cast<void*>(instance_state)));
+    set_instance_state<ModelInstanceState>(*instance,
+                                           ModelInstanceState::Create(model_state,
+                                                                      instance));
 
   } catch (TritonException& err) {
     return err.error();
