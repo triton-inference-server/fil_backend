@@ -42,19 +42,13 @@ class ModelState : public BackendModel {
   void* treelite_handle;
 
   ModelState(
-      TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
-      const char* name, const uint64_t version,
-      common::TritonJson::Value* model_config);
+      TRITONBACKEND_Model* triton_model,
+      const char* name, const uint64_t version);
 
  private:
-  TRITONSERVER_Server* triton_server_;
-  TRITONBACKEND_Model* triton_model_;
+  TRITONBACKEND_Model * triton_model_;
   const std::string name_;
   const uint64_t version_;
-  common::TritonJson::Value * model_config_;
-
-  bool supports_batching_initialized_;
-  bool supports_batching_;
 };
 
 }}}

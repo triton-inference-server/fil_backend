@@ -1,6 +1,9 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <triton/backend/backend_common.h>
+#include <triton/core/tritonserver.h>
+#include <triton_fil/exceptions.hpp>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -24,5 +27,17 @@ std::unique_ptr<common::TritonJson::Value> get_model_config(TRITONBACKEND_Model&
 /** Get Triton server object for given model */
 TRITONSERVER_Server* get_server(TRITONBACKEND_Model& model);
 
+template <typename ModelStateType>
+void set_model_state(TRITONBACKEND_Model& model,
+                     std::unique_ptr<ModelStateType> model_state) {
+  TRITONSERVER_Error * err = TRITONBACKEND_ModelSetState(
+    &model,
+    reinterpret_cast<void*>(model_state.release())
+  );
+  if (err != nullptr) {
+    throw(TritonException(err));
+  }
+  return model;
+}
 
 }}}

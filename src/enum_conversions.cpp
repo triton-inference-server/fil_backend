@@ -1,13 +1,14 @@
 #include <cuml/fil/fil.h>
+#include <triton/core/tritonserver.h>
 
-#include <exception>
 #include <string>
+#include <triton_fil/exceptions.hpp>
 
 namespace triton { namespace backend { namespace fil {
 
-class BadEnumName : public std::exception {
-  virtual const char* what() const throw() { return "Unknown enum name"; }
-} bad_enum_exception;
+TritonException bad_enum_exception(
+    TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+    "Unknown enum name");
 
 ML::fil::algo_t
 name_to_tl_algo(std::string name)

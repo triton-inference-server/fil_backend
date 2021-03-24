@@ -89,16 +89,13 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
         (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
          std::to_string(version) + ")")
             .c_str());
+
+    auto model_state = ModelState::Create(*model);
+    set_model_state(model, model_state);
+
   } catch (TritonException& err) {
     return err.error();
   }
-
-  // With each model we create a ModelState object and associate it
-  // with the TRITONBACKEND_Model.
-  auto model_state = ModelState::Create(*model);
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ModelSetState(model,
-        reinterpret_cast<void*>(model_state.release())));
 
   return nullptr;  // success
 }

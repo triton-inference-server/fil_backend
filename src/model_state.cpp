@@ -9,13 +9,9 @@
 namespace triton { namespace backend { namespace fil {
 
 ModelState::ModelState(
-    TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
-    const char* name, const uint64_t version,
-    common::TritonJson::Value* model_config)
+    TRITONBACKEND_Model* triton_model, const char* name, const uint64_t version)
     : BackendModel(triton_model), treelite_handle(nullptr),
-      triton_model_(triton_model), name_(name), version_(version),
-      model_config_(model_config), supports_batching_initialized_(false),
-      supports_batching_(false)
+      triton_model_(triton_model), name_(name), version_(version)
 {
 }
 
@@ -25,15 +21,12 @@ ModelState::Create(TRITONBACKEND_Model& triton_model)
   auto config = get_model_config(triton_model);
   std::string model_name = get_model_name(triton_model);
   uint64_t model_version = get_model_version(triton_model);
-
-  TRITONSERVER_Server* triton_server(get_server(triton_model));
-
   auto state = std::make_unique<ModelState>(
-      triton_server, &triton_model, model_name.c_str(), model_version,
-      get_model_config(triton_model).release());
+      &triton_model, model_name.c_str(), model_version);
 
   state->ModelConfig().Find("parameters", config.get());
-  tl_params_from_config(*config, state->tl_params);
+  // TODO: Properly handle tl_params in constructor
+  state->tl_params = tl_params_from_config(*config);
   return state;
 }
 
