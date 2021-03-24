@@ -29,7 +29,7 @@ TRITONSERVER_Server* get_server(TRITONBACKEND_Model& model);
 
 template <typename ModelStateType>
 void set_model_state(TRITONBACKEND_Model& model,
-                     std::unique_ptr<ModelStateType> model_state) {
+                     std::unique_ptr<ModelStateType>&& model_state) {
   TRITONSERVER_Error * err = TRITONBACKEND_ModelSetState(
     &model,
     reinterpret_cast<void*>(model_state.release())
@@ -37,7 +37,19 @@ void set_model_state(TRITONBACKEND_Model& model,
   if (err != nullptr) {
     throw(TritonException(err));
   }
-  return model;
+}
+
+template <typename ModelStateType>
+ModelStateType* get_model_state(TRITONBACKEND_Model& model) {
+  void* vstate;
+  TRITONSERVER_Error * err = TRITONBACKEND_ModelState(&model, &vstate);
+  if (err != nullptr) {
+    throw(TritonException(err));
+  }
+
+  ModelStateType* model_state = reinterpret_cast<ModelStateType*>(vstate);
+
+  return model_state;
 }
 
 }}}

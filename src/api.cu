@@ -90,8 +90,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
          std::to_string(version) + ")")
             .c_str());
 
-    auto model_state = ModelState::Create(*model);
-    set_model_state(model, model_state);
+    set_model_state(*model, ModelState::Create(*model));
 
   } catch (TritonException& err) {
     return err.error();
@@ -106,9 +105,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
-  void* vstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vstate));
-  ModelState* model_state = reinterpret_cast<ModelState*>(vstate);
+  auto model_state = get_model_state<ModelState>(*model);
   RETURN_IF_ERROR(unload_treelite_model(model_state));
 
   LOG_MESSAGE(
