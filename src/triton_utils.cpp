@@ -117,4 +117,52 @@ get_server(TRITONBACKEND_Model& model)
   return server;
 }
 
+std::string
+get_model_instance_name(TRITONBACKEND_ModelInstance& instance)
+{
+  const char* cname;
+  TRITONSERVER_Error* result =
+      TRITONBACKEND_ModelInstanceName(&instance, &cname);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return std::string(cname);
+}
+
+int32_t
+get_device_id(TRITONBACKEND_ModelInstance& instance)
+{
+  int32_t device_id;
+  TRITONSERVER_Error* result =
+      TRITONBACKEND_ModelInstanceDeviceId(&instance, &device_id);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return device_id;
+}
+
+TRITONSERVER_InstanceGroupKind
+get_instance_kind(TRITONBACKEND_ModelInstance& instance)
+{
+  TRITONSERVER_InstanceGroupKind kind;
+  TRITONSERVER_Error* result =
+      TRITONBACKEND_ModelInstanceKind(&instance, &kind);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return kind;
+}
+
+TRITONBACKEND_Model*
+get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
+{
+  TRITONBACKEND_Model* model;
+  TRITONSERVER_Error* result =
+      TRITONBACKEND_ModelInstanceModel(&instance, &model);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return model;
+}
+
 }}}  // namespace triton::backend::fil

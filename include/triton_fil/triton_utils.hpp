@@ -27,6 +27,7 @@ std::unique_ptr<common::TritonJson::Value> get_model_config(TRITONBACKEND_Model&
 /** Get Triton server object for given model */
 TRITONSERVER_Server* get_server(TRITONBACKEND_Model& model);
 
+/** Set model's state to given object */
 template <typename ModelStateType>
 void set_model_state(TRITONBACKEND_Model& model,
                      std::unique_ptr<ModelStateType>&& model_state) {
@@ -39,6 +40,7 @@ void set_model_state(TRITONBACKEND_Model& model,
   }
 }
 
+/** Get state of given model */
 template <typename ModelStateType>
 ModelStateType* get_model_state(TRITONBACKEND_Model& model) {
   void* vstate;
@@ -50,6 +52,39 @@ ModelStateType* get_model_state(TRITONBACKEND_Model& model) {
   ModelStateType* model_state = reinterpret_cast<ModelStateType*>(vstate);
 
   return model_state;
+}
+
+/** Get the name of the given model instance */
+std::string get_model_instance_name(TRITONBACKEND_ModelInstance& instance);
+
+/** Get the device_id for the given model instance */
+int32_t get_device_id(TRITONBACKEND_ModelInstance& instance);
+
+/** Get the group kind for the given model instance */
+TRITONSERVER_InstanceGroupKind get_instance_kind(
+  TRITONBACKEND_ModelInstance& instance);
+
+/** Get the model associated with an instance */
+TRITONBACKEND_Model* get_model_from_instance(
+  TRITONBACKEND_ModelInstance& instance);
+
+/** Get model state from instance */
+template <typename ModelStateType>
+ModelStateType* get_model_state(TRITONBACKEND_ModelInstance& instance) {
+  return get_model_state<ModelStateType>(*get_model_from_instance(instance));
+}
+
+/** Set model instance state to given object */
+template <typename ModelInstanceStateType>
+void set_instance_state(TRITONBACKEND_ModelInstance& instance,
+                        std::unique_ptr<ModelInstanceStateType>&& model_instance_state) {
+  TRITONSERVER_Error * err = TRITONBACKEND_ModelInstanceSetState(
+    &instance,
+    reinterpret_cast<void*>(model_instance_state.release())
+  );
+  if (err != nullptr) {
+    throw(TritonException(err));
+  }
 }
 
 }}}

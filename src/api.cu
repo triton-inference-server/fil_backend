@@ -122,46 +122,31 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 {
-  const char* cname;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceName(instance, &cname));
-  std::string name(cname);
+  try {
+    std::string name = get_model_instance_name(*instance);
+    int32_t device_id = get_device_id(*instance);
+    TRITONSERVER_InstanceGroupKind kind = get_instance_kind(*instance);
 
-  int32_t device_id;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceDeviceId(instance, &device_id));
-  TRITONSERVER_InstanceGroupKind kind;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceKind(instance, &kind));
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
+         TRITONSERVER_InstanceGroupKindString(kind) + " device " +
+         std::to_string(device_id) + ")")
+            .c_str());
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
-       TRITONSERVER_InstanceGroupKindString(kind) + " device " +
-       std::to_string(device_id) + ")")
-          .c_str());
+    ModelState* model_state = get_model_state<ModelState>(*instance);
 
-  // The instance can access the corresponding model as well... here
-  // we get the model and from that get the model's state.
-  TRITONBACKEND_Model* model;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceModel(instance, &model));
+    // With each instance we create a ModelInstanceState object and
+    // associate it with the TRITONBACKEND_ModelInstance.
+    ModelInstanceState* instance_state;
+    RETURN_IF_ERROR(
+        ModelInstanceState::Create(model_state, instance, &instance_state));
+    RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
+        instance, reinterpret_cast<void*>(instance_state)));
 
-  void* vmodelstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vmodelstate));
-  ModelState* model_state = reinterpret_cast<ModelState*>(vmodelstate);
-
-  // With each instance we create a ModelInstanceState object and
-  // associate it with the TRITONBACKEND_ModelInstance.
-  ModelInstanceState* instance_state;
-  RETURN_IF_ERROR(
-      ModelInstanceState::Create(model_state, instance, &instance_state));
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
-      instance, reinterpret_cast<void*>(instance_state)));
-
-  // Because this backend just copies IN -> OUT and requires that
-  // input and output be in CPU memory, we fail if a GPU instances is
-  // requested.
-  /* RETURN_ERROR_IF_FALSE(
-      instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
-      TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("'identity' backend only supports CPU instances")); */
+  } catch (TritonException& err) {
+    return err.error();
+  }
   return nullptr;  // success
 }
 
