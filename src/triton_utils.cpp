@@ -1,3 +1,4 @@
+#include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
 
 #include <string>
@@ -17,7 +18,7 @@ get_backend_name(TRITONBACKEND_Backend& backend)
   return std::string(cname);
 }
 
-struct triton_version {
+struct backend_version {
   uint32_t major;
   uint32_t minor;
 };
@@ -25,7 +26,7 @@ struct triton_version {
 bool
 check_backend_version(TRITONBACKEND_Backend& backend)
 {
-  triton_version version;
+  backend_version version;
   TRITONSERVER_Error* result;
   result = TRITONBACKEND_ApiVersion(&version.major, &version.minor);
   if (result != nullptr) {
@@ -50,6 +51,70 @@ check_backend_version(TRITONBACKEND_Backend& backend)
   return (
       (version.major == TRITONBACKEND_API_VERSION_MAJOR) &&
       (version.minor >= TRITONBACKEND_API_VERSION_MINOR));
+}
+
+uint64_t
+get_model_version(TRITONBACKEND_Model& model)
+{
+  uint64_t version;
+  TRITONSERVER_Error* result;
+  result = TRITONBACKEND_ModelVersion(&model, &version);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return version;
+}
+
+std::string
+get_model_name(TRITONBACKEND_Model& model)
+{
+  const char* cname;
+  TRITONSERVER_Error* result = TRITONBACKEND_ModelName(&model, &cname);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return std::string(cname);
+}
+
+std::unique_ptr<common::TritonJson::Value>
+get_model_config(TRITONBACKEND_Model& model)
+{
+  TRITONSERVER_Message* config_message;
+  TRITONSERVER_Error* result =
+      TRITONBACKEND_ModelConfig(&model, 1, &config_message);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+
+  const char* buffer;
+  size_t byte_size;
+  result =
+      TRITONSERVER_MessageSerializeToJson(config_message, &buffer, &byte_size);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+
+  auto model_config = std::make_unique<common::TritonJson::Value>();
+  TRITONSERVER_Error* err = model_config->Parse(buffer, byte_size);
+  result = TRITONSERVER_MessageDelete(config_message);
+  if (err != nullptr) {
+    throw(TritonException(err));
+  }
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return model_config;
+}
+
+TRITONSERVER_Server*
+get_server(TRITONBACKEND_Model& model)
+{
+  TRITONSERVER_Server* server;
+  TRITONSERVER_Error* result = TRITONBACKEND_ModelServer(&model, &server);
+  if (result != nullptr) {
+    throw(TritonException(result));
+  }
+  return server;
 }
 
 }}}  // namespace triton::backend::fil

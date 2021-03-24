@@ -1,11 +1,13 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include <cuml/fil/fil.h>
 #include <triton/backend/backend_model.h>
 #include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/triton_utils.hpp>
 
 namespace triton { namespace backend { namespace fil {
 //
@@ -17,8 +19,7 @@ namespace triton { namespace backend { namespace fil {
 //
 class ModelState : public BackendModel {
  public:
-  static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Model* triton_model, ModelState** state);
+  static std::unique_ptr<ModelState> Create(TRITONBACKEND_Model& triton_model);
 
   TRITONSERVER_Error* LoadModel(
       std::string artifact_name,
@@ -40,17 +41,17 @@ class ModelState : public BackendModel {
   ML::fil::treelite_params_t tl_params;
   void* treelite_handle;
 
- private:
   ModelState(
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version,
-      common::TritonJson::Value&& model_config);
+      common::TritonJson::Value* model_config);
 
+ private:
   TRITONSERVER_Server* triton_server_;
   TRITONBACKEND_Model* triton_model_;
   const std::string name_;
   const uint64_t version_;
-  common::TritonJson::Value model_config_;
+  common::TritonJson::Value * model_config_;
 
   bool supports_batching_initialized_;
   bool supports_batching_;

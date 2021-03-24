@@ -79,49 +79,26 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 {
-  const char* cname;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelName(model, &cname));
-  std::string name(cname);
+  try {
+    std::string name = get_model_name(*model);
 
-  uint64_t version;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(model, &version));
+    uint64_t version = get_model_version(*model);
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
-       std::to_string(version) + ")")
-          .c_str());
-
-  // Can get location of the model artifacts. Normally we would need
-  // to check the artifact type to make sure it was something we can
-  // handle... but we are just going to log the location so we don't
-  // need the check. We would use the location if we wanted to load
-  // something from the model's repo.
-  TRITONBACKEND_ArtifactType artifact_type;
-  const char* clocation;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ModelRepository(model, &artifact_type, &clocation));
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("Repository location: ") + clocation).c_str());
-
-  // The model can access the backend as well... here we can access
-  // the backend global state.
-  TRITONBACKEND_Backend* backend;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
+         std::to_string(version) + ")")
+            .c_str());
+  } catch (TritonException& err) {
+    return err.error();
+  }
 
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.
-  ModelState* model_state;
-  RETURN_IF_ERROR(ModelState::Create(model, &model_state));
+  auto model_state = ModelState::Create(*model);
   RETURN_IF_ERROR(
-      TRITONBACKEND_ModelSetState(model, reinterpret_cast<void*>(model_state)));
-
-  // One of the primary things to do in ModelInitialize is to examine
-  // the model configuration to ensure that it is something that this
-  // backend can support. If not, returning an error from this
-  // function will prevent the model from loading.
-  RETURN_IF_ERROR(model_state->ValidateModelConfig());
+      TRITONBACKEND_ModelSetState(model,
+        reinterpret_cast<void*>(model_state.release())));
 
   return nullptr;  // success
 }

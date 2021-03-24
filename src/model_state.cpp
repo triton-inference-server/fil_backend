@@ -2,6 +2,7 @@
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model.h>
 
+#include <memory>
 #include <triton_fil/config.hpp>
 #include <triton_fil/model_state.hpp>
 
@@ -10,56 +11,30 @@ namespace triton { namespace backend { namespace fil {
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version,
-    common::TritonJson::Value&& model_config)
+    common::TritonJson::Value* model_config)
     : BackendModel(triton_model), treelite_handle(nullptr),
       triton_model_(triton_model), name_(name), version_(version),
-      model_config_(std::move(model_config)),
-      supports_batching_initialized_(false), supports_batching_(false)
+      model_config_(model_config), supports_batching_initialized_(false),
+      supports_batching_(false)
 {
 }
 
-TRITONSERVER_Error*
-ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state)
+std::unique_ptr<ModelState>
+ModelState::Create(TRITONBACKEND_Model& triton_model)
 {
-  TRITONSERVER_Message* config_message;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelConfig(
-      triton_model, 1 /* config_version */, &config_message));
+  auto config = get_model_config(triton_model);
+  std::string model_name = get_model_name(triton_model);
+  uint64_t model_version = get_model_version(triton_model);
 
-  // We can get the model configuration as a json string from
-  // config_message, parse it with our favorite json parser to create
-  // DOM that we can access when we need to example the
-  // configuration. We use TritonJson, which is a wrapper that returns
-  // nice errors (currently the underlying implementation is
-  // rapidjson... but others could be added). You can use any json
-  // parser you prefer.
-  const char* buffer;
-  size_t byte_size;
-  RETURN_IF_ERROR(
-      TRITONSERVER_MessageSerializeToJson(config_message, &buffer, &byte_size));
+  TRITONSERVER_Server* triton_server(get_server(triton_model));
 
-  common::TritonJson::Value model_config;
-  TRITONSERVER_Error* err = model_config.Parse(buffer, byte_size);
-  RETURN_IF_ERROR(TRITONSERVER_MessageDelete(config_message));
-  RETURN_IF_ERROR(err);
+  auto state = std::make_unique<ModelState>(
+      triton_server, &triton_model, model_name.c_str(), model_version,
+      get_model_config(triton_model).release());
 
-  triton::common::TritonJson::Value config;
-
-  const char* model_name;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelName(triton_model, &model_name));
-
-  uint64_t model_version;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(triton_model, &model_version));
-
-  TRITONSERVER_Server* triton_server;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelServer(triton_model, &triton_server));
-
-  *state = new ModelState(
-      triton_server, triton_model, model_name, model_version,
-      std::move(model_config));
-
-  (*state)->ModelConfig().Find("parameters", &config);
-  RETURN_IF_ERROR(tl_params_from_config(config, (*state)->tl_params));
-  return nullptr;  // success
+  state->ModelConfig().Find("parameters", config.get());
+  tl_params_from_config(*config, state->tl_params);
+  return state;
 }
 
 TRITONSERVER_Error*
