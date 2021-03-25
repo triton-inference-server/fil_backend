@@ -108,7 +108,7 @@ target_include_directories(
     ${RMM_INCLUDE_DIRS}
 )
 
-target_compile_features(triton-fil-backend PRIVATE cxx_std_14)
+target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
 
 target_compile_options(
   triton-fil-backend PRIVATE
