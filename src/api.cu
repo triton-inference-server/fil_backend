@@ -28,6 +28,7 @@
 #include <raft/handle.hpp>
 #include <treelite/c_api.h>
 
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <thread>
@@ -214,11 +215,13 @@ TRITONBACKEND_ModelInstanceExecute(
         } else {
           raft::allocate(output_buffer_device, output_buffers[0].byte_size);
         }
+        std::cout << "Before predict" << std::endl;
         instance_state->predict(
           (*input_buffers)[0].get_data(),
           output_buffer_device,
           static_cast<size_t>((*input_buffers)[0].shape[0])
         );
+        std::cout << "After predict" << std::endl;
 
         if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
           raft::copy(output_buffers[0].get_data(),
@@ -228,6 +231,7 @@ TRITONBACKEND_ModelInstanceExecute(
           CUDA_CHECK(cudaFree(output_buffer_device));
         }
 
+        std::cout << "End of block" << std::endl;
       } catch (TritonException& request_err) {
         LOG_IF_ERROR(
           TRITONBACKEND_ResponseSend(
@@ -255,6 +259,7 @@ TRITONBACKEND_ModelInstanceExecute(
     return err.error();
   }
 
+  std::cout << "Return from ModelInstanceExecute" << std::endl;
   return nullptr;  // success
 }
 

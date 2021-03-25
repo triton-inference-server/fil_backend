@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -26,9 +27,12 @@ struct TritonBuffer {
   }
 
   ~TritonBuffer() {
+    std::cout << "In destructor" << std:::endl;
     if (requires_deallocation) {
+      std::cout << "Deallocating" << std:::endl;
       CUDA_CHECK(cudaFree(buffer));
     }
+    std::cout << "End of destructor" << std:::endl;
   }
 };
 
@@ -38,6 +42,7 @@ std::unique_ptr<std::vector<TritonBuffer<T>>> get_input_buffers(
     TRITONSERVER_MemoryType input_memory_type,
     raft::handle_t& raft_handle) {
 
+  std::cout << "In get_input_buffers" << std::endl;
   uint32_t input_count = 0;
   triton_check(TRITONBACKEND_RequestInputCount(
     request, &input_count));
@@ -91,6 +96,7 @@ std::unique_ptr<std::vector<TritonBuffer<T>>> get_input_buffers(
                                       TRITONSERVER_MEMORY_GPU,
                                       requires_deallocation});
   }
+  std::cout << "End of get_input_buffers" << std::endl;
   return buffers;
 }
 
