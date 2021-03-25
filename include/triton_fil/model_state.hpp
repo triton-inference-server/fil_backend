@@ -53,14 +53,6 @@ class ModelState : public BackendModel {
       const int32_t instance_group_device_id);
   TRITONSERVER_Error* UnloadModel();
 
-  // Get the handle to the TRITONBACKEND model.
-  // TODO: Move to src
-  TRITONBACKEND_Model* TritonModel() { return triton_model_; }
-
-  // Get the name and version of the model.
-  const std::string& Name() const { return name_; }
-  uint64_t Version() const { return version_; }
-
   // Validate that model configuration is supported by this backend.
   TRITONSERVER_Error* ValidateModelConfig();
 
@@ -70,11 +62,6 @@ class ModelState : public BackendModel {
   ModelState(
       TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version);
-
- private:
-  TRITONBACKEND_Model * triton_model_;
-  const std::string name_;
-  const uint64_t version_;
 };
 
 }}}
