@@ -25,7 +25,6 @@ name_to_tl_algo(std::string name)
   if (name == "BATCH_TREE_REORG") {
     return ML::fil::algo_t::BATCH_TREE_REORG;
   }
-  // TODO: Switch to "optional" return
   throw bad_enum_exception;
 }
 
