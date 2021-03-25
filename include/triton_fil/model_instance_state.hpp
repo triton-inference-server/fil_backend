@@ -3,6 +3,7 @@
 #include <string>
 
 #include <cuml/fil/fil.h>
+#include <raft/handle.hpp>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model_instance.h>
 #include <triton/core/tritonbackend.h>
@@ -49,6 +50,8 @@ class ModelInstanceState : public BackendModelInstance {
       float* & buffer_h,
       const float* buffer_d,
       size_t size);
+
+  raft::handle_t& get_raft_handle();
 
   ModelInstanceState(
       ModelState* model_state,

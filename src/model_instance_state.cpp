@@ -3,6 +3,7 @@
 #include <triton/backend/backend_model_instance.h>
 
 #include <memory>
+#include <raft/handle.hpp>
 #include <triton_fil/c_wrappers.hpp>
 #include <triton_fil/model_instance_state.hpp>
 #include <triton_fil/model_state.hpp>
@@ -21,6 +22,12 @@ ModelInstanceState::Create(
   return std::make_unique<ModelInstanceState>(
       model_state, triton_model_instance, instance_name.c_str(), instance_kind,
       instance_id);
+}
+
+raft::handle_t&
+ModelInstanceState::get_raft_handle()
+{
+  return *handle;
 }
 
 TRITONSERVER_Error*

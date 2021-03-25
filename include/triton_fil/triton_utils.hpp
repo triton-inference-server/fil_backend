@@ -107,11 +107,4 @@ std::vector<TRITONBACKEND_Response*> construct_responses(
   TRITONBACKEND_Request** requests,
   const uint32_t request_count);
 
-struct TritonBuffer {
-  std::string name;
-  std::vector<int64_t> shape;
-  TRITONSERVER_DataType dtype;
-  void* buffer;
-};
-
 }}}

@@ -44,6 +44,7 @@
 #include <triton_fil/model_state.hpp>
 #include <triton_fil/model_instance_state.hpp>
 #include <triton_fil/triton_utils.hpp>
+#include <triton_fil/triton_buffer.cuh>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -189,219 +190,50 @@ TRITONBACKEND_ModelInstanceExecute(
     std::vector<TRITONBACKEND_Response*> responses =
       construct_responses(requests, request_count);
 
-    uint64_t total_batch_size = 0;
-
-    // After this point we take ownership of 'requests', which means
-    // that a response must be sent for every request. If something does
-    // go wrong in processing a particular request then we send an error
-    // response just for the specific request.
-
-    // For simplicity we just process each request separately... in
-    // general a backend should try to operate on the entire batch of
-    // requests at the same time for improved performance.
     for (uint32_t r = 0; r < request_count; ++r) {
 
       TRITONBACKEND_Request* request = requests[r];
-
-      const char* request_id = "";
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r, TRITONBACKEND_RequestId(request, &request_id));
-
-      const char* input_name;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
-
-      TRITONBACKEND_Input* input = nullptr;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r, TRITONBACKEND_RequestInput(request, input_name, &input));
-
-      // We also validated that the model configuration specifies only a
-      // single output, but the request is not required to request any
-      // output at all so we only produce an output if requested.
-      const char* requested_output_name = nullptr;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_RequestOutputName(
-              request, 0 /* index */, &requested_output_name));
-
-      // If an error response was sent while getting the input or
-      // requested output name then display an error message and move on
-      // to next request.
-      if (responses[r] == nullptr) {
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("request ") + std::to_string(r) +
-             ": failed to read input or requested output name, error response "
-             "sent")
-                .c_str());
-        continue;
-      }
-
-      TRITONSERVER_DataType input_datatype;
-      const int64_t* input_shape;
-      uint32_t input_dims_count;
-      uint64_t input_byte_size;
-      uint32_t input_buffer_count;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_InputProperties(
-              input, nullptr /* input_name */, &input_datatype, &input_shape,
-              &input_dims_count, &input_byte_size, &input_buffer_count));
-      if (responses[r] == nullptr) {
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("request ") + std::to_string(r) +
-             ": failed to read input properties, error response sent")
-                .c_str());
-        continue;
-      }
-
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("\tinput ") + input_name +
-           ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
-           ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
-           ", byte_size = " + std::to_string(input_byte_size) +
-           ", buffer_count = " + std::to_string(input_buffer_count))
-              .c_str());
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("\trequested_output ") + requested_output_name).c_str());
-
-      total_batch_size++;
-
-      // This backend simply copies the input tensor to the output
-      // tensor. The input tensor contents are available in one or
-      // more contiguous buffers. To do the copy we:
-      //
-      //   1. Create an output tensor in the response.
-      //
-      //   2. Allocate appropriately sized buffer in the output
-      //      tensor.
-      //
-      //   3. Iterate over the input tensor buffers and copy the
-      //      contents into the output buffer.
       TRITONBACKEND_Response* response = responses[r];
 
-      // Step 1 
-      TRITONBACKEND_Output* output;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_ResponseOutput(
-              response, &output, requested_output_name, input_datatype,
-              input_shape, input_dims_count - 1));
-      if (responses[r] == nullptr) {
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("request ") + std::to_string(r) +
-             ": failed to create response output, error response sent")
-                .c_str());
-        continue;
-      }
-
-      // Step 2. Get the output buffer. We request a buffer in CPU
-      // memory but we have to handle any returned type. If we get
-      // back a buffer in GPU memory we just fail the request.
-      void* output_buffer;
-      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_CPU;
-      int64_t output_memory_type_id = 0;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_OutputBuffer(
-              output,
-              &output_buffer,
-              input_byte_size / input_shape[input_dims_count - 1],
-              &output_memory_type,
-              &output_memory_type_id));
-      if ((responses[r] == nullptr) ||
-          (output_memory_type == TRITONSERVER_MEMORY_GPU)) {
-        GUARDED_RESPOND_IF_ERROR(
-            responses, r,
-            TRITONSERVER_ErrorNew(
-                TRITONSERVER_ERROR_UNSUPPORTED,
-                "failed to create output buffer in CPU memory"));
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("request ") + std::to_string(r) +
-             ": failed to create output buffer in CPU memory, error response "
-             "sent")
-                .c_str());
-        continue;
-      }
-      float* output_buffer_device = nullptr;
-      fil_to_device(
-        instance,
-        output_buffer_device,
-        reinterpret_cast<const float*>(output_buffer),
-        input_byte_size / input_shape[input_dims_count - 1] / sizeof(float)
+      auto input_buffers = get_input_buffers<float>(request,
+                                                    TRITONSERVER_MEMORY_GPU,
+                                                    instance_state->get_raft_handle());
+      std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+      auto output_buffers = get_output_buffers<float>(
+        request,
+        response,
+        TRITONSERVER_MEMORY_GPU,
+        TRITONSERVER_datatype_enum::TRITONSERVER_TYPE_FP32,
+        output_shape,
+        instance_state->get_raft_handle()
       );
 
-      // Step 3. Copy input -> output. We can only handle if the input
-      // buffers are on CPU so fail otherwise.
-      size_t output_buffer_offset = 0;
-      for (uint32_t b = 0; b < input_buffer_count; ++b) {
-        const void* input_buffer = nullptr;
-        uint64_t buffer_byte_size = 0;
-        TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_CPU;
-        int64_t input_memory_type_id = 0;
-        GUARDED_RESPOND_IF_ERROR(
-            responses, r,
-            TRITONBACKEND_InputBuffer(
-                input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
-                &input_memory_type_id));
+      // TODO: Handle 0 output buffer request
 
-        if ((responses[r] == nullptr) ||
-            (input_memory_type == TRITONSERVER_MEMORY_GPU)) {
-          GUARDED_RESPOND_IF_ERROR(
-              responses, r,
-              TRITONSERVER_ErrorNew(
-                  TRITONSERVER_ERROR_UNSUPPORTED,
-                  "failed to get input buffer in CPU memory"));
-        }
-
-        float* input_buffer_device = nullptr;
-        fil_to_device(
-          instance,
-          input_buffer_device,
-          reinterpret_cast<const float*>(input_buffer),
-          buffer_byte_size / sizeof(float)
-        );
-
-        fil_predict(
-          instance,
-          input_buffer_device,
-          output_buffer_device + output_buffer_offset,
-          static_cast<size_t>(input_shape[0])
-        );
-        output_buffer_offset += buffer_byte_size;
-        CUDA_CHECK(cudaFree(input_buffer_device));
+      float * output_buffer_device;
+      if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_GPU) {
+        output_buffer_device = output_buffers[0].get_data();
+      } else {
+        raft::allocate(output_buffer_device, output_buffers[0].byte_size);
       }
 
-      float * output_buffer_float = reinterpret_cast<float*>(output_buffer);
-
-      fil_to_host(
+      fil_predict(
         instance,
-        output_buffer_float,
+        input_buffers[0].get_data(),
         output_buffer_device,
-        input_byte_size / input_shape[input_dims_count - 1] / sizeof(float)
+        static_cast<size_t>(input_buffers[0].shape[0])
       );
 
-      if (responses[r] == nullptr) {
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("request ") + std::to_string(r) +
-             ": failed to get input buffer in CPU memory, error response "
-             "sent")
-                .c_str());
-        continue;
+      if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
+        raft::copy(output_buffers[0].get_data(),
+                   output_buffer_device,
+                   output_buffers[0].byte_size / sizeof(float),
+                   (instance_state->get_raft_handle()).get_stream());
+        CUDA_CHECK(cudaFree(output_buffer_device));
       }
 
-      // If we get to this point then there hasn't been any error and
-      // the response is complete and we can send it. This is the last
-      // (and only) response that we are sending for the request so we
-      // must mark it FINAL. If there is an error when sending all we
-      // can do is log it.
+      // TODO: Exception handling
+
       LOG_IF_ERROR(
           TRITONBACKEND_ResponseSend(
               responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
@@ -411,7 +243,6 @@ TRITONBACKEND_ModelInstanceExecute(
       LOG_IF_ERROR(
           TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
           "failed releasing request");
-      CUDA_CHECK(cudaFree(output_buffer_device));
     }
   } catch (TritonException& err) {
     return err.error();
