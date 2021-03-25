@@ -103,7 +103,7 @@ add_library(
 target_include_directories(
   triton-fil-backend
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${RAFT_DIR}
     ${RMM_INCLUDE_DIRS}
 )
