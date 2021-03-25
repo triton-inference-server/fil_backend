@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <vector>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.hpp>
@@ -86,5 +87,31 @@ void set_instance_state(TRITONBACKEND_ModelInstance& instance,
     throw(TritonException(err));
   }
 }
+
+/** Get model instance state from instance */
+template <typename ModelInstanceStateType>
+ModelInstanceStateType* get_instance_state(TRITONBACKEND_ModelInstance& instance) {
+  ModelInstanceStateType* instance_state;
+  TRITONSERVER_Error * err = TRITONBACKEND_ModelInstanceState(
+    &instance,
+    reinterpret_cast<void**>(&instance_state)
+  );
+  if (err != nullptr) {
+    throw(TritonException(err));
+  }
+  return instance_state;
+}
+
+/** Construct empty response objects for given requests */
+std::vector<TRITONBACKEND_Response*> construct_responses(
+  TRITONBACKEND_Request** requests,
+  const uint32_t request_count);
+
+struct TritonBuffer {
+  std::string name;
+  std::vector<int64_t> shape;
+  TRITONSERVER_DataType dtype;
+  void* buffer;
+};
 
 }}}

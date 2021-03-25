@@ -4,6 +4,7 @@
 #include <string>
 #include <triton_fil/exceptions.hpp>
 #include <triton_fil/triton_utils.hpp>
+#include <vector>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -163,6 +164,28 @@ get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
     throw(TritonException(result));
   }
   return model;
+}
+
+std::vector<TRITONBACKEND_Response*>
+construct_responses(
+    TRITONBACKEND_Request** requests, const uint32_t request_count)
+{
+  std::vector<TRITONBACKEND_Response*> responses;
+  responses.reserve(request_count);
+
+  TRITONSERVER_Error* err;
+
+  for (uint32_t r = 0; r < request_count; ++r) {
+    TRITONBACKEND_Request* request = requests[r];
+
+    TRITONBACKEND_Response* response;
+    err = TRITONBACKEND_ResponseNew(&response, request);
+    if (err != nullptr) {
+      throw(TritonException(err));
+    }
+    responses.push_back(response);
+  }
+  return responses;
 }
 
 }}}  // namespace triton::backend::fil
