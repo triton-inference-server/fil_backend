@@ -227,6 +227,12 @@ TRITONBACKEND_ModelInstanceExecute(
                      (instance_state->get_raft_handle()).get_stream());
           CUDA_CHECK(cudaFree(output_buffer_device));
         }
+
+        for (auto buffer : input_buffers) {
+          if (buffer.requires_deallocation) {
+            CUDA_CHECK(cudaFree(buffer.get_data()));
+          }
+        }
       } catch (TritonException& request_err) {
         LOG_IF_ERROR(
           TRITONBACKEND_ResponseSend(

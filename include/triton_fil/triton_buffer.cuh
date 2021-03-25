@@ -24,12 +24,6 @@ struct TritonBuffer {
     return buffer;
   }
 
-  ~TritonBuffer() {
-    // TODO
-    /* if (requires_deallocation) {
-      CUDA_CHECK(cudaFree(buffer));
-    } */
-  }
 };
 
 template<typename T>
