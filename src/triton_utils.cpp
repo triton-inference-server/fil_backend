@@ -12,10 +12,7 @@ std::string
 get_backend_name(TRITONBACKEND_Backend& backend)
 {
   const char* cname;
-  TRITONSERVER_Error* result = TRITONBACKEND_BackendName(&backend, &cname);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_BackendName(&backend, &cname));
   return std::string(cname);
 }
 
@@ -28,11 +25,7 @@ bool
 check_backend_version(TRITONBACKEND_Backend& backend)
 {
   backend_version version;
-  TRITONSERVER_Error* result;
-  result = TRITONBACKEND_ApiVersion(&version.major, &version.minor);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ApiVersion(&version.major, &version.minor));
 
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
@@ -58,11 +51,7 @@ uint64_t
 get_model_version(TRITONBACKEND_Model& model)
 {
   uint64_t version;
-  TRITONSERVER_Error* result;
-  result = TRITONBACKEND_ModelVersion(&model, &version);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelVersion(&model, &version));
   return version;
 }
 
@@ -70,10 +59,7 @@ std::string
 get_model_name(TRITONBACKEND_Model& model)
 {
   const char* cname;
-  TRITONSERVER_Error* result = TRITONBACKEND_ModelName(&model, &cname);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelName(&model, &cname));
   return std::string(cname);
 }
 
@@ -81,23 +67,16 @@ std::unique_ptr<common::TritonJson::Value>
 get_model_config(TRITONBACKEND_Model& model)
 {
   TRITONSERVER_Message* config_message;
-  TRITONSERVER_Error* result =
-      TRITONBACKEND_ModelConfig(&model, 1, &config_message);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelConfig(&model, 1, &config_message));
 
   const char* buffer;
   size_t byte_size;
-  result =
-      TRITONSERVER_MessageSerializeToJson(config_message, &buffer, &byte_size);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(
+      TRITONSERVER_MessageSerializeToJson(config_message, &buffer, &byte_size));
 
   auto model_config = std::make_unique<common::TritonJson::Value>();
   TRITONSERVER_Error* err = model_config->Parse(buffer, byte_size);
-  result = TRITONSERVER_MessageDelete(config_message);
+  TRITONSERVER_Error* result = TRITONSERVER_MessageDelete(config_message);
   if (err != nullptr) {
     throw(TritonException(err));
   }
@@ -111,10 +90,7 @@ TRITONSERVER_Server*
 get_server(TRITONBACKEND_Model& model)
 {
   TRITONSERVER_Server* server;
-  TRITONSERVER_Error* result = TRITONBACKEND_ModelServer(&model, &server);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelServer(&model, &server));
   return server;
 }
 
@@ -122,11 +98,7 @@ std::string
 get_model_instance_name(TRITONBACKEND_ModelInstance& instance)
 {
   const char* cname;
-  TRITONSERVER_Error* result =
-      TRITONBACKEND_ModelInstanceName(&instance, &cname);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelInstanceName(&instance, &cname));
   return std::string(cname);
 }
 
@@ -134,11 +106,7 @@ int32_t
 get_device_id(TRITONBACKEND_ModelInstance& instance)
 {
   int32_t device_id;
-  TRITONSERVER_Error* result =
-      TRITONBACKEND_ModelInstanceDeviceId(&instance, &device_id);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelInstanceDeviceId(&instance, &device_id));
   return device_id;
 }
 
@@ -146,11 +114,7 @@ TRITONSERVER_InstanceGroupKind
 get_instance_kind(TRITONBACKEND_ModelInstance& instance)
 {
   TRITONSERVER_InstanceGroupKind kind;
-  TRITONSERVER_Error* result =
-      TRITONBACKEND_ModelInstanceKind(&instance, &kind);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelInstanceKind(&instance, &kind));
   return kind;
 }
 
@@ -158,11 +122,7 @@ TRITONBACKEND_Model*
 get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
 {
   TRITONBACKEND_Model* model;
-  TRITONSERVER_Error* result =
-      TRITONBACKEND_ModelInstanceModel(&instance, &model);
-  if (result != nullptr) {
-    throw(TritonException(result));
-  }
+  triton_check(TRITONBACKEND_ModelInstanceModel(&instance, &model));
   return model;
 }
 
@@ -173,16 +133,11 @@ construct_responses(
   std::vector<TRITONBACKEND_Response*> responses;
   responses.reserve(request_count);
 
-  TRITONSERVER_Error* err;
-
   for (uint32_t r = 0; r < request_count; ++r) {
     TRITONBACKEND_Request* request = requests[r];
 
     TRITONBACKEND_Response* response;
-    err = TRITONBACKEND_ResponseNew(&response, request);
-    if (err != nullptr) {
-      throw(TritonException(err));
-    }
+    triton_check(TRITONBACKEND_ResponseNew(&response, request));
     responses.push_back(response);
   }
   return responses;

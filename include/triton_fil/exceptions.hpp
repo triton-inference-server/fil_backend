@@ -1,5 +1,6 @@
 #pragma once
 #include <exception>
+#include <string>
 #include <triton/core/tritonserver.h>
 
 namespace triton { namespace backend { namespace fil {
@@ -27,5 +28,7 @@ class TritonException : public std::exception {
       return error_;
     }
 };
+
+void triton_check(TRITONSERVER_Error * err);
 
 }}}

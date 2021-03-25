@@ -16,14 +16,10 @@ out_type retrieve_param(
     const std::string& param_name) {
   common::TritonJson::Value value;
   out_type output;
-  TRITONSERVER_Error * err;
   if (config.Find(param_name.c_str(), &value)) {
     std::string string_rep;
 
-    err = value.MemberAsString("string_value", &string_rep);
-    if (err != nullptr) {
-      throw(TritonException(err));
-    }
+    triton_check(value.MemberAsString("string_value", &string_rep));
 
     std::istringstream input_stream{string_rep};
     if (std::is_same<out_type, bool>::value) {

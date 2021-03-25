@@ -91,6 +91,7 @@ add_library(
   src/c_wrappers.cpp
   src/config.cpp
   src/enum_conversions.cpp
+  src/exceptions.cpp
   src/model_instance_state.cpp
   src/model_state.cpp
   src/triton_utils.cpp

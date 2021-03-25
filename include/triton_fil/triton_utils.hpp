@@ -32,23 +32,17 @@ TRITONSERVER_Server* get_server(TRITONBACKEND_Model& model);
 template <typename ModelStateType>
 void set_model_state(TRITONBACKEND_Model& model,
                      std::unique_ptr<ModelStateType>&& model_state) {
-  TRITONSERVER_Error * err = TRITONBACKEND_ModelSetState(
+  triton_check(TRITONBACKEND_ModelSetState(
     &model,
     reinterpret_cast<void*>(model_state.release())
-  );
-  if (err != nullptr) {
-    throw(TritonException(err));
-  }
+  ));
 }
 
 /** Get state of given model */
 template <typename ModelStateType>
 ModelStateType* get_model_state(TRITONBACKEND_Model& model) {
   void* vstate;
-  TRITONSERVER_Error * err = TRITONBACKEND_ModelState(&model, &vstate);
-  if (err != nullptr) {
-    throw(TritonException(err));
-  }
+  triton_check(TRITONBACKEND_ModelState(&model, &vstate));
 
   ModelStateType* model_state = reinterpret_cast<ModelStateType*>(vstate);
 
@@ -79,26 +73,20 @@ ModelStateType* get_model_state(TRITONBACKEND_ModelInstance& instance) {
 template <typename ModelInstanceStateType>
 void set_instance_state(TRITONBACKEND_ModelInstance& instance,
                         std::unique_ptr<ModelInstanceStateType>&& model_instance_state) {
-  TRITONSERVER_Error * err = TRITONBACKEND_ModelInstanceSetState(
+  triton_check(TRITONBACKEND_ModelInstanceSetState(
     &instance,
     reinterpret_cast<void*>(model_instance_state.release())
-  );
-  if (err != nullptr) {
-    throw(TritonException(err));
-  }
+  ));
 }
 
 /** Get model instance state from instance */
 template <typename ModelInstanceStateType>
 ModelInstanceStateType* get_instance_state(TRITONBACKEND_ModelInstance& instance) {
   ModelInstanceStateType* instance_state;
-  TRITONSERVER_Error * err = TRITONBACKEND_ModelInstanceState(
+  triton_check(TRITONBACKEND_ModelInstanceState(
     &instance,
     reinterpret_cast<void**>(&instance_state)
-  );
-  if (err != nullptr) {
-    throw(TritonException(err));
-  }
+  ));
   return instance_state;
 }
 

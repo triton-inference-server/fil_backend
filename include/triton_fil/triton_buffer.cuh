@@ -36,38 +36,39 @@ std::vector<TritonBuffer<T>> get_input_buffers(
     TRITONBACKEND_Request* request,
     TRITONSERVER_MemoryType input_memory_type,
     raft::handle_t& raft_handle) {
+
   uint32_t input_count = 0;
-  TRITONBACKEND_RequestInputCount(
-      request, &input_count);  // TODO: error handling
+  triton_check(TRITONBACKEND_RequestInputCount(
+    request, &input_count));
 
   std::vector<TritonBuffer<T>> buffers;
   buffers.reserve(input_count);
 
   for (uint32_t i = 0; i < input_count; ++i) {
     const char* input_name;
-    TRITONBACKEND_RequestInputName(
-        request, i, &input_name);  // TODO: error handling
+    triton_check(TRITONBACKEND_RequestInputName(
+      request, i, &input_name));
 
     TRITONBACKEND_Input* input = nullptr;
-    TRITONBACKEND_RequestInput(
-        request, input_name, &input);  // TODO: error handling
+    triton_check(TRITONBACKEND_RequestInput(
+        request, input_name, &input));
 
     TRITONSERVER_DataType input_datatype;
     const int64_t* input_shape;
     uint32_t input_dims_count;
     uint64_t input_byte_size;
     uint32_t input_buffer_count;
-    TRITONBACKEND_InputProperties(  // TODO: error handling
+    triton_check(TRITONBACKEND_InputProperties(
         input, nullptr, &input_datatype, &input_shape, &input_dims_count,
-        &input_byte_size, &input_buffer_count);
+        &input_byte_size, &input_buffer_count));
 
     const void * input_buffer = nullptr;
     uint64_t buffer_byte_size = 0;
     int64_t input_memory_type_id = 0;
 
-    TRITONBACKEND_InputBuffer(
+    triton_check(TRITONBACKEND_InputBuffer(
         input, i, &input_buffer, &buffer_byte_size, &input_memory_type,
-        &input_memory_type_id);  // TODO: error handling
+        &input_memory_type_id));
 
     std::vector<int64_t> shape(input_shape, input_shape + input_dims_count);
     T* final_buffer;
@@ -101,24 +102,24 @@ std::vector<TritonBuffer<T>> get_output_buffers(
     const std::vector<int64_t>& shape,
     raft::handle_t& raft_handle) {
   uint32_t count = 0;
-  TRITONBACKEND_RequestOutputCount(
-      request, &count);  // TODO: error handling
+  triton_check(TRITONBACKEND_RequestOutputCount(
+      request, &count));
 
   std::vector<TritonBuffer<T>> buffers;
   buffers.reserve(count);
 
   for (uint32_t i = 0; i < count; ++i) {
     const char* name;
-    TRITONBACKEND_RequestOutputName(request, i, &name);  // TODO: error handling
+    triton_check(TRITONBACKEND_RequestOutputName(request, i, &name));
 
     TRITONBACKEND_Output* output;
-    TRITONBACKEND_ResponseOutput(
+    triton_check(TRITONBACKEND_ResponseOutput(
         response,
         &output,
         name,
         dtype,
         shape.data(),
-        shape.size()); // TODO: error handling
+        shape.size()));
 
     int64_t memory_type_id = 0;
 
@@ -128,12 +129,12 @@ std::vector<TritonBuffer<T>> get_output_buffers(
                                          1,
                                          std::multiplies<>());
     uint64_t buffer_byte_size = element_count * sizeof(T);
-    TRITONBACKEND_OutputBuffer(
+    triton_check(TRITONBACKEND_OutputBuffer(
         output,
         &output_buffer,
         buffer_byte_size,
         &memory_type,
-        &memory_type_id);  // TODO: error handling
+        &memory_type_id));
 
     T* final_buffer;
     final_buffer = (T*) output_buffer;
