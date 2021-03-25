@@ -27,12 +27,12 @@ struct TritonBuffer {
   }
 
   ~TritonBuffer() {
-    std::cout << "In destructor" << std:::endl;
+    std::cout << "Start of destructor" << std::endl;
     if (requires_deallocation) {
-      std::cout << "Deallocating" << std:::endl;
+      std::cout << "Deallocation" << std::endl;
       CUDA_CHECK(cudaFree(buffer));
     }
-    std::cout << "End of destructor" << std:::endl;
+    std::cout << "End of destructor" << std::endl;
   }
 };
 
