@@ -56,11 +56,6 @@ class ModelInstanceState : public BackendModelInstance {
     return triton_model_instance_;
   }
 
-  // Get the name, kind and device ID of the instance.
-  const std::string& Name() const { return name_; }
-  TRITONSERVER_InstanceGroupKind Kind() const { return kind_; }
-  int32_t DeviceId() const { return device_id_; }
-
   // Get the state of the model that corresponds to this instance.
   ModelState* StateForModel() const { return model_state_; }
   void UnloadFILModel();
@@ -79,11 +74,6 @@ class ModelInstanceState : public BackendModelInstance {
 
  private:
   ModelState* model_state_;
-  TRITONBACKEND_ModelInstance* triton_model_instance_;
-  const std::string name_;
-  const TRITONSERVER_InstanceGroupKind kind_;
-  const int32_t device_id_;
-
   ML::fil::forest_t fil_forest;
   std::unique_ptr<raft::handle_t> handle;
 };
