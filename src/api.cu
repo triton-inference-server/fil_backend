@@ -36,12 +36,12 @@
 #include "triton/backend/backend_model.h"
 #include "triton/backend/backend_model_instance.h"
 
-#include <triton_fil/enum_conversions.hpp>
-#include <triton_fil/config.hpp>
-#include <triton_fil/exceptions.hpp>
-#include <triton_fil/model_state.hpp>
-#include <triton_fil/model_instance_state.hpp>
-#include <triton_fil/triton_utils.hpp>
+#include <triton_fil/enum_conversions.h>
+#include <triton_fil/config.h>
+#include <triton_fil/exceptions.h>
+#include <triton_fil/model_state.h>
+#include <triton_fil/model_instance_state.h>
+#include <triton_fil/triton_utils.h>
 #include <triton_fil/triton_buffer.cuh>
 
 namespace triton { namespace backend { namespace fil {

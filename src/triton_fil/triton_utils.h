@@ -25,12 +25,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+#include <triton/backend/backend_common.h>
+#include <triton/core/tritonserver.h>
+#include <triton_fil/exceptions.h>
+
 #include <memory>
 #include <string>
 #include <vector>
-#include <triton/backend/backend_common.h>
-#include <triton/core/tritonserver.h>
-#include <triton_fil/exceptions.hpp>
 
 namespace triton { namespace backend { namespace fil {
 

@@ -26,10 +26,10 @@
 
 #include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/exceptions.h>
+#include <triton_fil/triton_utils.h>
 
 #include <string>
-#include <triton_fil/exceptions.hpp>
-#include <triton_fil/triton_utils.hpp>
 #include <vector>
 
 namespace triton { namespace backend { namespace fil {

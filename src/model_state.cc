@@ -27,10 +27,10 @@
 #include <treelite/c_api.h>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model.h>
+#include <triton_fil/config.h>
+#include <triton_fil/model_state.h>
 
 #include <memory>
-#include <triton_fil/config.hpp>
-#include <triton_fil/model_state.hpp>
 
 namespace triton { namespace backend { namespace fil {
 

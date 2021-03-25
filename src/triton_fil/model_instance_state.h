@@ -25,16 +25,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
-#include <memory>
-#include <string>
-
 #include <cuml/fil/fil.h>
-#include <raft/handle.hpp>
-#include <triton_fil/model_state.hpp>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model_instance.h>
 #include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/model_state.h>
+
+#include <memory>
+#include <raft/handle.hpp>
+#include <string>
 
 namespace triton { namespace backend { namespace fil {
 

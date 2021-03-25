@@ -32,7 +32,7 @@
 #include <raft/cudart_utils.h>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
-#include <triton_fil/exceptions.hpp>
+#include <triton_fil/exceptions.h>
 
 namespace triton { namespace backend { namespace fil {
 

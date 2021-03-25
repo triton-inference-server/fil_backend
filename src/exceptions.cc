@@ -25,8 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <triton/core/tritonserver.h>
-
-#include <triton_fil/exceptions.hpp>
+#include <triton_fil/exceptions.h>
 
 namespace triton { namespace backend { namespace fil {
 

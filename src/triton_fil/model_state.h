@@ -26,14 +26,14 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include <cuml/fil/fil.h>
 #include <triton/backend/backend_model.h>
 #include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
-#include <triton_fil/triton_utils.hpp>
+#include <triton_fil/triton_utils.h>
+
+#include <memory>
+#include <string>
 
 namespace triton { namespace backend { namespace fil {
 //

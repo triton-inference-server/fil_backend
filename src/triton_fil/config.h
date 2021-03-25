@@ -26,13 +26,13 @@
 
 #pragma once
 
-#include <sstream>
-#include <type_traits>
-
 #include <cuml/fil/fil.h>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
-#include <triton_fil/exceptions.hpp>
+#include <triton_fil/exceptions.h>
+
+#include <sstream>
+#include <type_traits>
 
 namespace triton { namespace backend { namespace fil {
 

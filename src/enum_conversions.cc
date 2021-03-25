@@ -26,9 +26,9 @@
 
 #include <cuml/fil/fil.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/exceptions.h>
 
 #include <string>
-#include <triton_fil/exceptions.hpp>
 
 namespace triton { namespace backend { namespace fil {
 

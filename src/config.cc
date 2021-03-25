@@ -27,11 +27,11 @@
 #include <cuml/fil/fil.h>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/config.h>
+#include <triton_fil/enum_conversions.h>
 
 #include <exception>
 #include <string>
-#include <triton_fil/config.hpp>
-#include <triton_fil/enum_conversions.hpp>
 
 namespace triton { namespace backend { namespace fil {
 

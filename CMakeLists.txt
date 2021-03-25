@@ -88,12 +88,12 @@ configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
 add_library(
   triton-fil-backend SHARED
   src/api.cu
-  src/config.cpp
-  src/enum_conversions.cpp
-  src/exceptions.cpp
-  src/model_instance_state.cpp
-  src/model_state.cpp
-  src/triton_utils.cpp
+  src/config.cc
+  src/enum_conversions.cc
+  src/exceptions.cc
+  src/model_instance_state.cc
+  src/model_state.cc
+  src/triton_utils.cc
 )
 
 add_library(

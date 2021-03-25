@@ -27,11 +27,11 @@
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
+#include <triton_fil/model_instance_state.h>
+#include <triton_fil/model_state.h>
 
 #include <memory>
 #include <raft/handle.hpp>
-#include <triton_fil/model_instance_state.hpp>
-#include <triton_fil/model_state.hpp>
 
 namespace triton { namespace backend { namespace fil {
 
