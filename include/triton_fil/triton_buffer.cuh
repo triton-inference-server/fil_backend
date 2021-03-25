@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -24,10 +25,15 @@ struct TritonBuffer {
     return buffer;
   }
 
+  ~TritonBuffer() {
+    if (requires_deallocation) {
+      CUDA_CHECK(cudaFree(buffer));
+    }
+  }
 };
 
 template<typename T>
-std::vector<TritonBuffer<T>> get_input_buffers(
+std::unique_ptr<std::vector<TritonBuffer<T>>> get_input_buffers(
     TRITONBACKEND_Request* request,
     TRITONSERVER_MemoryType input_memory_type,
     raft::handle_t& raft_handle) {
@@ -36,8 +42,8 @@ std::vector<TritonBuffer<T>> get_input_buffers(
   triton_check(TRITONBACKEND_RequestInputCount(
     request, &input_count));
 
-  std::vector<TritonBuffer<T>> buffers;
-  buffers.reserve(input_count);
+  auto buffers = std::make_unique<std::vector<TritonBuffer<T>>>();
+  buffers->reserve(input_count);
 
   for (uint32_t i = 0; i < input_count; ++i) {
     const char* input_name;
@@ -77,7 +83,7 @@ std::vector<TritonBuffer<T>> get_input_buffers(
           raft_handle.get_stream());
       requires_deallocation = true;
     }
-    buffers.push_back(TritonBuffer<T>{input_name,
+    buffers->push_back(TritonBuffer<T>{input_name,
                                       shape,
                                       input_datatype,
                                       buffer_byte_size,

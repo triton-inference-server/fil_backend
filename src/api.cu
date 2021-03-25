@@ -198,7 +198,7 @@ TRITONBACKEND_ModelInstanceExecute(
                                                       TRITONSERVER_MEMORY_GPU,
                                                       instance_state->get_raft_handle());
         // TODO: Double this for predict_proba true
-        std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+        std::vector<int64_t> output_shape{(*input_buffers)[0].shape[0]};
         auto output_buffers = get_output_buffers<float>(
           request,
           response,
@@ -215,9 +215,9 @@ TRITONBACKEND_ModelInstanceExecute(
           raft::allocate(output_buffer_device, output_buffers[0].byte_size);
         }
         instance_state->predict(
-          input_buffers[0].get_data(),
+          (*input_buffers)[0].get_data(),
           output_buffer_device,
-          static_cast<size_t>(input_buffers[0].shape[0])
+          static_cast<size_t>((*input_buffers)[0].shape[0])
         );
 
         if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
@@ -228,11 +228,6 @@ TRITONBACKEND_ModelInstanceExecute(
           CUDA_CHECK(cudaFree(output_buffer_device));
         }
 
-        for (auto buffer : input_buffers) {
-          if (buffer.requires_deallocation) {
-            CUDA_CHECK(cudaFree(buffer.get_data()));
-          }
-        }
       } catch (TritonException& request_err) {
         LOG_IF_ERROR(
           TRITONBACKEND_ResponseSend(
