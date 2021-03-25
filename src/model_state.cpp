@@ -36,8 +36,7 @@ namespace triton { namespace backend { namespace fil {
 
 ModelState::ModelState(
     TRITONBACKEND_Model* triton_model, const char* name, const uint64_t version)
-    : BackendModel(triton_model), treelite_handle(nullptr),
-      triton_model_(triton_model), name_(name), version_(version)
+    : BackendModel(triton_model), treelite_handle(nullptr)
 {
 }
 

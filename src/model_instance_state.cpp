@@ -68,9 +68,7 @@ ModelInstanceState::ModelInstanceState(
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
     const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
-      model_state_(model_state), triton_model_instance_(triton_model_instance),
-      name_(name), kind_(kind), device_id_(device_id),
-      handle(std::make_unique<raft::handle_t>())
+      model_state_(model_state), handle(std::make_unique<raft::handle_t>())
 {
   THROW_IF_BACKEND_INSTANCE_ERROR(
       model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId()));
