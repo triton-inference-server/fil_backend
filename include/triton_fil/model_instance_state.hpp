@@ -4,6 +4,7 @@
 
 #include <cuml/fil/fil.h>
 #include <raft/handle.hpp>
+#include <triton_fil/model_state.hpp>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model_instance.h>
 #include <triton/core/tritonbackend.h>
@@ -42,14 +43,6 @@ class ModelInstanceState : public BackendModelInstance {
       float* preds,
       size_t num_rows,
       bool predict_proba = false);
-  TRITONSERVER_Error * to_device(
-      float* & buffer_d,
-      const float* buffer_h,
-      size_t size);
-  TRITONSERVER_Error * to_host(
-      float* & buffer_h,
-      const float* buffer_d,
-      size_t size);
 
   raft::handle_t& get_raft_handle();
 

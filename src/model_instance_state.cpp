@@ -4,7 +4,6 @@
 
 #include <memory>
 #include <raft/handle.hpp>
-#include <triton_fil/c_wrappers.hpp>
 #include <triton_fil/model_instance_state.hpp>
 #include <triton_fil/model_state.hpp>
 
@@ -35,23 +34,6 @@ ModelInstanceState::predict(
     const float* data, float* preds, size_t num_rows, bool predict_proba)
 {
   ML::fil::predict(*handle, fil_forest, preds, data, num_rows, predict_proba);
-  return nullptr;
-}
-
-TRITONSERVER_Error*
-ModelInstanceState::to_device(
-    float*& buffer_d, const float* buffer_h, size_t size)
-{
-  raft::allocate(buffer_d, size * sizeof(float));
-  raft::copy(buffer_d, buffer_h, size, handle->get_stream());
-  return nullptr;
-}
-
-TRITONSERVER_Error*
-ModelInstanceState::to_host(
-    float*& buffer_h, const float* buffer_d, size_t size)
-{
-  raft::copy(buffer_h, buffer_d, size, handle->get_stream());
   return nullptr;
 }
 

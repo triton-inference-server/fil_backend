@@ -36,11 +36,9 @@
 #include "triton/backend/backend_model.h"
 #include "triton/backend/backend_model_instance.h"
 
-#include <triton_fil/c_wrappers.hpp>
 #include <triton_fil/enum_conversions.hpp>
 #include <triton_fil/config.hpp>
 #include <triton_fil/exceptions.hpp>
-#include <triton_fil/macros.h>
 #include <triton_fil/model_state.hpp>
 #include <triton_fil/model_instance_state.hpp>
 #include <triton_fil/triton_utils.hpp>
@@ -107,7 +105,7 @@ TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
   auto model_state = get_model_state<ModelState>(*model);
-  RETURN_IF_ERROR(unload_treelite_model(model_state));
+  RETURN_IF_ERROR(model_state->UnloadModel());
 
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
@@ -159,7 +157,7 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
   ModelInstanceState* instance_state =
       reinterpret_cast<ModelInstanceState*>(vstate);
 
-  unload_fil_model(instance_state);
+  instance_state->UnloadFILModel();
 
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
@@ -191,53 +189,60 @@ TRITONBACKEND_ModelInstanceExecute(
       construct_responses(requests, request_count);
 
     for (uint32_t r = 0; r < request_count; ++r) {
-
       TRITONBACKEND_Request* request = requests[r];
       TRITONBACKEND_Response* response = responses[r];
 
-      auto input_buffers = get_input_buffers<float>(request,
-                                                    TRITONSERVER_MEMORY_GPU,
-                                                    instance_state->get_raft_handle());
-      std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
-      auto output_buffers = get_output_buffers<float>(
-        request,
-        response,
-        TRITONSERVER_MEMORY_GPU,
-        TRITONSERVER_datatype_enum::TRITONSERVER_TYPE_FP32,
-        output_shape,
-        instance_state->get_raft_handle()
-      );
+      try {
 
-      // TODO: Handle 0 output buffer request
+        auto input_buffers = get_input_buffers<float>(request,
+                                                      TRITONSERVER_MEMORY_GPU,
+                                                      instance_state->get_raft_handle());
+        std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+        auto output_buffers = get_output_buffers<float>(
+          request,
+          response,
+          TRITONSERVER_MEMORY_GPU,
+          TRITONSERVER_datatype_enum::TRITONSERVER_TYPE_FP32,
+          output_shape,
+          instance_state->get_raft_handle()
+        );
 
-      float * output_buffer_device;
-      if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_GPU) {
-        output_buffer_device = output_buffers[0].get_data();
-      } else {
-        raft::allocate(output_buffer_device, output_buffers[0].byte_size);
+        float * output_buffer_device;
+        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_GPU) {
+          output_buffer_device = output_buffers[0].get_data();
+        } else {
+          raft::allocate(output_buffer_device, output_buffers[0].byte_size);
+        }
+        instance_state->predict(
+          input_buffers[0].get_data(),
+          output_buffer_device,
+          static_cast<size_t>(input_buffers[0].shape[0])
+        );
+
+        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
+          raft::copy(output_buffers[0].get_data(),
+                     output_buffer_device,
+                     output_buffers[0].byte_size / sizeof(float),
+                     (instance_state->get_raft_handle()).get_stream());
+          CUDA_CHECK(cudaFree(output_buffer_device));
+        }
+      } catch (TritonException& request_err) {
+        LOG_IF_ERROR(
+          TRITONBACKEND_ResponseSend(
+            response,
+            TRITONSERVER_RESPONSE_COMPLETE_FINAL,
+            request_err.error()
+          ),
+          "failed to send error response"
+        );
+        responses[r] = nullptr;
+        TRITONSERVER_ErrorDelete(request_err.error());
       }
-
-      fil_predict(
-        instance,
-        input_buffers[0].get_data(),
-        output_buffer_device,
-        static_cast<size_t>(input_buffers[0].shape[0])
-      );
-
-      if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
-        raft::copy(output_buffers[0].get_data(),
-                   output_buffer_device,
-                   output_buffers[0].byte_size / sizeof(float),
-                   (instance_state->get_raft_handle()).get_stream());
-        CUDA_CHECK(cudaFree(output_buffer_device));
-      }
-
-      // TODO: Exception handling
 
       LOG_IF_ERROR(
           TRITONBACKEND_ResponseSend(
               responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
-              nullptr /* success */),
+              nullptr),
           "failed sending response");
 
       LOG_IF_ERROR(
