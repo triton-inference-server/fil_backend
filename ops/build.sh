@@ -9,7 +9,7 @@ pushd "$BUILD_DIR" > /dev/null 2>&1
 cmake \
     -DCMAKE_INSTALL_PREFIX:PATH="${PWD}/install" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_BUILD_TYPE=Release \
     .. \
   && make install
 status=$?
