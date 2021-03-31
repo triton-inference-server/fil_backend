@@ -112,19 +112,18 @@ target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
 
 target_compile_options(
   triton-fil-backend PRIVATE
-  -Wall -Wextra -Wno-unused-parameter -Wno-type-limits
+  -Wall
+  -Wextra
+  -Wno-unused-parameter
+  -Wno-type-limits
+  "$<$<COMPILE_LANGUAGE:CUDA>:-Werror=all-warnings>"
+  "$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>"
 )
 
 find_library(CUML_LIBRARY
   NAMES cuml++
   HINTS "$ENV{CONDA_PREFIX}/lib"
 )
-
-# target_link_directories(
-#   triton-fil-backend
-#   PUBLIC
-#     "/root/miniconda3/envs/triton_dev/lib"
-# )
 
 target_link_libraries(
   triton-fil-backend
