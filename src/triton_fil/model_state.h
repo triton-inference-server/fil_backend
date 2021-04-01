@@ -58,6 +58,7 @@ class ModelState : public BackendModel {
 
   ML::fil::treelite_params_t tl_params;
   void* treelite_handle;
+  bool predict_proba;
 
   ModelState(
       TRITONBACKEND_Model* triton_model,

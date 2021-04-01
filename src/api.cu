@@ -197,8 +197,10 @@ TRITONBACKEND_ModelInstanceExecute(
         auto input_buffers = get_input_buffers<float>(request,
                                                       TRITONSERVER_MEMORY_GPU,
                                                       instance_state->get_raft_handle());
-        // TODO: Double this for predict_proba true
         std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+        if (model_state->predict_proba) {
+          output_shape.push_back(2);
+        }
         auto output_buffers = get_output_buffers<float>(
           request,
           response,

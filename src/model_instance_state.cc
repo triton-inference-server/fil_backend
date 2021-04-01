@@ -56,10 +56,10 @@ ModelInstanceState::get_raft_handle()
 }
 
 TRITONSERVER_Error*
-ModelInstanceState::predict(
-    const float* data, float* preds, size_t num_rows, bool predict_proba)
+ModelInstanceState::predict(const float* data, float* preds, size_t num_rows)
 {
-  ML::fil::predict(*handle, fil_forest, preds, data, num_rows, predict_proba);
+  ML::fil::predict(
+      *handle, fil_forest, preds, data, num_rows, model_state_->predict_proba);
   return nullptr;
 }
 

@@ -36,7 +36,7 @@ namespace triton { namespace backend { namespace fil {
 
 ModelState::ModelState(
     TRITONBACKEND_Model* triton_model, const char* name, const uint64_t version)
-    : BackendModel(triton_model), treelite_handle(nullptr)
+    : BackendModel(triton_model), treelite_handle(nullptr), predict_proba(false)
 {
 }
 
@@ -52,6 +52,8 @@ ModelState::Create(TRITONBACKEND_Model& triton_model)
   state->ModelConfig().Find("parameters", config.get());
   // TODO: Properly handle tl_params in constructor
   state->tl_params = tl_params_from_config(*config);
+  state->predict_proba =
+      retrieve_param<bool>(*config, "predict_proba", optional<bool>(false));
   return state;
 }
 
