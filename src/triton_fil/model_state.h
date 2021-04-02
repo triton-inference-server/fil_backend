@@ -58,6 +58,7 @@ class ModelState : public BackendModel {
 
   ML::fil::treelite_params_t tl_params;
   void* treelite_handle;
+  std::string model_type;
   bool predict_proba;
 
   ModelState(
