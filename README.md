@@ -188,7 +188,9 @@ docker run \
   -p 8001:8001 \
   -p 8002:8002 \
   -v $PATH_TO_MODEL_REPO_DIR:/models \
-  triton_fil
+  triton_fil \
+  tritonserver \
+  --model-repository=/models
 ```
 
 #### Submitting inference requests
@@ -260,7 +262,7 @@ result_grpc = request_grpc.asnumpy('output__0')
 np.testing.assert_almost_equal(result_http, result_grpc)
 ```
 
-## Implementation details
+## Modifications and Code Contributions
 For full implementation details as well as information on modifying the FIL
 backend code or contributing code to the project, please see
 [CONTRIBUTING.md](https://github.com/wphicks/triton_fil_backend/blob/main/CONTRIBUTING.md).
