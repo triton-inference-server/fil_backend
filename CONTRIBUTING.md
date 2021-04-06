@@ -1,5 +1,31 @@
 # Contributing to the Triton FIL backend
-<!--- TODO: Add basic contribution stuff --->
+
+## How to Contribute
+You can help improve the Triton FIL backend in any of the following ways:
+- Submitting a bug report, feature request or documentation issue
+- Proposing and implementing a new feature
+- Implementing a feature or bug-fix for an outstanding issue
+
+### Bug reports
+When submitting a bug report, please include a *minimum* *reproducible*
+example. Ideally, this should be a snippet of code that other developers can
+copy, paste, and immediately run to try to reproduce the error. Please:
+- Do include import statements and any other code necessary to immediately run
+  your example
+- Avoid examples that require other developers to download models or data
+  unless you cannot reproduce the problem with synthetically-generated data
+
+### Code Contributions
+To contribute code to this project, please follow these steps:
+1. Find an issue to work on or submit an issue documenting the problem you
+   would like to work on.
+2. Comment on the issue saying that you plan to work on it.
+3. Review the implementation details section below for information to help you
+   make your changes in a way that is consistent with the rest of the codebase.
+4. Code!
+5. Create your pull request.
+6. Wait for other developers to review your code and update your PR as needed.
+7. Once a PR is approved, it will be merged into the main branch.
 
 ## Implementation Details
 
@@ -34,7 +60,7 @@ the request/response cycle. This process is briefly summarized as follows:
    2. The input tensor is interpreted by using `TRITONBACKEND_InputProperties`
       to retrieve information about the shape and datatype of the input array
    3. `TRITONBACKEND_ResponseOutput` is called to construct each output tensor
-      that needs to be resturned
+      that needs to be returned
    4. Inference is performed on the input data, and the results are copied to
       the output tensor
    5. The response containing the output is sent via
