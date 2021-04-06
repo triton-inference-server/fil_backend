@@ -50,19 +50,11 @@ class ModelInstanceState : public BackendModelInstance {
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance);
 
-  // Get the handle to the TRITONBACKEND model instance.
-  TRITONBACKEND_ModelInstance* TritonModelInstance()
-  {
-    return triton_model_instance_;
-  }
-
   // Get the state of the model that corresponds to this instance.
   ModelState* StateForModel() const { return model_state_; }
   void UnloadFILModel();
-  TRITONSERVER_Error * predict(
-      const float* data,
-      float* preds,
-      size_t num_rows,
+  void predict(
+      const float* data, float* preds, size_t num_rows,
       bool predict_proba = false);
 
   raft::handle_t& get_raft_handle();

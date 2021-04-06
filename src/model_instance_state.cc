@@ -24,9 +24,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <raft/cudart_utils.h>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
+#include <triton/core/tritonserver.h>
 #include <triton_fil/model_instance_state.h>
 #include <triton_fil/model_state.h>
 
@@ -55,12 +57,17 @@ ModelInstanceState::get_raft_handle()
   return *handle;
 }
 
-TRITONSERVER_Error*
+void
 ModelInstanceState::predict(
     const float* data, float* preds, size_t num_rows, bool predict_proba)
 {
-  ML::fil::predict(*handle, fil_forest, preds, data, num_rows, predict_proba);
-  return nullptr;
+  try {
+    ML::fil::predict(*handle, fil_forest, preds, data, num_rows, predict_proba);
+  }
+  catch (raft::cuda_error& err) {
+    throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
+  }
 }
 
 ModelInstanceState::ModelInstanceState(
