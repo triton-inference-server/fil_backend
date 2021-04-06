@@ -83,33 +83,35 @@ std::vector<TritonBuffer<T>> get_input_buffers(
         input, nullptr, &input_datatype, &input_shape, &input_dims_count,
         &input_byte_size, &input_buffer_count));
 
-    const void * input_buffer = nullptr;
-    uint64_t buffer_byte_size = 0;
-    int64_t input_memory_type_id = 0;
+    for (uint32_t j = 0; j < input_buffer_count; ++j) {
+      const void * input_buffer = nullptr;
+      uint64_t buffer_byte_size = 0;
+      int64_t input_memory_type_id = 0;
 
-    triton_check(TRITONBACKEND_InputBuffer(
-        input, i, &input_buffer, &buffer_byte_size, &input_memory_type,
-        &input_memory_type_id));
+      triton_check(TRITONBACKEND_InputBuffer(
+          input, j, &input_buffer, &buffer_byte_size, &input_memory_type,
+          &input_memory_type_id));
 
-    std::vector<int64_t> shape(input_shape, input_shape + input_dims_count);
-    T* final_buffer;
-    bool requires_deallocation;
-    if (input_memory_type == TRITONSERVER_MEMORY_GPU) {
-      final_buffer = (T*) input_buffer;
-      requires_deallocation = false;
-    } else {
-      raft::allocate(final_buffer, buffer_byte_size);
-      raft::copy(final_buffer, (T*) input_buffer, buffer_byte_size / sizeof(T),
-          raft_handle.get_stream());
-      requires_deallocation = true;
+      std::vector<int64_t> shape(input_shape, input_shape + input_dims_count);
+      T* final_buffer;
+      bool requires_deallocation;
+      if (input_memory_type == TRITONSERVER_MEMORY_GPU) {
+        final_buffer = (T*) input_buffer;
+        requires_deallocation = false;
+      } else {
+        raft::allocate(final_buffer, buffer_byte_size);
+        raft::copy(final_buffer, (T*) input_buffer, buffer_byte_size / sizeof(T),
+            raft_handle.get_stream());
+        requires_deallocation = true;
+      }
+      buffers.push_back(TritonBuffer<T>{input_name,
+                                        shape,
+                                        input_datatype,
+                                        buffer_byte_size,
+                                        final_buffer,
+                                        TRITONSERVER_MEMORY_GPU,
+                                        requires_deallocation});
     }
-    buffers.push_back(TritonBuffer<T>{input_name,
-                                      shape,
-                                      input_datatype,
-                                      buffer_byte_size,
-                                      final_buffer,
-                                      TRITONSERVER_MEMORY_GPU,
-                                      requires_deallocation});
   }
   return buffers;
 }
