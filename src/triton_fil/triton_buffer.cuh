@@ -36,20 +36,120 @@
 
 namespace triton { namespace backend { namespace fil {
 
-template<typename T>
-struct TritonBuffer {
-  std::string name;
-  std::vector<int64_t> shape;
-  TRITONSERVER_DataType dtype;
-  uint64_t byte_size;
-  T* buffer;
-  TRITONSERVER_MemoryType memory_type;
-  bool requires_deallocation;
 
-  T* get_data() {
-    return buffer;
+namespace {
+  template<typename T>
+  T product_of_elems(const std::vector<T>& array) {
+    return std::accumulate(std::begin(array),
+                           std::end(array),
+                           1,
+                           std::multiplies<>());
   }
 
+  template<typename T>
+  T* allocate_device_memory(size_t bytes) {
+    T* ptr_d;
+    raft::allocate(ptr_d, bytes);
+    return ptr_d;
+  }
+}
+
+template<typename T, bool is_owner>
+class TritonBuffer {
+
+ private:
+  std::string name_;
+  std::vector<int64_t> shape_;
+  TRITONSERVER_DataType dtype_;
+  uint64_t size_bytes_;
+  bool is_owner_;
+  T* buffer;
+
+ public:
+  TritonBuffer() : name_{},
+                   shape_{},
+                   dtype_{TRITONSERVER_TYPE_FP32},
+                   size_bytes_{0},
+                   is_owner_{false},
+                   buffer{nullptr} {}
+
+  TritonBuffer(T* buffer,
+               const std::string& name,
+               const std::vector<int64_t>& shape,
+               TRITONSERVER_DataType dtype) : name_{name},
+                                              shape_{shape},
+                                              dtype_{dtype_},
+                                              size_bytes_{
+                                                sizeof(T) *
+                                                product_of_elems(shape_)
+                                              },
+                                              is_owner_{false},
+                                              buffer{buffer} {}
+
+  TritonBuffer(const std::string& name,
+               const std::vector<int64_t>& shape,
+               TRITONSERVER_DataType dtype) : name_{name},
+                                              shape_{shape},
+                                              dtype_{dtype_},
+                                              size_bytes_{
+                                                sizeof(T) *
+                                                product_of_elems(shape_)
+                                              },
+                                              is_owner_{true},
+                                              buffer{
+                                                allocate_device_memory<T>(size_bytes)
+                                              } {}
+
+  ~TritonBuffer() {
+    if (is_owner_) {
+      cudaFree(buffer);
+    }
+  }
+
+  TritonBuffer(const TritonBuffer& other) : name_{other.name_},
+                                            shape_{other.shape_},
+                                            dtype_{other.dtype_},
+                                            size_bytes_{other.size_bytes_},
+                                            is_owner_{other.is_owner_},
+                                            buffer{[&] {
+                                              T * ptr_d =
+                                                allocate_device_memory<T>(size_bytes_);
+                                              raft::copy(
+                                                ptr_d,
+                                                other.buffer,
+                                                other.size(),
+                                                other.stream // TODO: store stream
+                                              )
+                                            }()}
+
+  TritonBuffer(TritonBuffer&& other) noexcept : name_{other.name_},
+                                                shape_{other.shape_},
+                                                dtype_{other.dtype_},
+                                                size_bytes_
+
+  T* data() {
+    if (is_owner_) {
+      return owned_buffer.get()
+    } else {
+      return buffer;
+    }
+  }
+
+  const std::string& name() {
+    return name_;
+  }
+  const std::vector<int64_t>& shape() {
+    return shape_;
+  }
+  TRITONSERVER_DataType dtype() {
+    return dtype_;
+  }
+  int64_t size() {
+    return product_of_elems(shape_);
+  }
+  uint64_t size_bytes() {
+    return size_bytes_;
+  }
 };
 
 template<typename T>
