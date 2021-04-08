@@ -78,7 +78,6 @@ find_path(RAFT_DIR "raft"
 message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
 
 find_package(Treelite 1.0.0 REQUIRED)
-find_package(RMM REQUIRED MODULE)
 
 #
 # Shared library implementing the Triton Backend API
@@ -105,7 +104,6 @@ target_include_directories(
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${RAFT_DIR}
-    ${RMM_INCLUDE_DIRS}
 )
 
 target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
