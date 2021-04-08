@@ -178,9 +178,7 @@ class TritonBuffer {
         }
         return ptr_d;
       }()},
-      final_buffer{other.final_buffer} {
-    std::cout << "DEAR GOD IN HEAVEN COPY OCCURRED I'M MELTTTTINNNGGGGGGGG\n";
-  }
+      final_buffer{other.final_buffer} {}
 
   TritonBuffer(TritonBuffer<T>&& other) noexcept : name_{other.name_},
                                                    shape_{other.shape_},
