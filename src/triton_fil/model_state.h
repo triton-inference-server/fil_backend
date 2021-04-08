@@ -47,14 +47,11 @@ class ModelState : public BackendModel {
  public:
   static std::unique_ptr<ModelState> Create(TRITONBACKEND_Model& triton_model);
 
-  TRITONSERVER_Error* LoadModel(
+  void LoadModel(
       std::string artifact_name,
       const TRITONSERVER_InstanceGroupKind instance_group_kind,
       const int32_t instance_group_device_id);
-  TRITONSERVER_Error* UnloadModel();
-
-  // Validate that model configuration is supported by this backend.
-  TRITONSERVER_Error* ValidateModelConfig();
+  void UnloadModel();
 
   ML::fil::treelite_params_t tl_params;
   void* treelite_handle;

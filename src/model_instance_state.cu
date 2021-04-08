@@ -81,8 +81,7 @@ ModelInstanceState::ModelInstanceState(
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state), handle(std::make_unique<raft::handle_t>())
 {
-  THROW_IF_BACKEND_INSTANCE_ERROR(
-      model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId()));
+  model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
   ML::fil::from_treelite(
       *handle, &fil_forest, model_state_->treelite_handle,
       &(model_state_->tl_params));

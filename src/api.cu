@@ -105,13 +105,17 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
-  auto model_state = get_model_state<ModelState>(*model);
-  RETURN_IF_ERROR(model_state->UnloadModel());
+  try {
+    auto model_state = get_model_state<ModelState>(*model);
+    model_state->UnloadModel();
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
 
-  delete model_state;
+    delete model_state;
+  } catch (TritonException& err) {
+    return err.error();
+  }
 
   return nullptr;  // success
 }
@@ -152,19 +156,22 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
 {
-  // TODO: Modularize
-  void* vstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
-  ModelInstanceState* instance_state =
-      reinterpret_cast<ModelInstanceState*>(vstate);
+  try {
+    void* vstate;
+    triton_check(TRITONBACKEND_ModelInstanceState(instance, &vstate));
+    ModelInstanceState* instance_state =
+        reinterpret_cast<ModelInstanceState*>(vstate);
 
-  instance_state->UnloadFILModel();
+    instance_state->UnloadFILModel();
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
 
-  delete instance_state;
+    delete instance_state;
+  } catch (TritonException& err) {
+    return err.error();
+  }
 
   return nullptr;  // success
 }

@@ -55,7 +55,7 @@ ModelState::Create(TRITONBACKEND_Model& triton_model)
   return state;
 }
 
-TRITONSERVER_Error*
+void
 ModelState::LoadModel(
     std::string artifact_name,
     const TRITONSERVER_InstanceGroupKind instance_group_kind,
@@ -68,7 +68,7 @@ ModelState::LoadModel(
       JoinPath({RepositoryPath(), std::to_string(Version()), artifact_name});
   {
     bool is_dir;
-    RETURN_IF_ERROR(IsDirectory(model_path, &is_dir));
+    triton_check(IsDirectory(model_path, &is_dir));
     if (is_dir) {
       model_path = JoinPath({model_path, "xgboost.model"});
     }
@@ -76,35 +76,27 @@ ModelState::LoadModel(
 
   {
     bool exists;
-    RETURN_IF_ERROR(FileExists(model_path, &exists));
-    RETURN_ERROR_IF_FALSE(
-        exists, TRITONSERVER_ERROR_UNAVAILABLE,
-        std::string("unable to find '") + model_path +
-            "' for model instance '" + Name() + "'");
+    triton_check(FileExists(model_path, &exists));
+    if (!exists) {
+      throw TritonException(
+          TRITONSERVER_ERROR_UNAVAILABLE,
+          std::string("unable to find '") + model_path +
+              "' for model instance '" + Name() + "'");
+    }
   }
 
   if (TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle) != 0) {
-    return TRITONSERVER_ErrorNew(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-        "Treelite model could not be loaded");
+    throw TritonException(
+        TRITONSERVER_ERROR_UNAVAILABLE, "Treelite model could not be loaded");
   }
-  return nullptr;
 }
 
-TRITONSERVER_Error*
+void
 ModelState::UnloadModel()
 {
   if (treelite_handle != nullptr) {
     TreeliteFreeModel(treelite_handle);
   }
-  return nullptr;
-}
-
-TRITONSERVER_Error*
-ModelState::ValidateModelConfig()
-{
-  // TODO
-  return nullptr;  // success
 }
 
 }}}  // namespace triton::backend::fil
