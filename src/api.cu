@@ -201,7 +201,7 @@ TRITONBACKEND_ModelInstanceExecute(
           instance_state->get_raft_handle()
         );
 
-        std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+        std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
 
         auto output_buffers = get_output_buffers<float>(
           request,
@@ -215,7 +215,7 @@ TRITONBACKEND_ModelInstanceExecute(
         instance_state->predict(
           input_buffers[0],
           output_buffers[0],
-          static_cast<size_t>(input_buffers[0].shape[0])
+          static_cast<size_t>(input_buffers[0].shape()[0])
         );
 
         for (auto& buffer : output_buffers) {

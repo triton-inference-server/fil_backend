@@ -37,7 +37,7 @@
 
 namespace triton { namespace backend { namespace fil {
 
-// namespace {
+namespace {
   template<typename T>
   T product_of_elems(const std::vector<T>& array) {
     return std::accumulate(std::begin(array),
@@ -52,7 +52,7 @@ namespace triton { namespace backend { namespace fil {
     raft::allocate(ptr_d, bytes);
     return ptr_d;
   }
-// }
+}
 
 template<typename T>
 class TritonBuffer {
@@ -113,7 +113,7 @@ class TritonBuffer {
       is_owner_{true},
       stream_{stream},
       buffer{
-        allocate_device_memory<non_const_T>(size_bytes)
+        allocate_device_memory<non_const_T>(size_bytes_)
       },
       final_buffer{final_buffer} {}
 
@@ -136,7 +136,7 @@ class TritonBuffer {
       buffer{[&] {
         non_const_T * ptr_d = allocate_device_memory<non_const_T>(size_bytes_);
         try {
-          raft::copy(ptr_d, input_buffer, product_of_elems(shape_) stream_);
+          raft::copy(ptr_d, input_buffer, product_of_elems(shape_), stream_);
         } catch (const raft::cuda_error& err) {
           throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
@@ -150,7 +150,7 @@ class TritonBuffer {
   ~TritonBuffer() {
     if (is_owner_) {
       // Allowing const_cast here because if this object owns the buffer, we
-      // originally allocated it non-const, then cast to const for consistency
+      // originally allocated it non-const then cast to const for consistency
       // with Triton-provided buffers. Since this is happening in the
       // destructor, removing const at this point should be safe.
       cudaFree(reinterpret_cast<void*>(const_cast<non_const_T*>(buffer)));
@@ -220,11 +220,7 @@ class TritonBuffer {
   }
 
   T* data() {
-    if (is_owner_) {
-      return owned_buffer.get()
-    } else {
-      return buffer;
-    }
+    return buffer;
   }
 
   const std::string& name() {
@@ -236,13 +232,13 @@ class TritonBuffer {
   TRITONSERVER_DataType dtype() {
     return dtype_;
   }
-  int64_t size() {
+  int64_t size() const {
     return product_of_elems(shape_);
   }
-  uint64_t size_bytes() {
+  uint64_t size_bytes() const {
     return size_bytes_;
   }
-  const cudaStream_t& get_stream() {
+  const cudaStream_t& get_stream() const {
     return stream_;
   }
   void set_stream(cudaStream_t new_stream) {
