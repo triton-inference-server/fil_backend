@@ -40,9 +40,10 @@
 #include <triton_fil/config.h>
 #include <triton_fil/exceptions.h>
 #include <triton_fil/model_state.h>
-#include <triton_fil/model_instance_state.h>
+#include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_utils.h>
 #include <triton_fil/triton_buffer.cuh>
+#include <triton_fil/triton_buffer_utils.cuh>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -194,11 +195,14 @@ TRITONBACKEND_ModelInstanceExecute(
 
       try {
 
-        auto input_buffers = get_input_buffers<float>(request,
-                                                      TRITONSERVER_MEMORY_GPU,
-                                                      instance_state->get_raft_handle());
-        // TODO: Double this for predict_proba true
+        auto input_buffers = get_input_buffers<float>(
+          request,
+          TRITONSERVER_MEMORY_GPU,
+          instance_state->get_raft_handle()
+        );
+
         std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+
         auto output_buffers = get_output_buffers<float>(
           request,
           response,
@@ -208,30 +212,14 @@ TRITONBACKEND_ModelInstanceExecute(
           instance_state->get_raft_handle()
         );
 
-        float * output_buffer_device;
-        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_GPU) {
-          output_buffer_device = output_buffers[0].get_data();
-        } else {
-          raft::allocate(output_buffer_device, output_buffers[0].byte_size);
-        }
         instance_state->predict(
-          input_buffers[0].get_data(),
-          output_buffer_device,
+          input_buffers[0],
+          output_buffers[0],
           static_cast<size_t>(input_buffers[0].shape[0])
         );
 
-        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
-          raft::copy(output_buffers[0].get_data(),
-                     output_buffer_device,
-                     output_buffers[0].byte_size / sizeof(float),
-                     (instance_state->get_raft_handle()).get_stream());
-          CUDA_CHECK(cudaFree(output_buffer_device));
-        }
-
-        for (auto buffer : input_buffers) {
-          if (buffer.requires_deallocation) {
-            CUDA_CHECK(cudaFree(buffer.get_data()));
-          }
+        for (auto& buffer : output_buffers) {
+          buffer.sync();
         }
       } catch (TritonException& request_err) {
         LOG_IF_ERROR(

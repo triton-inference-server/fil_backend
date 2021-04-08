@@ -91,7 +91,7 @@ add_library(
   src/config.cc
   src/enum_conversions.cc
   src/exceptions.cc
-  src/model_instance_state.cc
+  src/model_instance_state.cu
   src/model_state.cc
   src/triton_utils.cc
 )

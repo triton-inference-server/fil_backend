@@ -24,70 +24,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <raft/cudart_utils.h>
+#pragma once
+#include <cuml/fil/fil.h>
 #include <triton/backend/backend_common.h>
-#include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
+#include <triton/core/tritonbackend.h>
 #include <triton/core/tritonserver.h>
-#include <triton_fil/model_instance_state.h>
 #include <triton_fil/model_state.h>
 
 #include <memory>
 #include <raft/handle.hpp>
+#include <string>
 
 namespace triton { namespace backend { namespace fil {
 
-std::unique_ptr<ModelInstanceState>
-ModelInstanceState::Create(
-    ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance)
-{
-  std::string instance_name = get_model_instance_name(*triton_model_instance);
-  TRITONSERVER_InstanceGroupKind instance_kind =
-      get_instance_kind(*triton_model_instance);
-  int32_t instance_id = get_device_id(*triton_model_instance);
+template<typename T>
+class TritonBuffer;
 
-  return std::make_unique<ModelInstanceState>(
-      model_state, triton_model_instance, instance_name.c_str(), instance_kind,
-      instance_id);
-}
+//
+// ModelInstanceState
+//
+// State associated with a model instance. An object of this class is
+// created and associated with each TRITONBACKEND_ModelInstance.
+//
+class ModelInstanceState : public BackendModelInstance {
+ public:
+  static std::unique_ptr<ModelInstanceState> Create(
+      ModelState* model_state,
+      TRITONBACKEND_ModelInstance* triton_model_instance);
 
-raft::handle_t&
-ModelInstanceState::get_raft_handle()
-{
-  return *handle;
-}
+  // Get the state of the model that corresponds to this instance.
+  ModelState* StateForModel() const { return model_state_; }
+  void UnloadFILModel();
+  void predict(
+      TritonBuffer<const float>& data, TritonBuffer<float>& preds, size_t num_rows,
+      bool predict_proba = false);
 
-void
-ModelInstanceState::predict(
-    const float* data, float* preds, size_t num_rows, bool predict_proba)
-{
-  try {
-    ML::fil::predict(*handle, fil_forest, preds, data, num_rows, predict_proba);
-  }
-  catch (raft::cuda_error& err) {
-    throw TritonException(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
-  }
-}
+  raft::handle_t& get_raft_handle();
 
-ModelInstanceState::ModelInstanceState(
-    ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
-    const char* name, const TRITONSERVER_InstanceGroupKind kind,
-    const int32_t device_id)
-    : BackendModelInstance(model_state, triton_model_instance),
-      model_state_(model_state), handle(std::make_unique<raft::handle_t>())
-{
-  THROW_IF_BACKEND_INSTANCE_ERROR(
-      model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId()));
-  ML::fil::from_treelite(
-      *handle, &fil_forest, model_state_->treelite_handle,
-      &(model_state_->tl_params));
-}
+  ModelInstanceState(
+      ModelState* model_state,
+      TRITONBACKEND_ModelInstance* triton_model_instance, const char* name,
+      const TRITONSERVER_InstanceGroupKind kind, const int32_t device_id);
 
-void
-ModelInstanceState::UnloadFILModel()
-{
-  ML::fil::free(*handle, fil_forest);
-}
+ private:
+  ModelState* model_state_;
+  ML::fil::forest_t fil_forest;
+  std::unique_ptr<raft::handle_t> handle;
+};
 
-}}}  // namespace triton::backend::fil
+}}}
