@@ -20,13 +20,15 @@
 #include <triton_fil/config.h>
 #include <triton_fil/model_state.h>
 
+#include <algorithm>
 #include <memory>
 
 namespace triton { namespace backend { namespace fil {
 
 ModelState::ModelState(
     TRITONBACKEND_Model* triton_model, const char* name, const uint64_t version)
-    : BackendModel(triton_model), treelite_handle(nullptr), predict_proba(false)
+    : BackendModel(triton_model), treelite_handle(nullptr),
+      predict_proba(false), num_class_(0)
 {
 }
 
@@ -81,6 +83,13 @@ ModelState::LoadModel(
     throw TritonException(
         TRITONSERVER_ERROR_UNAVAILABLE, "Treelite model could not be loaded");
   }
+
+  if (TreeliteQueryNumClass(treelite_handle, &num_class_) != 0) {
+    throw TritonException(
+        TRITONSERVER_ERROR_UNAVAILABLE,
+        "Treelite model had unreportable number of classes");
+  }
+  num_class_ = std::max<size_t>(num_class_, 2);
 }
 
 void
@@ -89,6 +98,17 @@ ModelState::UnloadModel()
   if (treelite_handle != nullptr) {
     TreeliteFreeModel(treelite_handle);
   }
+}
+
+size_t
+ModelState::num_class()
+{
+  if (num_class_ == 0) {
+    throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+        "Model not yet loaded");
+  }
+  return num_class_;
 }
 
 }}}  // namespace triton::backend::fil
