@@ -27,7 +27,7 @@
 namespace triton { namespace backend { namespace fil {
 
 template <typename T>
-class optional {
+class optional {  // C++17: Switch to std::optional
  public:
   optional() : empty_{}, has_value_{false} {}
 
