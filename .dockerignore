@@ -1,0 +1,4 @@
+*.swp
+*.pyc
+build/
+ops/Dockerfile
