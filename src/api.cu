@@ -199,7 +199,7 @@ TRITONBACKEND_ModelInstanceExecute(
 
         std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
         if (model_state->predict_proba) {
-          output_shape.push_back(model_state->num_class());  // TODO: Set to number of classes
+          output_shape.push_back(model_state->num_class());
         }
         auto output_buffers = get_output_buffers<float>(
           request,
