@@ -79,6 +79,11 @@ model_repository/
     `-- config.pbtxt
 ```
 
+By default, the FIL backend assumes that XGBoost binary models will be named
+`xgboost.model`, XGBoost json models will be named `xgboost.json`, and LightGBM
+models will be named `model.txt`, but this can be tweaked through standard
+Triton configuration options.
+
 #### Configuration
 
 Once you have chosen a model to deploy, you will need to create a corresponding
