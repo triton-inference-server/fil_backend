@@ -45,10 +45,16 @@ class ModelState : public BackendModel {
 
   ML::fil::treelite_params_t tl_params;
   void* treelite_handle;
+  bool predict_proba;
 
   ModelState(
       TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version);
+
+  size_t num_class();
+
+ private:
+  size_t num_class_;  // C++17: Use std::optional
 };
 
 }}}

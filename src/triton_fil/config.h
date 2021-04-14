@@ -26,10 +26,48 @@
 
 namespace triton { namespace backend { namespace fil {
 
+template <typename T>
+class optional {  // C++17: Switch to std::optional
+ public:
+  optional() : empty_{}, has_value_{false} {}
+
+  optional(const T& input_value) : value_{input_value}, has_value_{true} {}
+  optional(optional<T>&& other) : has_value_{other}
+  {
+    if (other) {
+      value_ = *other;
+    }
+  }
+
+  ~optional()
+  {
+    if (has_value_) {
+      value_.~T();
+    } else {
+      empty_.~empty_byte();
+    }
+  }
+
+  explicit operator bool() const { return has_value_; }
+  T& operator*() { return value_; }
+  T* operator->() { return &value_; }
+
+ private:
+  struct empty_byte {
+  };
+  union {
+    empty_byte empty_;
+    T value_;
+  };
+  bool has_value_;
+};
+
 template <typename out_type>
-out_type retrieve_param(
-    triton::common::TritonJson::Value& config,
-    const std::string& param_name) {
+out_type
+retrieve_param(
+    triton::common::TritonJson::Value& config, const std::string& param_name,
+    optional<out_type> default_value = optional<out_type>())
+{
   common::TritonJson::Value value;
   out_type output;
   if (config.Find(param_name.c_str(), &value)) {
@@ -44,18 +82,25 @@ out_type retrieve_param(
       input_stream >> output;
     }
     if (input_stream.fail()) {
-      throw TritonException(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
-        ("Bad input for parameter " + param_name).c_str()
-      );
+      if (default_value) {
+        return *default_value;
+      } else {
+        throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+            ("Bad input for parameter " + param_name).c_str());
+      }
     } else {
       return output;
     }
   } else {
-    throw TritonException(
-      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
-      ("Required parameter " + param_name + " not found in config").c_str()
-    );
+    if (default_value) {
+      return *default_value;
+    } else {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+          ("Required parameter " + param_name + " not found in config")
+              .c_str());
+    }
   }
 }
 

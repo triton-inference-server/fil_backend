@@ -191,7 +191,6 @@ TRITONBACKEND_ModelInstanceExecute(
       TRITONBACKEND_Response* response = responses[r];
 
       try {
-
         auto input_buffers = get_input_buffers<float>(
           request,
           TRITONSERVER_MEMORY_GPU,
@@ -199,7 +198,9 @@ TRITONBACKEND_ModelInstanceExecute(
         );
 
         std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
-
+        if (model_state->predict_proba) {
+          output_shape.push_back(model_state->num_class());
+        }
         auto output_buffers = get_output_buffers<float>(
           request,
           response,
@@ -212,7 +213,8 @@ TRITONBACKEND_ModelInstanceExecute(
         instance_state->predict(
           input_buffers[0],
           output_buffers[0],
-          static_cast<size_t>(input_buffers[0].shape()[0])
+          static_cast<size_t>(input_buffers[0].shape()[0]),
+          model_state->predict_proba
         );
 
         for (auto& buffer : output_buffers) {
