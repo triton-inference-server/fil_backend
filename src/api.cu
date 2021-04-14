@@ -1,28 +1,18 @@
-// Copyright (c) 2020-2021, NVIDIA CORPORATION. All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ * Copyright (c) 2021, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <cuml/fil/fil.h>
 #include <raft/handle.hpp>
@@ -40,9 +30,10 @@
 #include <triton_fil/config.h>
 #include <triton_fil/exceptions.h>
 #include <triton_fil/model_state.h>
-#include <triton_fil/model_instance_state.h>
+#include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_utils.h>
 #include <triton_fil/triton_buffer.cuh>
+#include <triton_fil/triton_buffer_utils.cuh>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -104,13 +95,17 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
-  auto model_state = get_model_state<ModelState>(*model);
-  RETURN_IF_ERROR(model_state->UnloadModel());
+  try {
+    auto model_state = get_model_state<ModelState>(*model);
+    model_state->UnloadModel();
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
 
-  delete model_state;
+    delete model_state;
+  } catch (TritonException& err) {
+    return err.error();
+  }
 
   return nullptr;  // success
 }
@@ -151,19 +146,22 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
 {
-  // TODO: Modularize
-  void* vstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
-  ModelInstanceState* instance_state =
-      reinterpret_cast<ModelInstanceState*>(vstate);
+  try {
+    void* vstate;
+    triton_check(TRITONBACKEND_ModelInstanceState(instance, &vstate));
+    ModelInstanceState* instance_state =
+        reinterpret_cast<ModelInstanceState*>(vstate);
 
-  instance_state->UnloadFILModel();
+    instance_state->UnloadFILModel();
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
 
-  delete instance_state;
+    delete instance_state;
+  } catch (TritonException& err) {
+    return err.error();
+  }
 
   return nullptr;  // success
 }
@@ -193,13 +191,15 @@ TRITONBACKEND_ModelInstanceExecute(
       TRITONBACKEND_Response* response = responses[r];
 
       try {
+        auto input_buffers = get_input_buffers<float>(
+          request,
+          TRITONSERVER_MEMORY_GPU,
+          instance_state->get_raft_handle()
+        );
 
-        auto input_buffers = get_input_buffers<float>(request,
-                                                      TRITONSERVER_MEMORY_GPU,
-                                                      instance_state->get_raft_handle());
-        std::vector<int64_t> output_shape{input_buffers[0].shape[0]};
+        std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
         if (model_state->predict_proba) {
-          output_shape.push_back(2);
+          output_shape.push_back(model_state->num_class());
         }
         auto output_buffers = get_output_buffers<float>(
           request,
@@ -210,30 +210,15 @@ TRITONBACKEND_ModelInstanceExecute(
           instance_state->get_raft_handle()
         );
 
-        float * output_buffer_device;
-        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_GPU) {
-          output_buffer_device = output_buffers[0].get_data();
-        } else {
-          raft::allocate(output_buffer_device, output_buffers[0].byte_size);
-        }
         instance_state->predict(
-          input_buffers[0].get_data(),
-          output_buffer_device,
-          static_cast<size_t>(input_buffers[0].shape[0])
+          input_buffers[0],
+          output_buffers[0],
+          static_cast<size_t>(input_buffers[0].shape()[0]),
+          model_state->predict_proba
         );
 
-        if (output_buffers[0].memory_type == TRITONSERVER_MEMORY_CPU) {
-          raft::copy(output_buffers[0].get_data(),
-                     output_buffer_device,
-                     output_buffers[0].byte_size / sizeof(float),
-                     (instance_state->get_raft_handle()).get_stream());
-          CUDA_CHECK(cudaFree(output_buffer_device));
-        }
-
-        for (auto buffer : input_buffers) {
-          if (buffer.requires_deallocation) {
-            CUDA_CHECK(cudaFree(buffer.get_data()));
-          }
+        for (auto& buffer : output_buffers) {
+          buffer.sync();
         }
       } catch (TritonException& request_err) {
         LOG_IF_ERROR(
