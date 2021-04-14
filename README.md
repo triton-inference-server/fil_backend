@@ -43,7 +43,7 @@ pipelines.
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) 
+- [Docker](https://docs.docker.com/get-docker/)
 - [The NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)
 
 ### Installation
@@ -85,53 +85,53 @@ Once you have chosen a model to deploy, you will need to create a corresponding
 `config.pbtxt` file. An example of this configuration file is shown below:
 
 ```
-name: "fil"    
-backend: "fil"    
-max_batch_size: 0    
-input [    
- {    
-    name: "input__0"    
-    data_type: TYPE_FP32    
-    dims: [ -1, 500 ]    
-  }    
-]    
-output [    
- {    
-    name: "output__0"    
-    data_type: TYPE_FP32    
-    dims: [ -1, 2 ]    
-  }    
-]    
-instance_group [{ kind: KIND_GPU }]    
-parameters [    
-  {    
-    key: "model_type"    
-    value: { string_value: "xgboost" }    
+name: "fil"
+backend: "fil"
+max_batch_size: 0
+input [
+ {
+    name: "input__0"
+    data_type: TYPE_FP32
+    dims: [ -1, 500 ]
+  }
+]
+output [
+ {
+    name: "output__0"
+    data_type: TYPE_FP32
+    dims: [ -1, 2 ]
+  }
+]
+instance_group [{ kind: KIND_GPU }]
+parameters [
+  {
+    key: "model_type"
+    value: { string_value: "xgboost" }
   },
-  {    
-    key: "predict_proba"    
-    value: { string_value: "true" }    
-  },    
-  {    
-    key: "output_class"    
-    value: { string_value: "true" }    
-  },    
-  {    
-    key: "threshold"    
-    value: { string_value: "0.5" }    
-  },    
-  {    
-    key: "algo"    
-    value: { string_value: "ALGO_AUTO" }    
-  },    
-  {    
-    key: "storage_type"    
-    value: { string_value: "AUTO" }    
-  },    
-  {    
-    key: "blocks_per_sm"    
-    value: { string_value: "0" }    
-  },    
+  {
+    key: "predict_proba"
+    value: { string_value: "true" }
+  },
+  {
+    key: "output_class"
+    value: { string_value: "true" }
+  },
+  {
+    key: "threshold"
+    value: { string_value: "0.5" }
+  },
+  {
+    key: "algo"
+    value: { string_value: "ALGO_AUTO" }
+  },
+  {
+    key: "storage_type"
+    value: { string_value: "AUTO" }
+  },
+  {
+    key: "blocks_per_sm"
+    value: { string_value: "0" }
+  },
 ]
 ```
 
