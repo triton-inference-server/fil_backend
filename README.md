@@ -68,7 +68,7 @@ docker build -t triton_fil -f ops/Dockerfile .
 Before starting the server, you will need to set up a "model repository"
 directory containing the model you wish to serve as well as a configuration
 file. The FIL backend currently supports forest models serialized in XGBoost's
-binary format, XGBoost's JSON format, and Lightgbm's text format. See the
+binary format, XGBoost's JSON format, and LightGBM's text format. See the
 following example directory structure for an XGBoost binary file:
 
 ```
