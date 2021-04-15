@@ -28,7 +28,7 @@ namespace triton { namespace backend { namespace fil {
 ModelState::ModelState(
     TRITONBACKEND_Model* triton_model, const char* name, const uint64_t version)
     : BackendModel(triton_model), treelite_handle(nullptr),
-      predict_proba(false), num_class_(0)
+      model_type("xgboost"), predict_proba(false), num_class_(0)
 {
 }
 
@@ -46,6 +46,8 @@ ModelState::Create(TRITONBACKEND_Model& triton_model)
   state->tl_params = tl_params_from_config(*config);
   state->predict_proba =
       retrieve_param<bool>(*config, "predict_proba", optional<bool>(false));
+  state->model_type = retrieve_param<std::string>(
+      *config, "model_type", optional<std::string>("xgboost"));
   return state;
 }
 
@@ -56,7 +58,17 @@ ModelState::LoadModel(
     const int32_t instance_group_device_id)
 {
   if (artifact_name.empty()) {
-    artifact_name = "xgboost.model";
+    if (model_type == "xgboost") {
+      artifact_name = "xgboost.model";
+    } else if (model_type == "xgboost_json") {
+      artifact_name = "xgboost.json";
+    } else if (model_type == "lightgbm") {
+      artifact_name = "model.txt";
+    } else {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+          "Unrecognized model type");
+    }
   }
   std::string model_path =
       JoinPath({RepositoryPath(), std::to_string(Version()), artifact_name});
@@ -79,14 +91,29 @@ ModelState::LoadModel(
     }
   }
 
-  if (TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle) != 0) {
+  int load_result = 0;
+  if (model_type == "xgboost") {
+    load_result =
+        TreeliteLoadXGBoostModel(model_path.c_str(), &treelite_handle);
+  } else if (model_type == "xgboost_json") {
+    load_result = TreeliteLoadXGBoostJSON(model_path.c_str(), &treelite_handle);
+  } else if (model_type == "lightgbm") {
+    load_result =
+        TreeliteLoadLightGBMModel(model_path.c_str(), &treelite_handle);
+  } else {
     throw TritonException(
-        TRITONSERVER_ERROR_UNAVAILABLE, "Treelite model could not be loaded");
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+        "Unrecognized model type");
+  }
+  if (load_result != 0) {
+    throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNAVAILABLE,
+        "Treelite model could not be loaded");
   }
 
   if (TreeliteQueryNumClass(treelite_handle, &num_class_) != 0) {
     throw TritonException(
-        TRITONSERVER_ERROR_UNAVAILABLE,
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNAVAILABLE,
         "Treelite model had unreportable number of classes");
   }
   num_class_ = std::max<size_t>(num_class_, 2);
