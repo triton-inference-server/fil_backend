@@ -50,7 +50,7 @@ ModelInstanceState::get_raft_handle()
 
 void
 ModelInstanceState::predict(
-    TritonBuffer<const float>& data, TritonBuffer<float>& preds, size_t num_rows,
+    TritonTensor<const float>& data, TritonTensor<float>& preds, size_t num_rows,
     bool predict_proba)
 {
   try {

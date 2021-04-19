@@ -158,7 +158,7 @@ std::pair<std::vector<std::vector<int64_t>>, std::vector<uint32_t>> get_input_sh
   return {input_shape, buffer_pieces};
 }
 
-struct RawTritonBuffer {
+struct RawTritonTensor {
   const void* data;
   uint64_t size_bytes;
   TRITONBACKEND_MemoryType memory_type;
@@ -168,12 +168,12 @@ struct RawTritonBuffer {
 /* For each request, return a vector of all raw buffers that will be combined
  * to form the corresponding input tensor
 */
-std::vector<RawTritonBuffer> get_raw_input_buffers(
+std::vector<RawTritonTensor> get_raw_input_buffers(
   std::vector<TRITONBACKEND_Input*>& all_inputs,
   TRITONBACKEND_MemoryType& input_memory_type,
   std::vector<uint32_t>& all_buffer_counts
 ) {
-  std::vector<RawTritonBuffer> input_buffers;
+  std::vector<RawTritonTensor> input_buffers;
   void * next_ptr = nullptr;
   optional<TRITONBACKEND_MemoryType> last_memory_type();
   for (size_t r=0; r < all_inputs.size(); ++r) {
@@ -208,8 +208,8 @@ std::vector<RawTritonBuffer> get_raw_input_buffers(
 }
 
 template<typename T>
-TritonBuffer<const T> build_input_buffer(
-  std::vector<RawTritonBuffer>& raw_buffers,
+TritonTensor<const T> build_input_buffer(
+  std::vector<RawTritonTensor>& raw_buffers,
   std::vector<int64_t>& tensor_shape
 ) {
 }
@@ -217,7 +217,7 @@ TritonBuffer<const T> build_input_buffer(
 } // anonymous namespace
 
 template<typename T>
-TritonBuffer<const T> get_input_batch(
+TritonTensor<const T> get_input_batch(
   uint32_t input_index,
   std::vector<TRITONBACKEND_Request*>& requests,
   TRITONBACKEND_MemoryType input_memory_type,
@@ -247,7 +247,7 @@ TritonBuffer<const T> get_input_batch(
 }
 
 template<typename T>
-std::vector<TritonBuffer<const T>> get_input_buffers(
+std::vector<TritonTensor<const T>> get_input_buffers(
     TRITONBACKEND_Request* request,
     TRITONSERVER_MemoryType input_memory_type,
     raft::handle_t& raft_handle) {
@@ -256,7 +256,7 @@ std::vector<TritonBuffer<const T>> get_input_buffers(
   triton_check(TRITONBACKEND_RequestInputCount(
     request, &input_count));
 
-  std::vector<TritonBuffer<const T>> buffers;
+  std::vector<TritonTensor<const T>> buffers;
   // buffers.reserve(input_count); TODO
 
   for (uint32_t i = 0; i < input_count; ++i) {
@@ -310,7 +310,7 @@ std::vector<TritonBuffer<const T>> get_input_buffers(
 }
 
 template<typename T>
-std::vector<TritonBuffer<T>> get_output_buffers(
+std::vector<TritonTensor<T>> get_output_buffers(
     TRITONBACKEND_Request* request,
     TRITONBACKEND_Response* response,
     TRITONSERVER_MemoryType memory_type,
@@ -321,7 +321,7 @@ std::vector<TritonBuffer<T>> get_output_buffers(
   triton_check(TRITONBACKEND_RequestOutputCount(
       request, &count));
 
-  std::vector<TritonBuffer<T>> buffers;
+  std::vector<TritonTensor<T>> buffers;
   buffers.reserve(count);
 
   for (uint32_t i = 0; i < count; ++i) {

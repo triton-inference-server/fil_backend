@@ -45,7 +45,7 @@ namespace {
 }
 
 template<typename T>
-class TritonBuffer {
+class TritonTensor {
   using non_const_T = typename std::remove_const<T>::type;
 
  private:
@@ -61,7 +61,7 @@ class TritonBuffer {
   
 
  public:
-  TritonBuffer() : name_{},
+  TritonTensor() : name_{},
                    shape_{},
                    dtype_{TRITONSERVER_TYPE_FP32},
                    size_bytes_{0},
@@ -70,7 +70,7 @@ class TritonBuffer {
                    buffer{nullptr},
                    final_buffer{nullptr} {}
 
-  TritonBuffer(
+  TritonTensor(
     T* buffer,
     const std::string& name,
     const std::vector<int64_t>& shape,
@@ -87,7 +87,7 @@ class TritonBuffer {
       buffer{buffer},
       final_buffer{nullptr} {}
 
-  TritonBuffer(
+  TritonTensor(
     const std::string& name,
     const std::vector<int64_t>& shape,
     TRITONSERVER_DataType dtype,
@@ -107,7 +107,7 @@ class TritonBuffer {
       },
       final_buffer{final_buffer} {}
 
-  TritonBuffer(
+  TritonTensor(
     T* input_buffer,
     const std::string& name,
     const std::vector<int64_t>& shape,
@@ -137,7 +137,7 @@ class TritonBuffer {
       }()},
       final_buffer{final_buffer} {}
 
-  ~TritonBuffer() {
+  ~TritonTensor() {
     if (is_owner_) {
       // Allowing const_cast here because if this object owns the buffer, we
       // originally allocated it non-const then cast to const for consistency
@@ -147,8 +147,8 @@ class TritonBuffer {
     }
   }
 
-  TritonBuffer(
-    const TritonBuffer<T>& other
+  TritonTensor(
+    const TritonTensor<T>& other
   ) : name_{other.name_},
       shape_{other.shape_},
       dtype_{other.dtype_},
@@ -170,7 +170,7 @@ class TritonBuffer {
       }()},
       final_buffer{other.final_buffer} {}
 
-  TritonBuffer(TritonBuffer<T>&& other) noexcept : name_{other.name_},
+  TritonTensor(TritonTensor<T>&& other) noexcept : name_{other.name_},
                                                    shape_{other.shape_},
                                                    dtype_{other.dtype_},
                                                    size_bytes_{other.size_bytes_},
@@ -182,13 +182,13 @@ class TritonBuffer {
     other.buffer = nullptr;
   }
 
-  TritonBuffer<T>& operator=(const TritonBuffer<T>& other) {
-    return *this = TritonBuffer<T>(other);
+  TritonTensor<T>& operator=(const TritonTensor<T>& other) {
+    return *this = TritonTensor<T>(other);
   }
 
-  TritonBuffer<T>& operator=(TritonBuffer<T>&& other) noexcept {
+  TritonTensor<T>& operator=(TritonTensor<T>&& other) noexcept {
     if (this != &other) {
-      return *this = TritonBuffer<T>(other);
+      return *this = TritonTensor<T>(other);
     } else {
       return *this;
     }

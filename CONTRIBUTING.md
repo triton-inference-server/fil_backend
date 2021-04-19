@@ -85,13 +85,13 @@ a few of these are worth discussing in more detail here.
 This helper function is used to construct the device buffers that can be passed
 directly to a FIL model for inference. It determines whether Triton's input
 data must be copied to a new device buffer and then wraps the pointer to device
-memory in a `TritonBuffer` object which also keeps track of the shape of the
+memory in a `TritonTensor` object which also keeps track of the shape of the
 input array.
 
 #### `get_output_buffers`
 This helper function is used to construct the output buffers which will be used
 to store output from the FIL model. These output buffers are similarly wrapped
-in `TritonBuffer` objects
+in `TritonTensor` objects
 
 ### Error Handling
 In general, Triton signals that an unrecoverable error in inference has

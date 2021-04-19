@@ -29,7 +29,7 @@
 namespace triton { namespace backend { namespace fil {
 
 template<typename T>
-class TritonBuffer;
+class TritonTensor;
 
 //
 // ModelInstanceState
@@ -47,7 +47,7 @@ class ModelInstanceState : public BackendModelInstance {
   ModelState* StateForModel() const { return model_state_; }
   void UnloadFILModel();
   void predict(
-      TritonBuffer<const float>& data, TritonBuffer<float>& preds, size_t num_rows,
+      TritonTensor<const float>& data, TritonTensor<float>& preds, size_t num_rows,
       bool predict_proba = false);
 
   raft::handle_t& get_raft_handle();
