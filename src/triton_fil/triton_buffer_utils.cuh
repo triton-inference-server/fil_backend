@@ -24,13 +24,18 @@
 namespace triton { namespace backend { namespace fil {
 
 namespace {
-/** Get the number of inputs in each request in a batch
+/* Get the number of inputs in each request in a batch
 */
-uint32_t get_input_count(std::vector<TRITONBACKEND_Request*>& requests) {
+uint32_t get_input_count(
+    std::vector<TRITONBACKEND_Request*>& requests,
+    bool validate=true) {
   optional<uint32_t> input_count();
   for (auto& request : requests) {
     uint32_t cur_input_count = 0;
     triton_check(TRITONBACKEND_RequestInputCount(request, &cur_input_count));
+    if (!validate) {
+      return cur_input_count;
+    }
     if (input_count) {
       if (*input_count != input_count) {
         throw TritonException(
@@ -49,155 +54,196 @@ uint32_t get_input_count(std::vector<TRITONBACKEND_Request*>& requests) {
   }
 }
 
-/** Get the names of each input in a batch of requests
+/* Get the name of a given index
 */
-std::vector<std::string> get_input_names(
-    std::vector<TRITONBACKEND_Request*>& requests,
-    uint32_t input_count
+std::string get_input_name(
+  uint32_t input_index
+  std::vector<TRITONBACKEND_Request*>& requests,
+  bool validate=true;
 ) {
-  std::vector<std::string> input_names();
-  input_names.reserve(input_count);
 
-  for (uint32_t i = 0; i < input_count; ++i) {
-    optional<std::string> input_name();
-    for (auto& request : requests) {
-      std::string cur_input_name;
-      triton_check(TRITONBACKEND_RequestInputName(
-        request, i, cur_input_name.c_str()
-      ));
-      if (input_name) {
-        if (*input_name != cur_input_name) {
-          throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "inconsistent input names in batched request"
-          )
-        }
-      } else {
-        input_name = optional<uint32_t>(cur_input_name);
-      }
+  optional<std::string> input_name();
+  for (auto& request : requests) {
+    std::string cur_input_name;
+    triton_check(TRITONBACKEND_RequestInputName(
+      request, input_index, cur_input_name.c_str()
+    ));
+    if (!validate) {
+      return cur_input_name;
     }
-    input_names.push_back(input_name.value_or(""));
+    if (input_name) {
+      if (*input_name != cur_input_name) {
+        throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          "inconsistent input names in batched request"
+        )
+      }
+    } else {
+      input_name = optional<uint32_t>(cur_input_name);
+    }
   }
-  return input_names;
+
+  if(input_name) {
+    return *input_name
+  } else {
+    throw TritonException(
+      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+      "no requests given; could not determine input name"
+    )
+  }
 }
 
-/** Return a vector containing one vector for each input. Each element of the
- * inner vectors contains a pointer to the corresponding TRITONBACKEND_Input
- * object for each request
+/* Return a vector of pointers to TRITONBACKEND_Input objects of the given name
+ * for each request
 */
-std::vector<std::vector<TRITONBACKEND_Input* input>> get_backend_inputs(
+std::vector<TRITONBACKEND_Input* input> get_backend_inputs(
+  std::string& input_name
   std::vector<TRITONBACKEND_Request*>& requests,
-  std::vector<std::string>& input_names
 ) {
   std::vector<TRITONBACKEND_Input*> all_inputs;
-  for (auto name& : input_names) {
-    for (auto request& : requests) {
-      TRITONBACKEND_Input* input = nullptr;
-      triton_check(TRITONBACKEND_RequestInput(request, name.c_str(), &input));
-      all_inputs.push_back(input);
-    }
+  for (auto request& : requests) {
+    TRITONBACKEND_Input* input = nullptr;
+    triton_check(TRITONBACKEND_RequestInput(request, input_name.c_str(), &input));
+    all_inputs.push_back(input);
   }
   return all_inputs;
 }
 
 
-/** Return a vector containing a pair for each input. The first element in each
- * pair is a vector representing the shape of the tensor for that input. The
- * second element is a vector containing the number of buffers that the tensor
- * is broken up into for each request.
+/* Return a pair whose first element is a vector representing the tensor shape
+ * for the entire batch and whose second element is a vector representing how
+ * many buffers that tensor is broken into
 */
-std::vector<std::pair<std::vector<int64_t>, std::vector<uint32_t>>> get_input_shapes(
+std::pair<std::vector<std::vector<int64_t>>, std::vector<uint32_t>> get_input_shapes(
     std::vector<TRITONBACKEND_Input*>& inputs,
     uint32_t input_count,
-    const std::vector<TRITONSERVER_Datatype>& expected_dtypes
+    TRITONSERVER_Datatype& expected_dtype
 ) {
-  std::vector<
-    std::pair<std::vector<int64_t>, std::vector<uint32_t>>
-  > input_shapes;
-  for (uint32_t i = 0; i < input_count; ++i) {
-    std::vector<int64_t> input_shape;
-    std::vector<uint32_t> buffer_pieces;
-    for (auto& input : all_inputs[i]) {
 
-      TRITONSERVER_DataType cur_dtype;
-      const int64_t* cur_shape;
-      uint32_t cur_dims_count;
-      uint32_t cur_buffer_count;
-      triton_check(TRITONBACKEND_InputProperties(
-        input, nullptr, &cur_dtype, &cur_shape, &cur_dims_count, nullptr,
-        &cur_buffer_count
-      ));
+  std::vector<int64_t> input_shape;
+  std::vector<uint32_t> buffer_pieces;
+  for (auto& input : all_inputs) {
 
-      if (cur_dtype != expected_dtypes[i]) {
+    TRITONSERVER_DataType cur_dtype;
+    const int64_t* cur_shape;
+    uint32_t cur_dims_count;
+    uint32_t cur_buffer_count;
+    triton_check(TRITONBACKEND_InputProperties(
+      input, nullptr, &cur_dtype, &cur_shape, &cur_dims_count, nullptr,
+      &cur_buffer_count
+    ));
+
+    if (cur_dtype != expected_dtype) {
+      throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+        "unexpected input data type in batched request"
+      );
+    }
+
+    buffer_pieces.push_back(cur_buffer_count);
+
+    if (input_shape.size() != 0) {
+      if (input_shape->size() != cur_dims_count ||
+          !std::equal(input_shape.begin() + 1, input_shape.end(), cur_shape + 1)) {
         throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-          "unexpected input data type in batched request"
+          "inconsistent input shapes in batched request"
         );
       }
-
-      buffer_pieces.push_back(cur_buffer_count);
-      if (input_shape.size() != 0) {
-        if (input_shape->size() != cur_dims_count ||
-            !std::equal(input_shape.begin(), input_shape.end(), cur_shape)) {
-          throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "inconsistent input shapes in batched request"
-          );
-        }
-      } else {
-        input_shape.insert(
-            input_shape.end(), cur_shape, cur_shape + cur_dims_count
-        );
-      }
+      input_shape[0] += *cur_shape;
+    } else {
+      input_shape.assign(cur_shape, cur_shape + cur_dims_count);
     }
-
-    input_shapes.emplace_back(std::move(input_shape), std::move(buffer_pieces));
   }
-
-  return input_shapes;
+  return {input_shape, buffer_pieces};
 }
 
-/** For each input, return a vector of pairs whose first element is a pointer
- * to the underlying data and whose second pair is the size of that chunk of
- * data in bytes
+struct RawTritonBuffer {
+  const void* data;
+  uint64_t size_bytes;
+  TRITONBACKEND_MemoryType memory_type;
+  int64_t device_id;
+};
+
+/* For each request, return a vector of all raw buffers that will be combined
+ * to form the corresponding input tensor
 */
-template<typename T>
-std::vector<std::vector<std::pair<const void*, uint64_t>>> get_raw_input_buffers(
+std::vector<RawTritonBuffer> get_raw_input_buffers(
   std::vector<TRITONBACKEND_Input*>& all_inputs,
-  uint32_t input_count,
-  std::vector<TRITONBACKEND_MemoryType> input_memory_type,
-  std::vector<std::pair<std::vector<int64_t>,
-                        std::vector<uint32_t>>> input_shapes
+  TRITONBACKEND_MemoryType& input_memory_type,
+  std::vector<uint32_t>& all_buffer_counts
 ) {
-  for (uint32_t i = 0; i < input_count; ++i) {
-    for (auto& input : all_inputs[i]) {
-      optional<TRITONBACKEND_MemoryType> cur_memory_type();
-      for (uint32_t j = 0; j < input_buffer_count; ++j) {
-        const void * cur_buffer;
-        uint64_t cur_byte_size = 0;
-        int64_t cur_memory_type_id = 0;
-        triton_check(TRITONBACKEND_InputBuffer(
-          input, j, &cur_buffer, &cur_byte_size, &input_memory_type[i],
-          &cur_memory_type_id
-        ));
+  std::vector<RawTritonBuffer> input_buffers;
+  void * next_ptr = nullptr;
+  optional<TRITONBACKEND_MemoryType> last_memory_type();
+  for (size_t r=0; r < all_inputs.size(); ++r) {
+    TRITONBACKEND_MemoryType memory_type = input_memory_type;
+
+    for (uint32_t j = 0; j < all_buffer_counts[r]; ++j) {
+      const void * cur_buffer;
+      uint64_t cur_byte_size = 0;
+      int64_t cur_memory_type_id = 0;
+      triton_check(TRITONBACKEND_InputBuffer(
+        all_inputs[r], j, &cur_buffer, &cur_byte_size, &memory_type,
+        &cur_memory_type_id
+      ));
+      // Check if this buffer is contiguous with previous
+      if (cur_buffer == next_ptr
+          && last_memory_type
+          && *last_memory_type == memory_type
+          && input_buffers.back().device_id == cur_memory_type_id) {
+        input_buffers.back().size_bytes += cur_size_bytes;
+      } else {
+        cur_input_buffers.emplace_back(
+          cur_buffer, cur_size_bytes, cur_memory_type_id, memory_type
+        );
+        last_memory_type = optional<TRITONBACKEND_MemoryType>(memory_type);
+        next_ptr = cur_buffer + cur_size_bytes;
       }
     }
+    input_buffers.push_back(std::move(cur_input_buffers));
   }
+
+  return input_buffers;
 }
 
+template<typename T>
+TritonBuffer<const T> build_input_buffer(
+  std::vector<RawTritonBuffer>& raw_buffers,
+  std::vector<int64_t>& tensor_shape
+) {
+}
 
 } // anonymous namespace
 
+template<typename T>
 TritonBuffer<const T> get_input_batch(
+  uint32_t input_index,
   std::vector<TRITONBACKEND_Request*>& requests,
-  std::vector<TRITONBACKEND_MemoryType> input_memory_type,
-  raft::handle_t& raft_handle
+  TRITONBACKEND_MemoryType input_memory_type,
+  raft::handle_t& raft_handle,
+  bool validate=false
 ) {
-  auto input_count = get_input_count(requests);
-  auto input_names = get_input_names(requests, input_count);
-  auto backend_inputs = get_backend_inputs(requests, input_count, input_names);
+  // Name of input
+  auto input_name = get_input_name(input_index, requests, validate);
+  // Objects representing input for each request that can be queried to get
+  // underlying data and properties
+  auto backend_inputs = get_backend_inputs(input_name, requests, validate);
+
+  // Shape of each input tensor
+  std::vector<int64_t> tensor_shape;
+  // How many buffers the input tensor is broken up into for each request
+  std::vector<uint32_t> buffer_counts;
   // TODO: pass expected dtype
-  auto input_shapes = get_input_shapes(backend_inputs, input_count);
+  std::tie(tensor_shape, buffer_counts) = get_input_shapes(backend_inputs, input_count);
+
+  // Pointers to underlying contiguous buffers along with their size and what
+  // device they are stored on
+  auto raw_buffers = get_raw_input_buffers(
+    backend_inputs, input_memory_type, buffer_counts
+  );
+
+  return build_input_buffer(raw_buffers, tensor_shapes);  // TODO
 }
 
 template<typename T>
