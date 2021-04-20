@@ -54,7 +54,7 @@ uint32_t get_input_count(
   }
 }
 
-/* Get the name of a given index
+/* Get the name of a given input
 */
 std::string get_input_name(
   uint32_t input_index
@@ -158,22 +158,15 @@ std::pair<std::vector<std::vector<int64_t>>, std::vector<uint32_t>> get_input_sh
   return {input_shape, buffer_pieces};
 }
 
-struct RawTritonTensor {
-  const void* data;
-  uint64_t size_bytes;
-  TRITONBACKEND_MemoryType memory_type;
-  int64_t device_id;
-};
-
 /* For each request, return a vector of all raw buffers that will be combined
  * to form the corresponding input tensor
 */
-std::vector<RawTritonTensor> get_raw_input_buffers(
+std::vector<RawInputBuffer> get_raw_input_buffers(
   std::vector<TRITONBACKEND_Input*>& all_inputs,
   TRITONBACKEND_MemoryType& input_memory_type,
   std::vector<uint32_t>& all_buffer_counts
 ) {
-  std::vector<RawTritonTensor> input_buffers;
+  std::vector<RawInputBuffer> input_buffers;
   void * next_ptr = nullptr;
   optional<TRITONBACKEND_MemoryType> last_memory_type();
   for (size_t r=0; r < all_inputs.size(); ++r) {
@@ -207,11 +200,83 @@ std::vector<RawTritonTensor> get_raw_input_buffers(
   return input_buffers;
 }
 
-template<typename T>
-TritonTensor<const T> build_input_buffer(
-  std::vector<RawTritonTensor>& raw_buffers,
-  std::vector<int64_t>& tensor_shape
+/* Get the name of a given input
+*/
+std::string get_output_name(
+  uint32_t output_index
+  std::vector<TRITONBACKEND_Request*>& requests,
+  bool validate=true;
 ) {
+
+  optional<std::string> output_name();
+  for (auto& request : requests) {
+    std::string cur_output_name;
+    triton_check(TRITONBACKEND_RequestOutputName(
+      request, output_index, cur_output_name->c_str()
+    ));
+    if (!validate) {
+      return cur_output_name;
+    }
+    if (output_name) {
+      if (*output_name != cur_output_name) {
+        throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          "inconsistent output names in batched request"
+        )
+      }
+    } else {
+      output_name = optional<uint32_t>(cur_output_name);
+    }
+  }
+
+  if(input_name) {
+    return *input_name
+  } else {
+    throw TritonException(
+      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+      "no requests given; could not determine input name"
+    )
+  }
+}
+
+std::vector<TRITONBACKEND_Output*> get_backend_outputs(
+  std::string& input_name
+  std::vector<TRITONBACKEND_Request*>& responses,
+  const std::vector<int64_t>& shape
+) {
+    std::vector<TRITONBACKEND_Output*> all_outputs;
+    for (auto& response : responses) {
+      TRITONBACKEND_Output* output;
+      triton_check(TRITONBACKEND_ResponseOutput(
+        response,
+        &output,
+        name,
+        dtype,
+        shape.data(),
+        shape.size()
+      ));
+      all_outputs.push_back(output);
+    }
+    return all_outputs;
+}
+
+std::vector<RawOutputBuffer> get_raw_output_buffers(
+  std::vector<TRITONBACKEND_Output>* all_outputs,
+  TRITONBACKEND_MemoryType& output_memory_type,
+  const std::vector<int64_t>& shape,
+  TRITONSERVER_DataType& expected_dtype
+  int64_t device_id=0
+) {
+  for (auto output : all_outputs) {
+    TRITONBACKEND_MemoryType memory_type = output_memory_type;
+    triton_check(TRITONBACKEND_OutputBuffer(
+      output,
+      &output_buffer,
+      buffer_byte_size,
+      &memory_type,
+      &device_id
+    ));
+
 }
 
 } // anonymous namespace
@@ -243,70 +308,35 @@ TritonTensor<const T> get_input_batch(
     backend_inputs, input_memory_type, buffer_counts
   );
 
-  return build_input_buffer(raw_buffers, tensor_shapes);  // TODO
+  return TritonTensor(
+    raw_buffers, input_name, tensor_shape, dtype, raft_handle.get_stream()
+  );
 }
 
-template<typename T>
-std::vector<TritonTensor<const T>> get_input_buffers(
-    TRITONBACKEND_Request* request,
-    TRITONSERVER_MemoryType input_memory_type,
-    raft::handle_t& raft_handle) {
+template <typename T>
+TritonTensor<T> get_output_batch(
+  uint32_t output_index,
+  std::vector<TRITONBACKEND_Response*>& responses,
+  TRITONBACKEND_MemoryType output_memory_type,
+  const std::vector<int64_t>& tensor_shape,
+  raft::handle_t& raft_handle,
+  bool validate=false
+) {
+  // Name of output
+  auto output_name = get_output_name(output_index, requests, validate);
+  // Objects representing output for each request that can be queried to get
+  // underlying data and properties
+  auto backend_outputs = get_backend_outputs(input_name, requests, validate);
 
-  uint32_t input_count = 0;
-  triton_check(TRITONBACKEND_RequestInputCount(
-    request, &input_count));
+  // Pointers to underlying contiguous buffers along with their size and what
+  // device they are stored on
+  auto raw_buffers = get_raw_output_buffers(
+    backend_outputs, output_memory_type
+  );
 
-  std::vector<TritonTensor<const T>> buffers;
-  // buffers.reserve(input_count); TODO
-
-  for (uint32_t i = 0; i < input_count; ++i) {
-    const char* input_name;
-    triton_check(TRITONBACKEND_RequestInputName(
-      request, i, &input_name));
-
-    TRITONBACKEND_Input* input = nullptr;
-    triton_check(TRITONBACKEND_RequestInput(
-        request, input_name, &input));
-
-    TRITONSERVER_DataType input_datatype;
-    const int64_t* input_shape;
-    uint32_t input_dims_count;
-    uint64_t input_byte_size;
-    uint32_t input_buffer_count;
-    triton_check(TRITONBACKEND_InputProperties(
-        input, nullptr, &input_datatype, &input_shape, &input_dims_count,
-        &input_byte_size, &input_buffer_count));
-
-    for (uint32_t j = 0; j < input_buffer_count; ++j) {
-      const void * input_buffer = nullptr;
-      uint64_t buffer_byte_size = 0;
-      int64_t input_memory_type_id = 0;
-
-      triton_check(TRITONBACKEND_InputBuffer(
-          input, j, &input_buffer, &buffer_byte_size, &input_memory_type,
-          &input_memory_type_id));
-
-      std::vector<int64_t> shape(input_shape, input_shape + input_dims_count);
-
-      if (input_memory_type == TRITONSERVER_MEMORY_GPU) {
-        buffers.emplace_back(
-          reinterpret_cast<const T*>(input_buffer),
-          std::string(input_name),
-          shape,
-          input_datatype
-        );
-      } else {
-        buffers.emplace_back(
-          reinterpret_cast<const T*>(input_buffer),
-          std::string(input_name),
-          shape,
-          input_datatype,
-          raft_handle.get_stream()
-        );
-      }
-    }
-  }
-  return buffers;
+  return TritonTensor(
+    raw_buffers, input_name, tensor_shape, dtype, raft_handle.get_stream()
+  );
 }
 
 template<typename T>

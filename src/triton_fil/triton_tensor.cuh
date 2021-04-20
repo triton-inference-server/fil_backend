@@ -15,8 +15,6 @@
  */
 
 #pragma once
-#include <iostream>
-#include <numeric>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -24,25 +22,9 @@
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+#include <triton_fil/buffers.cuh>
 
 namespace triton { namespace backend { namespace fil {
-
-namespace {
-  template<typename T>
-  T product_of_elems(const std::vector<T>& array) {
-    return std::accumulate(std::begin(array),
-                           std::end(array),
-                           1,
-                           std::multiplies<>());
-  }
-
-  template<typename T>
-  T* allocate_device_memory(size_t bytes) {
-    T* ptr_d;
-    raft::allocate(ptr_d, bytes);
-    return ptr_d;
-  }
-}
 
 template<typename T>
 class TritonTensor {
@@ -56,8 +38,9 @@ class TritonTensor {
   bool is_owner_;  //!< Whether or not buffer is responsible for deallocation
   cudaStream_t stream_;  //!< Cuda stream for any needed synchronization
   T* buffer;  //!< Pointer to underlying data
-  non_const_T* final_buffer;  //!< Where data should be copied back to on
-                              //!< "sync" calls if needed
+  std::vector<RawOutputBuffer> final_buffers;  //!< Where data should be copied
+                                              //!< back to on "sync" calls if
+                                              //!< needed
   
 
  public:
@@ -68,74 +51,80 @@ class TritonTensor {
                    is_owner_{false},
                    stream_{0},
                    buffer{nullptr},
-                   final_buffer{nullptr} {}
+                   final_buffers{} {}
 
+  template<typename U=T>
   TritonTensor(
-    T* buffer,
+    const std::vector<std::enable_if<std::is_const<U>::value, RawInputBuffer>::type>& buffers,
     const std::string& name,
-    const std::vector<int64_t>& shape,
-    TRITONSERVER_DataType dtype
-  ) : name_{name},
-      shape_{shape},
-      dtype_{dtype_},
-      size_bytes_{
-        sizeof(T) *
-        product_of_elems(shape_)
-      },
-      is_owner_{false},
-      stream_{0},
-      buffer{buffer},
-      final_buffer{nullptr} {}
-
-  TritonTensor(
-    const std::string& name,
-    const std::vector<int64_t>& shape,
+    const std::vector<int64_t>& shape
     TRITONSERVER_DataType dtype,
-    cudaStream_t stream,
-    non_const_T* final_buffer = nullptr
+    cudaStream_t stream
   ) : name_{name},
       shape_{shape},
       dtype_{dtype_},
       size_bytes_{
         sizeof(T) *
-        product_of_elems(shape_)
+        product(shape_)
       },
-      is_owner_{true},
-      stream_{stream},
-      buffer{
-        allocate_device_memory<non_const_T>(size_bytes_)
+      is_owner_{
+        buffers.size() > 1  // non-contiguous
+        || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
       },
-      final_buffer{final_buffer} {}
-
-  TritonTensor(
-    T* input_buffer,
-    const std::string& name,
-    const std::vector<int64_t>& shape,
-    TRITONSERVER_DataType dtype,
-    cudaStream_t stream,
-    non_const_T* final_buffer = nullptr
-  ) : name_{name},
-      shape_{shape},
-      dtype_{dtype_},
-      size_bytes_{
-        sizeof(T) *
-        product_of_elems(shape_)
-      },
-      is_owner_{true},
-      stream_{stream},
       buffer{[&] {
-        non_const_T * ptr_d = allocate_device_memory<non_const_T>(size_bytes_);
-        try {
-          raft::copy(ptr_d, input_buffer, product_of_elems(shape_), stream_);
-        } catch (const raft::cuda_error& err) {
-          throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            err.what()
-          );
+        if (is_owner_) {
+          auto ptr_d = allocate_device_memory<void>(size_bytes_);
+          auto cur_head = ptr_d;
+          for (auto& buffer_ : buffers) {
+            try {
+              raft::copy(
+                cur_head,
+                buffer_.data,
+                buffer.size_bytes,
+                stream_
+              );
+            } catch (const raft::cuda_error& err) {
+              throw TritonException(
+                TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                err.what()
+              );
+            }
+            cur_head += buffer.size_bytes;
+          }
+          return reinterpret_cast<non_const_T*>(ptr_d);
+        } else {
+          return reinterpret_cast<non_const_T*>(buffers[0].data);
         }
-        return ptr_d;
       }()},
-      final_buffer{final_buffer} {}
+      final_buffers{} {}
+
+  template<typename U=T>
+  TritonTensor(
+    std::vector<std::enable_if<
+      !std::is_const<U>::value, RawOutputBuffer>::type>&& buffers,
+    const std::string& name,
+    const std::vector<int64_t>& shape
+    TRITONSERVER_DataType dtype,
+    cudaStream_t stream
+  ) : name_{name},
+      shape_{shape},
+      dtype_{dtype_},
+      size_bytes_{
+        sizeof(T) *
+        product(shape_)
+      },
+      is_owner_{
+        buffers.size() > 1  // non-contiguous
+        || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
+      },
+      buffer{[&] {
+        if (is_owner_) {
+          return allocate_device_memory<non_const_T>(size_bytes_);
+        } else {
+          return reinterpret_cast<non_const_T*>(buffers[0].data);
+        }
+      }()},
+      final_buffers{buffers} {}
 
   ~TritonTensor() {
     if (is_owner_) {
@@ -168,7 +157,7 @@ class TritonTensor {
         }
         return ptr_d;
       }()},
-      final_buffer{other.final_buffer} {}
+      final_buffers{other.final_buffers} {}
 
   TritonTensor(TritonTensor<T>&& other) noexcept : name_{other.name_},
                                                    shape_{other.shape_},
@@ -177,7 +166,7 @@ class TritonTensor {
                                                    is_owner_{other.is_owner_},
                                                    stream_{other.stream_},
                                                    buffer{other.buffer},
-                                                   final_buffer{other.final_buffer} {
+                                                   final_buffers{std::move(other.final_buffers)} {
     other.is_owner_ = false;
     other.buffer = nullptr;
   }
@@ -195,15 +184,18 @@ class TritonTensor {
   }
 
   void sync() {
-    if (final_buffer != nullptr) {
+    auto head = reinterpret_cast<std::conditional<
+      std::is_const<T>::value, const void*, void*>(buffer);
+    for (auto& out_buffer : final_buffers) {
       try {
-        raft::copy(final_buffer, buffer, size(), stream_);
+        raft::copy(out_buffer.data, head, out_buffer.size_bytes, stream_);
       } catch (const raft::cuda_error& err) {
         throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
           err.what()
         );
       }
+      head += out_buffer.size_bytes;
     }
   }
 
@@ -221,7 +213,7 @@ class TritonTensor {
     return dtype_;
   }
   int64_t size() const {
-    return product_of_elems(shape_);
+    return product(shape_);
   }
   uint64_t size_bytes() const {
     return size_bytes_;
