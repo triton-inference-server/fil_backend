@@ -20,47 +20,12 @@
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+#include <triton_fil/optional.h>
 
 #include <sstream>
 #include <type_traits>
 
 namespace triton { namespace backend { namespace fil {
-
-template <typename T>
-class optional {  // C++17: Switch to std::optional
- public:
-  optional() : empty_{}, has_value_{false} {}
-
-  optional(const T& input_value) : value_{input_value}, has_value_{true} {}
-  optional(optional<T>&& other) : has_value_{other}
-  {
-    if (other) {
-      value_ = *other;
-    }
-  }
-
-  ~optional()
-  {
-    if (has_value_) {
-      value_.~T();
-    } else {
-      empty_.~empty_byte();
-    }
-  }
-
-  explicit operator bool() const { return has_value_; }
-  T& operator*() { return value_; }
-  T* operator->() { return &value_; }
-
- private:
-  struct empty_byte {
-  };
-  union {
-    empty_byte empty_;
-    T value_;
-  };
-  bool has_value_;
-};
 
 template <typename out_type>
 out_type

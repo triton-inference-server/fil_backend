@@ -43,15 +43,26 @@ T* allocate_device_memory(size_t bytes) {
 struct RawInputBuffer {
   const void* data;
   uint64_t size_bytes;
-  TRITONBACKEND_MemoryType memory_type;
+  TRITONSERVER_MemoryType memory_type;
   int64_t device_id;
+  RawInputBuffer(
+    const void* data, uint64_t size_bytes,
+    TRITONSERVER_MemoryType& memory_type, int64_t device_id
+  ) : data(data), size_bytes(size_bytes), memory_type(memory_type),
+  device_id(device_id) {}
 };
 
 struct RawOutputBuffer {
   void* data;
   uint64_t size_bytes;
-  TRITONBACKEND_MemoryType memory_type;
+  TRITONSERVER_MemoryType memory_type;
   int64_t device_id;
+
+  RawOutputBuffer(
+    void* data, uint64_t size_bytes,
+    TRITONSERVER_MemoryType& memory_type, int64_t device_id
+  ) : data(data), size_bytes(size_bytes), memory_type(memory_type),
+  device_id(device_id) {}
 };
 
 }}}

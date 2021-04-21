@@ -26,6 +26,8 @@
 
 namespace triton { namespace backend { namespace fil {
 
+using byte = char; // C++17: Use std::byte
+
 template<typename T>
 class TritonTensor {
   using non_const_T = typename std::remove_const<T>::type;
@@ -55,9 +57,10 @@ class TritonTensor {
 
   template<typename U=T>
   TritonTensor(
-    const std::vector<std::enable_if<std::is_const<U>::value, RawInputBuffer>::type>& buffers,
+    const std::vector<
+      typename std::enable_if<std::is_const<U>::value, RawInputBuffer>::type>& buffers,
     const std::string& name,
-    const std::vector<int64_t>& shape
+    const std::vector<int64_t>& shape,
     TRITONSERVER_DataType dtype,
     cudaStream_t stream
   ) : name_{name},
@@ -71,16 +74,17 @@ class TritonTensor {
         buffers.size() > 1  // non-contiguous
         || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
       },
+      stream_{stream},
       buffer{[&] {
         if (is_owner_) {
-          auto ptr_d = allocate_device_memory<void>(size_bytes_);
+          auto ptr_d = allocate_device_memory<byte>(size_bytes_);
           auto cur_head = ptr_d;
           for (auto& buffer_ : buffers) {
             try {
               raft::copy(
                 cur_head,
-                buffer_.data,
-                buffer.size_bytes,
+                reinterpret_cast<const byte *>(buffer_.data),
+                buffer_.size_bytes,
                 stream_
               );
             } catch (const raft::cuda_error& err) {
@@ -89,23 +93,23 @@ class TritonTensor {
                 err.what()
               );
             }
-            cur_head += buffer.size_bytes;
+            cur_head += buffer_.size_bytes;
           }
-          return reinterpret_cast<non_const_T*>(ptr_d);
+          return reinterpret_cast<T*>(ptr_d);
         } else {
-          return reinterpret_cast<non_const_T*>(buffers[0].data);
+          return reinterpret_cast<T*>(buffers[0].data);
         }
       }()},
       final_buffers{} {}
 
   template<typename U=T>
   TritonTensor(
-    std::vector<std::enable_if<
+    std::vector<typename std::enable_if<
       !std::is_const<U>::value, RawOutputBuffer>::type>&& buffers,
     const std::string& name,
-    const std::vector<int64_t>& shape
-    TRITONSERVER_DataType dtype,
-    cudaStream_t stream
+    const std::vector<int64_t>& shape,
+    const TRITONSERVER_DataType dtype,
+    raft::handle_t handle
   ) : name_{name},
       shape_{shape},
       dtype_{dtype_},
@@ -117,6 +121,7 @@ class TritonTensor {
         buffers.size() > 1  // non-contiguous
         || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
       },
+      stream_{handle.get_stream()},
       buffer{[&] {
         if (is_owner_) {
           return allocate_device_memory<non_const_T>(size_bytes_);

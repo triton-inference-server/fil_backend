@@ -17,7 +17,7 @@
 #pragma once
 #include <triton/core/tritonserver.h>
 
-template <TRITONSERVER_Datatype D>
+template <TRITONSERVER_DataType D>
 struct TritonType {
 };
 
@@ -25,107 +25,107 @@ template <typename T>
 struct TritonDtype {
 };
 
-template <TRITONSERVER_TYPE_BOOL>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_BOOL> {
   typedef bool type;
 };
 
-template <bool>
-struct TritonDtype {
-  static constexpr TRITONSERVER_Datatype value = TRITONSERVER_TYPE_BOOL;
+template <>
+struct TritonDtype<bool> {
+  static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_BOOL;
 };
 
-template <TRITONSERVER_TYPE_UINT8>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_UINT8> {
   typedef uint8_t type;
 };
 
-template <uint8_t>
-struct TritonDtype {
-  static constexpr TRITONSERVER_Datatype value = TRITONSERVER_TYPE_UINT8;
+template <>
+struct TritonDtype<uint8_t> {
+  static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_UINT8;
 };
 
-template <TRITONSERVER_TYPE_UINT16>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_UINT16> {
   typedef uint16_t type;
 };
 
-template <uint16_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<uint16_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_UINT16;
 };
 
-template <TRITONSERVER_TYPE_UINT32>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_UINT32> {
   typedef uint32_t type;
 };
 
-template <uint32_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<uint32_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_UINT32;
 };
 
-template <TRITONSERVER_TYPE_UINT64>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_UINT64> {
   typedef uint64_t type;
 };
 
-template <uint64_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<uint64_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_UINT64;
 };
 
-template <TRITONSERVER_TYPE_INT8>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_INT8> {
   typedef int8_t type;
 };
 
-template <int8_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<int8_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_INT8;
 };
 
-template <TRITONSERVER_TYPE_INT16>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_INT16> {
   typedef int16_t type;
 };
 
-template <int16_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<int16_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_INT16;
 };
 
-template <TRITONSERVER_TYPE_INT32>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_INT32> {
   typedef int32_t type;
 };
 
-template <int32_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<int32_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_INT32;
 };
 
-template <TRITONSERVER_TYPE_INT64>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_INT64> {
   typedef int64_t type;
 };
 
-template <int64_t>
-struct TritonDtype {
+template <>
+struct TritonDtype<int64_t> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_INT64;
 };
 
-template <TRITONSERVER_TYPE_FP32>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_FP32> {
   typedef float type;
 };
 
-template <float>
-struct TritonDtype {
+template <>
+struct TritonDtype<float> {
   static constexpr TRITONSERVER_DataType value = TRITONSERVER_TYPE_FP32;
 };
 
-template <TRITONSERVER_TYPE_FP64>
-struct TritonType {
+template <>
+struct TritonType<TRITONSERVER_TYPE_FP64> {
   typedef double type;
 };

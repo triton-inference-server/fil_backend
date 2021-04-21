@@ -167,30 +167,32 @@ TRITONBACKEND_ModelInstanceExecute(
          " requests")
             .c_str());
 
-    std::vector<TRITONBACKEND_Response*> responses =
-      construct_responses(requests, request_count);
     std::vector<TRITONBACKEND_Request*> requests(
       raw_requests, raw_requests + request_count
+    );
+    std::vector<TRITONBACKEND_Response*> responses = construct_responses(
+      requests, request_count
     );
 
     try {
       auto input_batch = get_input_batch<float>(
-        0,
+        static_cast<uint32_t>(0),
         requests,
-        TRITONBACKEND_MEMORY_GPU,
-        instance_state->get_raft_handle().get_stream()
+        TRITONSERVER_MEMORY_GPU,
+        instance_state->get_raft_handle()
       );
 
-      std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
+      std::vector<int64_t> output_shape{input_batch.shape()[0]};
       if (model_state->predict_proba) {
         output_shape.push_back(model_state->num_class());
       }
       auto output_batch = get_output_batch<float>(
-        0,
+        static_cast<uint32_t>(0),
+        requests,
         responses,
-        TRITONBACKEND_MEMORY_GPU,
+        TRITONSERVER_MEMORY_GPU,
         output_shape,
-        instance_state->get_raft_handle().get_stream()
+        instance_state->get_raft_handle()
       );
 
       instance_state->predict(
@@ -199,7 +201,7 @@ TRITONBACKEND_ModelInstanceExecute(
         model_state->predict_proba
       );
 
-      output_batch.sync()
+      output_batch.sync();
     } catch (TritonException& request_err) {
       std::fill(responses.begin(), responses.end(), nullptr);
       TRITONSERVER_ErrorDelete(request_err.error());
