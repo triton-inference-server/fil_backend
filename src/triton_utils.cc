@@ -154,19 +154,38 @@ get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
 
 std::vector<TRITONBACKEND_Response*>
 construct_responses(
-    TRITONBACKEND_Request** requests, const uint32_t request_count)
+    std::vector<TRITONBACKEND_Request*>& requests, const uint32_t request_count)
 {
   std::vector<TRITONBACKEND_Response*> responses;
   responses.reserve(request_count);
 
-  for (uint32_t r = 0; r < request_count; ++r) {
-    TRITONBACKEND_Request* request = requests[r];
-
+  for (auto& request : requests) {
     TRITONBACKEND_Response* response;
     triton_check(TRITONBACKEND_ResponseNew(&response, request));
     responses.push_back(response);
   }
   return responses;
+}
+
+void
+send_responses(std::vector<TRITONBACKEND_Response*>& responses)
+{
+  for (auto& response : responses) {
+    LOG_IF_ERROR(
+        TRITONBACKEND_ResponseSend(
+            response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, nullptr),
+        "failed sending response");
+  }
+}
+
+void
+release_requests(std::vector<TRITONBACKEND_Request*>& requests)
+{
+  for (auto& request : requests) {
+    LOG_IF_ERROR(
+        TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
+        "failed releasing request");
+  }
 }
 
 }}}  // namespace triton::backend::fil

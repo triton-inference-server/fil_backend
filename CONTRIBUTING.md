@@ -78,7 +78,7 @@ a clean separation between Triton and FIL components. While these are
 documented in
 [`triton_utils.h`](https://github.com/wphicks/triton_fil_backend/blob/1205c57263e796512210b24bb0c04e3491564c74/src/triton_fil/triton_utils.h)
 and
-[`triton_buffer.cuh`](https://github.com/wphicks/triton_fil_backend/blob/1205c57263e796512210b24bb0c04e3491564c74/src/triton_fil/triton_buffer.cuh),
+[`triton_tensor.cuh`](https://github.com/wphicks/triton_fil_backend/blob/1205c57263e796512210b24bb0c04e3491564c74/src/triton_fil/triton_tensor.cuh),
 a few of these are worth discussing in more detail here.
 
 #### `get_input_buffers`

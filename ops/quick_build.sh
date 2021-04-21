@@ -6,7 +6,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 pushd "$REPO_ROOT" > /dev/null 2>&1
 
 docker pull nvcr.io/nvidia/tritonserver:21.02-py3
-docker build --target base -t triton_dev -f ops/Dockerfile .
+docker build --no-cache --target base -t triton_dev -f ops/Dockerfile .
 
 docker run \
   --rm \

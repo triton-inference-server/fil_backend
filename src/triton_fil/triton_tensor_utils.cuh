@@ -17,8 +17,9 @@
 #pragma once
 #include <vector>
 #include <raft/handle.hpp>
-#include <triton_fil/triton_buffer.cuh>
+#include <triton_fil/triton_tensor.cuh>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/dtype.h>
 #include <triton_fil/exceptions.h>
 
 namespace triton { namespace backend { namespace fil {
@@ -187,20 +188,19 @@ std::vector<RawInputBuffer> get_raw_input_buffers(
           && input_buffers.back().device_id == cur_memory_type_id) {
         input_buffers.back().size_bytes += cur_size_bytes;
       } else {
-        cur_input_buffers.emplace_back(
+        input_buffers.emplace_back(
           cur_buffer, cur_size_bytes, cur_memory_type_id, memory_type
         );
         last_memory_type = optional<TRITONBACKEND_MemoryType>(memory_type);
         next_ptr = cur_buffer + cur_size_bytes;
       }
     }
-    input_buffers.push_back(std::move(cur_input_buffers));
   }
 
   return input_buffers;
 }
 
-/* Get the name of a given input
+/* Get the name of a given output
 */
 std::string get_output_name(
   uint32_t output_index
@@ -264,19 +264,42 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
   std::vector<TRITONBACKEND_Output>* all_outputs,
   TRITONBACKEND_MemoryType& output_memory_type,
   const std::vector<int64_t>& shape,
-  TRITONSERVER_DataType& expected_dtype
+  TRITONSERVER_DataType& dtype
   int64_t device_id=0
 ) {
+  std::vector<RawOutputBuffer> buffers;
+
+  void * next_ptr = nullptr;
+  optional<TRITONBACKEND_MemoryType> last_memory_type();
+
+  uint64_t byte_size = product(shape) * sizeof(TritonType<dtype>::type);
+
   for (auto output : all_outputs) {
+    void * cur_buffer;
+    int64_t cur_memory_type_id = 0;
     TRITONBACKEND_MemoryType memory_type = output_memory_type;
     triton_check(TRITONBACKEND_OutputBuffer(
       output,
-      &output_buffer,
-      buffer_byte_size,
+      &cur_buffer,
+      byte_size,
       &memory_type,
       &device_id
     ));
 
+    if (cur_buffer == next_ptr
+        && last_memory_type
+        && *last_memory_type == memory_type
+        && buffers.back().device_id == cur_memory_type_id) {
+      buffers.back().size_bytes += byte_size;
+    } else {
+      buffers.emplace_back(
+        cur_buffer, byte_size, cur_memory_type_id, memory_type
+      );
+      last_memory_type = optional<TRITONBACKEND_MemoryType>(memory_type);
+      next_ptr = cur_buffer + byte_size;
+    }
+  }
+  return buffers;
 }
 
 } // anonymous namespace
@@ -299,8 +322,9 @@ TritonTensor<const T> get_input_batch(
   std::vector<int64_t> tensor_shape;
   // How many buffers the input tensor is broken up into for each request
   std::vector<uint32_t> buffer_counts;
-  // TODO: pass expected dtype
-  std::tie(tensor_shape, buffer_counts) = get_input_shapes(backend_inputs, input_count);
+  std::tie(tensor_shape, buffer_counts) = get_input_shapes(
+    backend_inputs, input_count, TritonDtype<T>::value
+  );
 
   // Pointers to underlying contiguous buffers along with their size and what
   // device they are stored on
@@ -337,69 +361,6 @@ TritonTensor<T> get_output_batch(
   return TritonTensor(
     raw_buffers, input_name, tensor_shape, dtype, raft_handle.get_stream()
   );
-}
-
-template<typename T>
-std::vector<TritonTensor<T>> get_output_buffers(
-    TRITONBACKEND_Request* request,
-    TRITONBACKEND_Response* response,
-    TRITONSERVER_MemoryType memory_type,
-    TRITONSERVER_DataType dtype,
-    const std::vector<int64_t>& shape,
-    raft::handle_t& raft_handle) {
-  uint32_t count = 0;
-  triton_check(TRITONBACKEND_RequestOutputCount(
-      request, &count));
-
-  std::vector<TritonTensor<T>> buffers;
-  buffers.reserve(count);
-
-  for (uint32_t i = 0; i < count; ++i) {
-    const char* name;
-    triton_check(TRITONBACKEND_RequestOutputName(request, i, &name));
-
-    TRITONBACKEND_Output* output;
-    triton_check(TRITONBACKEND_ResponseOutput(
-        response,
-        &output,
-        name,
-        dtype,
-        shape.data(),
-        shape.size()));
-
-    int64_t memory_type_id = 0;
-
-    void * output_buffer;
-    auto element_count = std::accumulate(std::begin(shape),
-                                         std::end(shape),
-                                         1,
-                                         std::multiplies<>());
-    uint64_t buffer_byte_size = element_count * sizeof(T);
-    triton_check(TRITONBACKEND_OutputBuffer(
-        output,
-        &output_buffer,
-        buffer_byte_size,
-        &memory_type,
-        &memory_type_id));
-
-    if (memory_type == TRITONSERVER_MEMORY_GPU) {
-      buffers.emplace_back(
-        reinterpret_cast<T*>(output_buffer),
-        std::string(name),
-        shape,
-        dtype
-      );
-    } else {
-      buffers.emplace_back(
-        std::string(name),
-        shape,
-        dtype,
-        raft_handle.get_stream(),
-        reinterpret_cast<T*>(output_buffer)
-      );
-    }
-  }
-  return buffers;
 }
 
 }}}
