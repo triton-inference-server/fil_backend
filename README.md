@@ -136,7 +136,7 @@ parameters [
   {
     key: "blocks_per_sm"
     value: { string_value: "0" }
-  },
+  }
 ]
 ```
 
