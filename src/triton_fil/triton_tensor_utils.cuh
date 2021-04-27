@@ -288,7 +288,7 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
   byte* next_ptr = nullptr;
   optional<TRITONSERVER_MemoryType> last_memory_type;
 
-  uint64_t byte_size = product(shape) * sizeof(typename TritonType<D>::type);
+  uint64_t byte_size = product(shape) * sizeof(typename TritonType<D>::type) / shape[0];
 
   for (auto output : all_outputs) {
     byte* cur_buffer;

@@ -160,12 +160,12 @@ TRITONBACKEND_ModelInstanceExecute(
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
     ModelState* model_state = instance_state->StateForModel();
 
-    LOG_MESSAGE(
+    /* LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("model ") + model_state->Name() + ", instance " +
          instance_state->Name() + ", executing " + std::to_string(request_count) +
          " requests")
-            .c_str());
+            .c_str()); */
 
     std::vector<TRITONBACKEND_Request*> requests(
       raw_requests, raw_requests + request_count
