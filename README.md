@@ -39,6 +39,11 @@ for fast GPU-based inference. Using this backend, forest models can be deployed
 seamlessly alongside deep learning models for fast, unified inference
 pipelines.
 
+*WARNING:* This is preview-quality software. It is offered here as part of
+ongoing collaborative efforts to determine future direction for this project
+but should not be considered stable enough for production use until a later
+release.
+
 ## Getting Started
 
 ### Prerequisites
