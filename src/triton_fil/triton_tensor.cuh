@@ -109,7 +109,7 @@ class TritonTensor {
     const std::string& name,
     const std::vector<int64_t>& shape,
     const TRITONSERVER_DataType dtype,
-    raft::handle_t handle
+    raft::handle_t& handle
   ) : name_{name},
       shape_{shape},
       dtype_{dtype_},
@@ -189,11 +189,19 @@ class TritonTensor {
   }
 
   void sync() {
-    auto head = reinterpret_cast<std::conditional<
-      std::is_const<T>::value, const void*, void*>(buffer);
+    auto head = reinterpret_cast<
+      typename std::conditional<
+        std::is_const<T>::value, const byte*, byte*
+      >::type
+    >(buffer);
     for (auto& out_buffer : final_buffers) {
       try {
-        raft::copy(out_buffer.data, head, out_buffer.size_bytes, stream_);
+        raft::copy(
+          reinterpret_cast<byte*>(out_buffer.data),
+          head,
+          out_buffer.size_bytes,
+          stream_
+        );
       } catch (const raft::cuda_error& err) {
         throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,

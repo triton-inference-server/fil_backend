@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <cstdint>
 #include <vector>
 #include <raft/handle.hpp>
 #include <triton_fil/triton_tensor.cuh>
@@ -33,7 +34,11 @@ namespace {
 uint32_t get_input_count(
     std::vector<TRITONBACKEND_Request*>& requests,
     bool validate=true) {
+  // C++17: Switch to std::optional and remove pragmas
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
   optional<uint32_t> input_count;
+#pragma GCC diagnostic pop
   for (auto& request : requests) {
     uint32_t cur_input_count = 0;
     triton_check(TRITONBACKEND_RequestInputCount(request, &cur_input_count));
@@ -41,7 +46,11 @@ uint32_t get_input_count(
       return cur_input_count;
     }
     if (input_count) {
+      // C++17: Switch to std::optional and remove pragmas
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
       if (*input_count != cur_input_count) {
+#pragma GCC diagnostic pop
         throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
           "inconsistent number of inputs in batched requests"
@@ -279,7 +288,7 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
   byte* next_ptr = nullptr;
   optional<TRITONSERVER_MemoryType> last_memory_type;
 
-  uint64_t byte_size = product(shape) * sizeof(TritonType<D>::type);
+  uint64_t byte_size = product(shape) * sizeof(typename TritonType<D>::type);
 
   for (auto output : all_outputs) {
     byte* cur_buffer;
@@ -372,7 +381,7 @@ TritonTensor<T> get_output_batch(
   );
 
   return TritonTensor<T>(
-    raw_buffers, output_name, tensor_shape, TritonDtype<T>::value, handle
+    std::move(raw_buffers), output_name, tensor_shape, TritonDtype<T>::value, handle
   );
 }
 
