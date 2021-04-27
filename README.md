@@ -234,6 +234,7 @@ triton_input_http = triton_http.InferInput(
     (samples, features),
     'FP32'
 )
+triton_input_http.set_data_from_numpy(data, binary_data=True)
 triton_output_http = triton_http.InferRequestedOutput(
     'output__0',
     binary_data=True
@@ -243,6 +244,7 @@ triton_input_grpc = triton_grpc.InferInput(
     (samples, features),
     'FP32'
 )
+triton_input_grpc.set_data_from_numpy(data)
 triton_output_grpc = triton_grpc.InferRequestedOutput('output__0')
 
 # Submit inference requests (both HTTP and GRPC)
@@ -260,11 +262,11 @@ request_grpc = grpc_client.infer(
 )
 
 # Get results as numpy arrays
-result_http = request_http.asnumpy('output__0')
-result_grpc = request_grpc.asnumpy('output__0')
+result_http = request_http.as_numpy('output__0')
+result_grpc = request_grpc.as_numpy('output__0')
 
 # Check that we got the same result with both GRPC and HTTP
-np.testing.assert_almost_equal(result_http, result_grpc)
+numpy.testing.assert_almost_equal(result_http, result_grpc)
 ```
 
 ## Modifications and Code Contributions
