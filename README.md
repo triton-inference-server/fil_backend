@@ -183,6 +183,11 @@ specific to FIL:
     speedup from tweaking this setting, but it is provided for cases where
     maximizing throughput is essential.
 
+Note that the configuration is in protobuf format. If invalid protobuf is
+provided, the model will fail to load, and you will see an error line in the
+server log containing `Error parsing text-format inference.ModelConfig:`
+followed by the line and column number where the parsing error occurred.
+
 #### Starting the server
 To run the server with the configured model, execute the following command:
 ```bash
