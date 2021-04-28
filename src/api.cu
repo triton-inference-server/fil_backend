@@ -97,7 +97,9 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
   try {
     auto model_state = get_model_state<ModelState>(*model);
-    model_state->UnloadModel();
+    if (model_state != nullptr) {
+      model_state->UnloadModel();
+    }
 
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
