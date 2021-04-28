@@ -29,13 +29,18 @@ ML::fil::treelite_params_t
 tl_params_from_config(triton::common::TritonJson::Value& config)
 {
   ML::fil::treelite_params_t out_params;
-  out_params.algo =
-      name_to_tl_algo(retrieve_param<std::string>(config, "algo"));
-  out_params.storage_type =
-      name_to_storage_type(retrieve_param<std::string>(config, "storage_type"));
+  out_params.algo = name_to_tl_algo(retrieve_param<std::string>(
+      config, "algo", optional<std::string>(std::string("ALGO_AUTO"))));
+  out_params.storage_type = name_to_storage_type(retrieve_param<std::string>(
+      config, "storage_type", optional<std::string>(std::string("AUTO"))));
   out_params.output_class = retrieve_param<bool>(config, "output_class");
-  out_params.threshold = retrieve_param<float>(config, "threshold");
-  out_params.blocks_per_sm = retrieve_param<int>(config, "blocks_per_sm");
+  if (out_params.output_class) {
+    out_params.threshold = retrieve_param<float>(config, "threshold");
+  } else {
+    out_params.threshold = 0.5;
+  }
+  out_params.blocks_per_sm =
+      retrieve_param<int>(config, "blocks_per_sm", optional<int>(0));
 
   return out_params;
 };
