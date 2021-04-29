@@ -157,9 +157,10 @@ specific to FIL:
   number of samples can be provided for inference.
 - `output`: This configuration block specifies information about the arrays
   output by the FIL model. If the `predict_proba` option (described later) is
-  set to "true", the `dims` field should be set to `[ -1, NUMBER_OF_CLASSES ]`.
-  Otherwise, this can simply be `[ -1 ]`, indicating that the model can
-  output results for any number of samples.
+  set to "true" and you are using a classification model, the `dims` field
+  should be set to `[ -1, NUMBER_OF_CLASSES ]`.  Otherwise, this can simply be
+  `[ -1 ]`, indicating that the model can output results for any number of
+  samples.
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.
@@ -169,9 +170,7 @@ specific to FIL:
   * `predict_proba`: Either `"true"` or `"false"`, depending on whether the
     desired output is a score for each class or merely the predicted class ID.
   * `output_class`: Either `"true"` or `"false"`, depending on whether the
-    model is a classification or regression model. WARNING: Regression models
-    have not been tested and should be considered an experimental/unstable
-    feature.
+    model is a classification or regression model.
   * `threshold`: The threshold score used for class prediction.
   * `algo`: One of `"ALGO_AUTO"`, `"NAIVE"`, `"TREE_REORG"` or
     `"BATCH_TREE_REORG"` indicating which FIL inference algorithm to use. More
