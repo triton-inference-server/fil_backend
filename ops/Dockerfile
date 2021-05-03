@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tritonserver:21.02-py3 as base
+FROM nvcr.io/nvidia/tritonserver:21.04-py3 as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
@@ -46,7 +46,7 @@ RUN conda run --no-capture-output -n triton_dev \
   && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
 
 
-FROM nvcr.io/nvidia/tritonserver:21.02-py3
+FROM nvcr.io/nvidia/tritonserver:21.04-py3
 
 COPY --from=build-stage /opt/lib/fil /opt/lib/fil
 
