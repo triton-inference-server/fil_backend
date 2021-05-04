@@ -97,19 +97,19 @@ Once you have chosen a model to deploy, you will need to create a corresponding
 ```
 name: "fil"
 backend: "fil"
-max_batch_size: 0
+max_batch_size: 1048576
 input [
  {
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ -1, 500 ]
+    dims: [ 500 ]
   }
 ]
 output [
  {
     name: "output__0"
     data_type: TYPE_FP32
-    dims: [ -1, 2 ]
+    dims: [ 2 ]
   }
 ]
 instance_group [{ kind: KIND_GPU }]
@@ -143,6 +143,11 @@ parameters [
     value: { string_value: "0" }
   }
 ]
+
+dynamic_batching {
+  preferred_batch_size: [1, 2, 4, 8, 16, 32, 64, 128, 1024, 131072, 1048576]
+  max_queue_delay_microseconds: 30000
+}
 ```
 
 For a full description of the configuration schema, see the Triton [server
@@ -150,17 +155,20 @@ docs](https://github.com/triton-inference-server/server/blob/master/docs/model_c
 Here, we will simply summarize the most commonly-used options and those
 specific to FIL:
 
+- `max_batch_size`: The maximum number of samples to process in a batch. In
+  general, FIL's efficient handling of even large forest models means that this
+  value can be quite high (2^20 in the example), but this may need to be
+  reduced if you find that you are exhausting system resources.
 - `input`: This configuration block specifies information about the input
   arrays that will be provided to the FIL model. The `dims` field should be set
-  to `[ -1, NUMBER_OF_FEATURES ]`, but all other fields should be left as they
-  are in the example. The initial `-1` in this field indicates that a variable
-  number of samples can be provided for inference.
+  to `[ NUMBER_OF_FEATURES ]`, but all other fields should be left as they
+  are in the example.
 - `output`: This configuration block specifies information about the arrays
   output by the FIL model. If the `predict_proba` option (described later) is
   set to "true" and you are using a classification model, the `dims` field
-  should be set to `[ -1, NUMBER_OF_CLASSES ]`.  Otherwise, this can simply be
-  `[ -1 ]`, indicating that the model can output results for any number of
-  samples.
+  should be set to `[ NUMBER_OF_CLASSES ]`. Otherwise, this can simply be `[ 1 ]`,
+  indicating that the model returns a single class ID for each sample.
+
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.
@@ -186,6 +194,14 @@ specific to FIL:
     models. In general, network latency will significantly overshadow any
     speedup from tweaking this setting, but it is provided for cases where
     maximizing throughput is essential.
+- `dynamic_batching`: This configuration block specifies how Triton should
+  perform dynamic batching for your model. Full details about these options can
+  be found in the main [Triton
+  documentation](https://github.com/triton-inference-server/server/blob/master/docs/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/perf_analyzer.md) in order to optimize performance.
+  * `preferred_batch_size`: A list of preferred values for the number of
+    samples to process in a single batch.
+  * `max_queue_delay_microseconds`: How long of a window in which requests can
+    be accumulated to form a batch of a preferred size.
 
 Note that the configuration is in protobuf format. If invalid protobuf is
 provided, the model will fail to load, and you will see an error line in the
