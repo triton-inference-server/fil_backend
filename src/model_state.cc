@@ -64,6 +64,8 @@ ModelState::LoadModel(
       artifact_name = "xgboost.json";
     } else if (model_type == "lightgbm") {
       artifact_name = "model.txt";
+    } else if (model_type == "treelite_checkpoint") {
+      artifact_name = "checkpoint.tl";
     } else {
       throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
@@ -100,6 +102,9 @@ ModelState::LoadModel(
   } else if (model_type == "lightgbm") {
     load_result =
         TreeliteLoadLightGBMModel(model_path.c_str(), &treelite_handle);
+  } else if (model_type == "treelite_checkpoint") {
+    load_result =
+        TreeliteDeserializeModel(model_path.c_str(), &treelite_handle);
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
