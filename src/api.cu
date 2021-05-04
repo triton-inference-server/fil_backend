@@ -176,41 +176,56 @@ TRITONBACKEND_ModelInstanceExecute(
       requests, request_count
     );
 
+    // One past index of last request that was successfully processed
+    size_t end_request = 0;
     try {
-      auto input_batch = get_input_batch<float>(
+      auto input_batches = get_input_batches<float>(
         static_cast<uint32_t>(0),
         requests,
         TRITONSERVER_MEMORY_GPU,
         instance_state->get_raft_handle()
       );
+      for (auto& batch: input_batches) {
+        std::vector<int64_t> output_shape{batch.first.shape()[0]};
+        if (model_state->predict_proba) {
+          output_shape.push_back(model_state->num_class());
+        }
+        std::vector<TRITONBACKEND_Request*> requests(
+          raw_requests + batch.second.first, raw_requests + batch.second.second
+        );
+        std::vector<TRITONBACKEND_Response*> responses = construct_responses(
+          requests, batch.second.second - batch.second.first
+        );
+        auto output_batch = get_output_batch<float>(
+          static_cast<uint32_t>(0),
+          requests,
+          responses,
+          TRITONSERVER_MEMORY_GPU,
+          output_shape,
+          instance_state->get_raft_handle()
+        );
+        instance_state->predict(
+          batch.first,
+          output_batch,
+          model_state->predict_proba
+        );
 
-      std::vector<int64_t> output_shape{input_batch.shape()[0]};
-      if (model_state->predict_proba) {
-        output_shape.push_back(model_state->num_class());
+        output_batch.sync();
+        send_responses(responses);
+        release_requests(requests);
+        end_request = batch.second.second;
       }
-      auto output_batch = get_output_batch<float>(
-        static_cast<uint32_t>(0),
-        requests,
-        responses,
-        TRITONSERVER_MEMORY_GPU,
-        output_shape,
-        instance_state->get_raft_handle()
-      );
-
-      instance_state->predict(
-        input_batch,
-        output_batch,
-        model_state->predict_proba
-      );
-
-      output_batch.sync();
     } catch (TritonException& request_err) {
-      std::fill(responses.begin(), responses.end(), nullptr);
-      TRITONSERVER_ErrorDelete(request_err.error());
+      std::vector<TRITONBACKEND_Request*> requests(
+        raw_requests + end_request, raw_requests + request_count
+      );
+      std::vector<TRITONBACKEND_Response*> responses = construct_responses(
+        request_count - end_request, nullptr
+      );
+      send_responses(responses);
+      release_requests(requests);
+      return request_err.error();
     }
-
-    send_responses(responses);
-    release_requests(requests);
 
   } catch (TritonException& err) {
     return err.error();
