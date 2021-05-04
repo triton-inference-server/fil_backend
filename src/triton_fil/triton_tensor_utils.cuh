@@ -196,8 +196,9 @@ std::vector<
   TRITONSERVER_MemoryType& input_memory_type,
   std::vector<uint32_t>& all_buffer_counts
 ) {
-  std::vector<std::pair<std::vector<RawInputBuffer>, std::vector<std::size_t>>>
-    buffer_requests;
+  std::vector<
+    std::pair<std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>
+  > buffer_requests;
   byte* next_ptr = nullptr;
   optional<TRITONSERVER_MemoryType> last_memory_type;
 
@@ -217,9 +218,9 @@ std::vector<
       if (cur_buffer == next_ptr
           && last_memory_type
           && *last_memory_type == memory_type
-          && buffer_requests.back().first.device_id == cur_memory_type_id) {
-        buffer_requests.back().first.size_bytes += cur_byte_size;
-        buffers_requests.back().second.second = r + 1;
+          && buffer_requests.back().first.back().device_id == cur_memory_type_id) {
+        buffer_requests.back().first.back().size_bytes += cur_byte_size;
+        buffer_requests.back().second.second = r + 1;
       } else {
         // If it's already in device memory, do not batch it with other
         // requests
@@ -250,7 +251,7 @@ std::vector<int64_t> get_batch_shape(
   std::pair<std::size_t, std::size_t> batch_extent
 ) {
   std::vector<int64_t> batch_shape = input_shapes[batch_extent.first];
-  for (int i=batch_extent.first + 1; i < batch_extent.second; ++i) {
+  for (std::size_t i=batch_extent.first + 1; i < batch_extent.second; ++i) {
     batch_shape[0] += input_shapes[i][0];
   }
   return batch_shape;
@@ -384,7 +385,7 @@ std::vector<
   std::vector<std::vector<int64_t>> input_shapes;
   // How many buffers the data are broken up into for each request
   std::vector<uint32_t> buffer_counts;
-  std::tie(total_shape, buffer_counts) = get_input_shapes(
+  std::tie(input_shapes, buffer_counts) = get_input_shapes(
     backend_inputs, TritonDtype<T>::value
   );
 
@@ -402,12 +403,12 @@ std::vector<
 
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
-    batches.push_back(
+    batches.push_back({
       TritonTensor<const T>(
         raw_batch.first, input_name, batch_shape, TritonDtype<T>::value, cuda_stream
       ),
       raw_batch.second
-    );
+    });
   }
 
   std::cout << "TOTAL BATCHES: " << batches.size() << "\n";

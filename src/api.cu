@@ -162,19 +162,18 @@ TRITONBACKEND_ModelInstanceExecute(
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
     ModelState* model_state = instance_state->StateForModel();
 
-    /* LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string("model ") + model_state->Name() + ", instance " +
-         instance_state->Name() + ", executing " + std::to_string(request_count) +
-         " requests")
-            .c_str()); */
+    LOG_MESSAGE(
+     TRITONSERVER_LOG_INFO,
+     (std::string("model ") + model_state->Name() + ", instance " +
+      instance_state->Name() + ", executing " + std::to_string(request_count) +
+      " requests")
+         .c_str());
 
     std::vector<TRITONBACKEND_Request*> requests(
       raw_requests, raw_requests + request_count
     );
-    std::vector<TRITONBACKEND_Response*> responses = construct_responses(
-      requests, request_count
-    );
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("requests: ") +
+          std::to_string(requests.size())).c_str());
 
     // One past index of last request that was successfully processed
     size_t end_request = 0;
@@ -185,25 +184,37 @@ TRITONBACKEND_ModelInstanceExecute(
         TRITONSERVER_MEMORY_GPU,
         instance_state->get_raft_handle()
       );
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("batches: ") +
+            std::to_string(input_batches.size())).c_str());
       for (auto& batch: input_batches) {
         std::vector<int64_t> output_shape{batch.first.shape()[0]};
         if (model_state->predict_proba) {
           output_shape.push_back(model_state->num_class());
         }
-        std::vector<TRITONBACKEND_Request*> requests(
-          raw_requests + batch.second.first, raw_requests + batch.second.second
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("output_shape: ") +
+            std::to_string(output_shape[0])).c_str());
+        // TODO: Adjust function interfaces to allow passing iterators instead
+        std::vector<TRITONBACKEND_Request*> batch_requests(
+          requests.begin() + batch.second.first,
+          requests.begin() + batch.second.second
         );
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("batch_requests: ") +
+            std::to_string(batch_requests.size())).c_str());
         std::vector<TRITONBACKEND_Response*> responses = construct_responses(
-          requests, batch.second.second - batch.second.first
+          batch_requests, batch.second.second - batch.second.first
         );
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("responses: ") +
+            std::to_string(responses.size())).c_str());
         auto output_batch = get_output_batch<float>(
           static_cast<uint32_t>(0),
-          requests,
+          batch_requests,
           responses,
           TRITONSERVER_MEMORY_GPU,
           output_shape,
           instance_state->get_raft_handle()
         );
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("output_batch: ") +
+            std::to_string(output_batch.shape()[0])).c_str());
         instance_state->predict(
           batch.first,
           output_batch,
@@ -211,26 +222,33 @@ TRITONBACKEND_ModelInstanceExecute(
         );
 
         output_batch.sync();
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("output_batch final: ") +
+            std::to_string(output_batch.shape()[0])).c_str());
         send_responses(responses);
-        release_requests(requests);
+        release_requests(batch_requests);
         end_request = batch.second.second;
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("end_request: ") +
+            std::to_string(end_request)).c_str());
       }
     } catch (TritonException& request_err) {
       std::vector<TRITONBACKEND_Request*> requests(
         raw_requests + end_request, raw_requests + request_count
       );
-      std::vector<TRITONBACKEND_Response*> responses = construct_responses(
+      std::vector<TRITONBACKEND_Response*> responses(
         request_count - end_request, nullptr
       );
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "OH NOOOOOOOOOOO");
       send_responses(responses);
       release_requests(requests);
       return request_err.error();
     }
 
   } catch (TritonException& err) {
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "WHOOOOOOPS!!!");
     return err.error();
   }
 
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Whew...");
   return nullptr;  // success
 }
 
