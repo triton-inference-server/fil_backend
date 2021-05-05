@@ -17,7 +17,6 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <iostream>  // TODO: REMOVE
 #include <vector>
 #include <raft/handle.hpp>
 #include <triton_fil/triton_tensor.cuh>
@@ -301,18 +300,18 @@ std::vector<TRITONBACKEND_Output*> get_backend_outputs(
   std::string& name,
   std::vector<TRITONBACKEND_Response*>& responses,
   TRITONSERVER_DataType dtype,
-  const std::vector<int64_t>& shape
+  const std::vector<std::vector<int64_t>>& shapes
 ) {
     std::vector<TRITONBACKEND_Output*> all_outputs;
-    for (auto& response : responses) {
+    for (std::size_t r=0; r < responses.size(); ++r) {
       TRITONBACKEND_Output* output;
       triton_check(TRITONBACKEND_ResponseOutput(
-        response,
+        responses[r],
         &output,
         name.c_str(),
         dtype,
-        shape.data(),
-        shape.size()
+        shapes[r].data(),
+        shapes[r].size()
       ));
       all_outputs.push_back(output);
     }
@@ -323,7 +322,7 @@ template<TRITONSERVER_DataType D>
 std::vector<RawOutputBuffer> get_raw_output_buffers(
   std::vector<TRITONBACKEND_Output*> all_outputs,
   TRITONSERVER_MemoryType& output_memory_type,
-  const std::vector<int64_t>& shape,
+  const std::vector<std::vector<int64_t>>& shapes,
   int64_t device_id
 ) {
   std::vector<RawOutputBuffer> buffers;
@@ -331,14 +330,13 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
   byte* next_ptr = nullptr;
   optional<TRITONSERVER_MemoryType> last_memory_type;
 
-  uint64_t byte_size = product(shape) * sizeof(typename TritonType<D>::type) / shape[0];
-
-  for (auto output : all_outputs) {
+  for (std::size_t i=0; i < all_outputs.size(); ++i) {
+    uint64_t byte_size = product(shapes[i]) * sizeof(typename TritonType<D>::type);
     byte* cur_buffer;
     int64_t cur_memory_type_id = 0;
     TRITONSERVER_MemoryType memory_type = output_memory_type;
     triton_check(TRITONBACKEND_OutputBuffer(
-      output,
+      all_outputs[i],
       reinterpret_cast<void**>(&cur_buffer),
       byte_size,
       &memory_type,
@@ -365,9 +363,20 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
 } // anonymous namespace
 
 template<typename T>
-std::vector<
-  std::pair<TritonTensor<const T>, std::pair<std::size_t, std::size_t>>
-> get_input_batches(
+struct InputBatch {
+  TritonTensor<const T> data;
+  std::pair<std::size_t, std::size_t> extent;
+  std::vector<std::vector<int64_t>> shapes;
+  InputBatch(
+    TritonTensor<const T>&& data,
+    std::pair<std::size_t, std::size_t>&& extent,
+    std::vector<std::vector<int64_t>>&& shapes) : data(std::move(data)),
+                                                  extent(extent),
+                                                  shapes(shapes) {}
+};
+
+template<typename T>
+std::vector<InputBatch<T>> get_input_batches(
   uint32_t input_index,
   std::vector<TRITONBACKEND_Request*>& requests,
   TRITONSERVER_memorytype_enum input_memory_type,
@@ -397,21 +406,19 @@ std::vector<
     backend_inputs, input_memory_type, buffer_counts
   );
 
-  std::vector<
-    std::pair<TritonTensor<const T>, std::pair<std::size_t, std::size_t>>
-  > batches;
+  std::vector<InputBatch<T>> batches;
+  batches.reserve(raw_batches.size());
 
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
-    batches.push_back({
+    batches.emplace_back(
       TritonTensor<const T>(
         raw_batch.first, input_name, batch_shape, TritonDtype<T>::value, cuda_stream
       ),
-      raw_batch.second
-    });
+      std::move(raw_batch.second),
+      std::move(input_shapes)
+    );
   }
-
-  std::cout << "TOTAL BATCHES: " << batches.size() << "\n";
 
   return batches;
 }
@@ -422,7 +429,7 @@ TritonTensor<T> get_output_batch(
   std::vector<TRITONBACKEND_Request*>& requests,
   std::vector<TRITONBACKEND_Response*>& responses,
   TRITONSERVER_MemoryType output_memory_type,
-  const std::vector<int64_t>& tensor_shape,
+  const std::vector<std::vector<int64_t>>& tensor_shapes,
   raft::handle_t& handle
   // bool validate=false TODO
 ) {
@@ -433,16 +440,26 @@ TritonTensor<T> get_output_batch(
   // Objects representing output for each request that can be queried to get
   // underlying data and properties
   auto backend_outputs = get_backend_outputs(
-    output_name, responses, TritonDtype<T>::value, tensor_shape);
+    output_name, responses, TritonDtype<T>::value, tensor_shapes);
 
   // Pointers to underlying contiguous buffers along with their size and what
   // device they are stored on
   auto raw_buffers = get_raw_output_buffers<TritonDtype<T>::value>(
-    backend_outputs, output_memory_type, tensor_shape, static_cast<int64_t>(0)
+    backend_outputs, output_memory_type, tensor_shapes, static_cast<int64_t>(0)
   );
 
+  std::vector<int64_t> total_output_shape;
+  if (!tensor_shapes.empty()) {
+    total_output_shape = tensor_shapes[0];
+    for (size_t i=1; i < tensor_shapes.size(); ++i) {
+      total_output_shape[0] += tensor_shapes[i][0];
+    }
+  } else {
+    total_output_shape = {0};
+  }
+
   return TritonTensor<T>(
-    std::move(raw_buffers), output_name, tensor_shape, TritonDtype<T>::value, handle
+    std::move(raw_buffers), output_name, total_output_shape, TritonDtype<T>::value, handle
   );
 }
 

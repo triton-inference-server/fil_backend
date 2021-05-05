@@ -147,7 +147,7 @@ class TritonTensor {
       shape_{other.shape_},
       dtype_{other.dtype_},
       size_bytes_{other.size_bytes_},
-      is_owner_{other.is_owner_},
+      is_owner_{true},
       stream_{other.stream_},
       buffer{[&] {
         non_const_T * ptr_d =
