@@ -108,28 +108,6 @@ the request/response cycle. This process is briefly summarized as follows:
 Functions which are called as part of top-level steps in this cycle are
 implemented in `api.cu`.
 
-### Helper functions
-Because the style and conventions used in Triton code differ significantly from
-those used in cuML/FIL, a number of helper functions are provided to encourage
-a clean separation between Triton and FIL components. While these are
-documented in
-[`triton_utils.h`](https://github.com/wphicks/triton_fil_backend/blob/1205c57263e796512210b24bb0c04e3491564c74/src/triton_fil/triton_utils.h)
-and
-[`triton_tensor.cuh`](https://github.com/wphicks/triton_fil_backend/blob/1205c57263e796512210b24bb0c04e3491564c74/src/triton_fil/triton_tensor.cuh),
-a few of these are worth discussing in more detail here.
-
-#### `get_input_buffers`
-This helper function is used to construct the device buffers that can be passed
-directly to a FIL model for inference. It determines whether Triton's input
-data must be copied to a new device buffer and then wraps the pointer to device
-memory in a `TritonTensor` object which also keeps track of the shape of the
-input array.
-
-#### `get_output_buffers`
-This helper function is used to construct the output buffers which will be used
-to store output from the FIL model. These output buffers are similarly wrapped
-in `TritonTensor` objects
-
 ### Error Handling
 In general, Triton signals that an unrecoverable error in inference has
 occurred by returning a non-null `TRITONSERVER_Error` pointer. To avoid
