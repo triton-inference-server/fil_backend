@@ -153,11 +153,10 @@ get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
 }
 
 std::vector<TRITONBACKEND_Response*>
-construct_responses(
-    std::vector<TRITONBACKEND_Request*>& requests, const uint32_t request_count)
+construct_responses(std::vector<TRITONBACKEND_Request*>& requests)
 {
   std::vector<TRITONBACKEND_Response*> responses;
-  responses.reserve(request_count);
+  responses.reserve(requests.size());
 
   for (auto& request : requests) {
     TRITONBACKEND_Response* response;

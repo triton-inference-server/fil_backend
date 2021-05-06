@@ -109,8 +109,7 @@ ModelInstanceStateType* get_instance_state(TRITONBACKEND_ModelInstance& instance
 
 /** Construct empty response objects for given requests */
 std::vector<TRITONBACKEND_Response*> construct_responses(
-    std::vector<TRITONBACKEND_Request*>& requests,
-    const uint32_t request_count);
+    std::vector<TRITONBACKEND_Request*>& requests);
 
 /** Send responses */
 void send_responses(std::vector<TRITONBACKEND_Response*>& responses);
