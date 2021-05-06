@@ -362,10 +362,24 @@ std::vector<RawOutputBuffer> get_raw_output_buffers(
 
 } // anonymous namespace
 
+/**
+ * @brief Struct storing an input batch represented as a tensor and associated
+ * metadata
+ * Each InputBatch may be constructed out of some subset of the batch of
+ * requests provided by Triton to this backend. The "extent" field provides the
+ * first and last index of the requests which are handled by this batch. The
+ * "shapes" field provides the shape of the tensor for each of these requests.
+ * All of the data for the indicated requests are collated into a single
+ * TritonTensor represented by the "data" field.
+ */
 template<typename T>
 struct InputBatch {
+  /** Tensor collating all data for requests represented by this batch */
   TritonTensor<const T> data;
+  /** First and last index of the requests handled in this batch */
   std::pair<std::size_t, std::size_t> extent;
+  /** The shape of the tensors for each individual request if they were handled
+   * separately */
   std::vector<std::vector<int64_t>> shapes;
   InputBatch(
     TritonTensor<const T>&& data,
@@ -375,6 +389,24 @@ struct InputBatch {
                                                   shapes(shapes) {}
 };
 
+/**
+ * @brief Divide up given requests into optimal InputBatches
+ * Given a set of requests, this function first retrieves the input data and
+ * associated metadata from Triton. It will then collate those batches
+ * according to the  following rules (in order of priority):
+ * 1. If an input buffer is contiguous with the previous buffer, include it
+ * with the previous InputBatch.
+ * 2. If the first buffer for a given input is already on-device, create a new
+ * batch. This ensures that inputs will be processed "in-place" where possible,
+ * avoiding additional allocations and copies.
+ * 3. Otherwise, add the buffer to the existing InputBatch. This ensures that
+ * batches will be as large as possible.
+ * @param input_index the index of the specific input to be retrieved
+ * @param requests the requests to be processed into batches
+ * @param handle the RAFT handle used for any necessary allocations and copies
+ * @param validate whether to perform additional validation of inputs as they
+ * are batched (generally unnecessary except for debugging)
+ */
 template<typename T>
 std::vector<InputBatch<T>> get_input_batches(
   uint32_t input_index,
@@ -423,6 +455,20 @@ std::vector<InputBatch<T>> get_input_batches(
   return batches;
 }
 
+/**
+ * @brief Retrieve a tensor for storing output of a batch
+ * Construct a tensor for storing all output from a batch of predictions. If
+ * the output location provided by Triton for these data is a single contiguous
+ * buffer on-device, no allocation will be necessary. Otherwise, device memory
+ * will be allocated in a single chunk for the entire batch and can then be
+ * divided up and copied to the final output buffers provided by Triton.
+ * @param output_index the index of the specific output
+ * @param requests the requests which make up this batch
+ * @param responses the responses for each request in this batch
+ * @param output_memory_type the desired location (GPU/host) for this output
+ * @param tensor_shapes the shapes of the output tensors for each request
+ * @param handle the RAFT handle used for any necessary allocations and copies
+ */
 template <typename T>
 TritonTensor<T> get_output_batch(
   uint32_t output_index,

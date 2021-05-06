@@ -25,6 +25,9 @@
 
 namespace triton { namespace backend { namespace fil {
 
+/**
+ * @brief Return the product of all elements in a vector
+ */
 template<typename T>
 T product(const std::vector<T>& array) {
   return std::accumulate(std::begin(array),
@@ -33,6 +36,9 @@ T product(const std::vector<T>& array) {
                          std::multiplies<>());
 }
 
+/**
+ * @brief Allocate given number of bytes on GPU and return device pointer
+ */
 template<typename T>
 T* allocate_device_memory(size_t bytes) {
   T* ptr_d;
@@ -40,10 +46,20 @@ T* allocate_device_memory(size_t bytes) {
   return ptr_d;
 }
 
+/**
+ * @brief Struct for storing pointer to Triton input data and associated
+ * metadata
+ * RawInputBuffers are intended to store all metadata provided by Triton about
+ * a single input to a backend in a unified struct.
+ */
 struct RawInputBuffer {
+  /** Pointer to where data is stored */
   const void* data;
+  /** Number of bytes of data stored in this buffer */
   uint64_t size_bytes;
+  /** Enum indicating whether data is stored on GPU or host */
   TRITONSERVER_MemoryType memory_type;
+  /** ID of GPU on which data is stored; 0 if data is stored on host */
   int64_t device_id;
   RawInputBuffer(
     const void* data, uint64_t size_bytes,
@@ -52,10 +68,20 @@ struct RawInputBuffer {
   device_id(device_id) {}
 };
 
+/**
+ * @brief Struct for storing pointer to where Triton expects final output data
+ * to be stored along with associated metadata
+ * RawInputBuffers are intended to store all metadata provided by Triton about
+ * a single output from a backend in a unified struct.
+ */
 struct RawOutputBuffer {
+  /** Pointer to where output data should be stored */
   void* data;
+  /** Capacity of this output buffer in bytes */
   uint64_t size_bytes;
+  /** Enum indicating whether data is stored on GPU or host */
   TRITONSERVER_MemoryType memory_type;
+  /** ID of GPU on which data is stored; 0 if data is stored on host */
   int64_t device_id;
 
   RawOutputBuffer(

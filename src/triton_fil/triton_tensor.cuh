@@ -28,6 +28,14 @@ namespace triton { namespace backend { namespace fil {
 
 using byte = char; // C++17: Use std::byte
 
+/**
+ * @brief Representation of a tensor constructed from data provided by Triton
+ * TritonTensors are either constructed from input buffers provided by Triton
+ * or wrap output buffers where Triton eventually expects data from this tensor
+ * to end up. TritonTensors are constructed so as to minimize data copying
+ * and new allocations where possible. Any newly-allocated buffers will be
+ * freed on destruction.
+ */
 template<typename T>
 class TritonTensor {
   using non_const_T = typename std::remove_const<T>::type;
@@ -188,6 +196,10 @@ class TritonTensor {
     }
   }
 
+  /**
+   * @brief Copy data from this tensor back to underlying output buffers (if
+   * any)
+   */
   void sync() {
     auto head = reinterpret_cast<
       typename std::conditional<
@@ -212,28 +224,52 @@ class TritonTensor {
     }
   }
 
+  /**
+   * @brief Get pointer to underlying data
+   */
   T* data() {
     return buffer;
   }
 
+  /**
+   * @brief Get the name of this input/output as reported by Triton
+   */
   const std::string& name() {
     return name_;
   }
+  /**
+   * @brief Get the dimensions of this tensor
+   */
   const std::vector<int64_t>& shape() {
     return shape_;
   }
+  /**
+   * @brief Get an enum representing the datatype stored in this tensor
+   */
   TRITONSERVER_DataType dtype() {
     return dtype_;
   }
+  /**
+   * @brief Get the total number of elements in this tensor
+   */
   int64_t size() const {
     return product(shape_);
   }
+  /**
+   * @brief Get the size of the data stored by this tensor in bytes
+   */
   uint64_t size_bytes() const {
     return size_bytes_;
   }
+  /**
+   * @brief Get the CUDA stream used for operations on this tensor
+   */
   const cudaStream_t& get_stream() const {
     return stream_;
   }
+  /**
+   * @brief Set the CUDA stream used for operations on this tensor
+   */
   void set_stream(cudaStream_t new_stream) {
     cudaStreamSynchronize(stream_);
     stream_ = new_stream;
