@@ -201,7 +201,7 @@ TRITONBACKEND_ModelInstanceExecute(
           requests.begin() + batch.extent.second
         );
         std::vector<TRITONBACKEND_Response*> responses = construct_responses(
-          batch_requests, batch.extent.second - batch.extent.first
+          batch_requests
         );
         auto output_batch = get_output_batch<float>(
           static_cast<uint32_t>(0),
