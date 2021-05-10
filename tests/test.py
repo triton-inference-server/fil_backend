@@ -22,29 +22,41 @@ MODEL_NAME = 'fil'
 MODEL_VERSION = '1'
 
 def get_triton_client(protocol="grpc"):
-    try:
-        return get_triton_client.cache[protocol]
-    except AttributeError:
-        get_triton_client.cache = {}
-    except KeyError:
-        if protocol == 'grpc':
-            get_triton_client.cache[
-                protocol
-            ] = triton_grpc.InferenceServerClient(
-                url=GRPC_URL,
-                verbose=False
-            )
-        elif protocol == 'http':
-            get_triton_client.cache[
-                protocol
-            ] = triton_http.InferenceServerClient(
-                url=HTTP_URL,
-                verbose=False,
-                concurrency=12
-            )
-        else:
-            raise RuntimeError('Bad protocol: "{}"'.format(protocol))
-    return get_triton_client(protocol=protocol)
+    # try:
+    #     return get_triton_client.cache[protocol]
+    # except AttributeError:
+    #     get_triton_client.cache = {}
+    # except KeyError:
+    #     if protocol == 'grpc':
+    #         get_triton_client.cache[
+    #             protocol
+    #         ] = triton_grpc.InferenceServerClient(
+    #             url=GRPC_URL,
+    #             verbose=False
+    #         )
+    #     elif protocol == 'http':
+    #         get_triton_client.cache[
+    #             protocol
+    #         ] = triton_http.InferenceServerClient(
+    #             url=HTTP_URL,
+    #             verbose=False,
+    #             concurrency=12
+    #         )
+    #     else:
+    #         raise RuntimeError('Bad protocol: "{}"'.format(protocol))
+    # return get_triton_client(protocol=protocol)
+    if protocol == 'grpc':
+        return triton_grpc.InferenceServerClient(
+            url=GRPC_URL,
+            verbose=False
+        )
+    if protocol == 'http':
+        return triton_http.InferenceServerClient(
+            url=HTTP_URL,
+            verbose=False,
+            concurrency=12
+        )
+    raise RuntimeError('Bad protocol: "{}"'.format(protocol))
 
 def set_up_triton_io(
         client, arr, protocol='grpc', shared_mem=None, predict_proba=False,
@@ -71,10 +83,6 @@ def set_up_triton_io(
         input_name = None
         output_name = None
     elif shared_mem == 'cuda':
-        # TODO
-        triton_input = triton_grpc.InferInput('input__0', arr.shape, 'FP32')
-        triton_output = triton_grpc.InferRequestedOutput('output__0')
-
         input_size = arr.size * arr.itemsize
         output_size = arr.shape[0] * arr.itemsize
         if predict_proba:
@@ -153,10 +161,10 @@ def triton_predict(
     return output, elapsed
 
 if __name__ == '__main__':
-    total_rows = 131072
-    batch_sizes = (128, 1, 1024, 131072)
-    # total_rows = 4096*2**0
-    # batch_sizes = (128, 1, total_rows)
+    # total_rows = 131072
+    # batch_sizes = (128, 1, 1024, 131072)
+    total_rows = 4096
+    batch_sizes = (128, 1, total_rows)
     shared_mem = (None, 'cuda')
     protocol = 'grpc'
     model_path = '/home/whicks/proj_cuml_triton/test_repository/fil/1/xgboost.model'
@@ -218,7 +226,6 @@ if __name__ == '__main__':
     locks = {}
 
     def predict_worker():
-        locks[threading.get_ident()] = threading.Lock()
         while True:
             try:
                 next_input = queue.get()
@@ -229,15 +236,14 @@ if __name__ == '__main__':
                 return
             arr, indices, sharing = next_input
             sharing = 'cuda'
-            with locks[threading.get_ident()]:
-                if sharing is None:
-                    results.append(
-                        (indices, predict_networked(arr))
-                    )
-                elif sharing == 'cuda':
-                    results.append(
-                        (indices, predict_shared(arr))
-                    )
+            if sharing is None:
+                results.append(
+                    (indices, predict_networked(arr))
+                )
+            elif sharing == 'cuda':
+                results.append(
+                    (indices, predict_shared(arr))
+                )
             queue.task_done()
 
     pool = [
