@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from queue import Queue, Empty
 from time import perf_counter
+from uuid import uuid4
 
 import cuml
 import numpy as np
@@ -67,6 +68,8 @@ def set_up_triton_io(
             triton_input.set_data_from_numpy(arr, binary_data=True)
         else:
             raise RuntimeError('Bad protocol: "{}"'.format(protocol))
+        input_name = None
+        output_name = None
     elif shared_mem == 'cuda':
         # TODO
         triton_input = triton_grpc.InferInput('input__0', arr.shape, 'FP32')
@@ -77,10 +80,8 @@ def set_up_triton_io(
         if predict_proba:
             output_size *= num_classes
 
-        input_name = 'input_{}'.format(threading.get_ident())
-        output_name = 'output_{}'.format(threading.get_ident())
-        client.unregister_cuda_shared_memory(name=input_name)
-        client.unregister_cuda_shared_memory(name=output_name)
+        input_name = 'input_{}'.format(uuid4().hex)
+        output_name = 'output_{}'.format(uuid4().hex)
 
         output_handle = shm.create_shared_memory_region(
             output_name, output_size, 0
@@ -104,7 +105,11 @@ def set_up_triton_io(
 
         triton_output.set_shared_memory(output_name, output_size)
 
-    return (triton_input, triton_output, output_handle)
+        shared_memory_regions = client.get_cuda_shared_memory_status().regions
+        assert input_name in shared_memory_regions
+        assert output_name in shared_memory_regions
+
+    return (triton_input, triton_output, output_handle, input_name, output_name)
 
 def get_result(response, output_handle):
     if output_handle is None:
@@ -118,10 +123,11 @@ def get_result(response, output_handle):
         )
 
 def triton_predict(
-        arr, protocol='grpc', shared_mem=None, predict_proba=False, num_classes=1):
+        arr, protocol='grpc', shared_mem=None, predict_proba=False,
+        num_classes=1, attempts=3):
     client = get_triton_client(protocol=protocol)
     start = perf_counter()
-    triton_input, triton_output, handle = set_up_triton_io(
+    triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
         client,
         arr,
         protocol=protocol,
@@ -138,6 +144,11 @@ def triton_predict(
     )
     output = get_result(result, handle)
     elapsed = perf_counter() - start
+
+    if input_name is not None:
+        client.unregister_cuda_shared_memory(name=input_name)
+    if output_name is not None:
+        client.unregister_cuda_shared_memory(name=output_name)
 
     return output, elapsed
 
@@ -204,7 +215,10 @@ if __name__ == '__main__':
     queue = Queue()
     results = []
 
+    locks = {}
+
     def predict_worker():
+        locks[threading.get_ident()] = threading.Lock()
         while True:
             try:
                 next_input = queue.get()
@@ -214,19 +228,21 @@ if __name__ == '__main__':
                 queue.task_done()
                 return
             arr, indices, sharing = next_input
-            if True: # sharing is None:
-                results.append(
-                    (indices, predict_networked(arr))
-                )
-            elif sharing == 'cuda':
-                results.append(
-                    (indices, predict_shared(arr))
-                )
+            sharing = 'cuda'
+            with locks[threading.get_ident()]:
+                if sharing is None:
+                    results.append(
+                        (indices, predict_networked(arr))
+                    )
+                elif sharing == 'cuda':
+                    results.append(
+                        (indices, predict_shared(arr))
+                    )
             queue.task_done()
 
-    pool = (
+    pool = [
         threading.Thread(target=predict_worker) for _ in range(concurrency)
-    )
+    ]
     for thread in pool:
         thread.start()
 
