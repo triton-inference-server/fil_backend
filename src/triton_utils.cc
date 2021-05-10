@@ -167,14 +167,23 @@ construct_responses(std::vector<TRITONBACKEND_Request*>& requests)
 }
 
 void
-send_responses(std::vector<TRITONBACKEND_Response*>& responses)
+send_responses(
+    std::vector<TRITONBACKEND_Response*>& responses, TRITONSERVER_Error* err)
 {
   for (auto& response : responses) {
     LOG_IF_ERROR(
         TRITONBACKEND_ResponseSend(
-            response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, nullptr),
+            response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err),
         "failed sending response");
   }
+}
+
+void
+send_error_responses(
+    std::vector<TRITONBACKEND_Request*>& requests, TRITONSERVER_Error* err)
+{
+  auto responses = construct_responses(requests);
+  send_responses(responses, err);
 }
 
 void

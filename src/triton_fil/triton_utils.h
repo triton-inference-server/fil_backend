@@ -112,7 +112,14 @@ std::vector<TRITONBACKEND_Response*> construct_responses(
     std::vector<TRITONBACKEND_Request*>& requests);
 
 /** Send responses */
-void send_responses(std::vector<TRITONBACKEND_Response*>& responses);
+void send_responses(
+    std::vector<TRITONBACKEND_Response*>& responses,
+    TRITONSERVER_Error* err = nullptr);
+
+/** Convenience method for sending error responses for a batch of requests
+ * whose responses have not yet been constructed */
+void send_error_responses(
+    std::vector<TRITONBACKEND_Request*>& requests, TRITONSERVER_Error* err);
 
 /** Release requests */
 void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
