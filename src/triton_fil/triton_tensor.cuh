@@ -65,8 +65,7 @@ class TritonTensor {
 
   template<typename U=T>
   TritonTensor(
-    const std::vector<
-      typename std::enable_if<std::is_const<U>::value, RawInputBuffer>::type>& buffers,
+    const std::vector<RawInputBuffer>& buffers,
     const std::string& name,
     const std::vector<int64_t>& shape,
     TRITONSERVER_DataType dtype,
@@ -112,8 +111,7 @@ class TritonTensor {
 
   template<typename U=T>
   TritonTensor(
-    std::vector<typename std::enable_if<
-      !std::is_const<U>::value, RawOutputBuffer>::type>&& buffers,
+    std::vector<RawOutputBuffer>&& buffers,
     const std::string& name,
     const std::vector<int64_t>& shape,
     const TRITONSERVER_DataType dtype,
@@ -132,7 +130,8 @@ class TritonTensor {
       stream_{handle.get_stream()},
       buffer{[&] {
         if (is_owner_) {
-          return allocate_device_memory<non_const_T>(size_bytes_);
+          return allocate_device_memory<non_const_T>(size_bytes_ /
+              sizeof(non_const_T));
         } else {
           return reinterpret_cast<non_const_T*>(buffers[0].data);
         }
@@ -159,7 +158,7 @@ class TritonTensor {
       stream_{other.stream_},
       buffer{[&] {
         non_const_T * ptr_d =
-          allocate_device_memory<non_const_T>(size_bytes_);
+          allocate_device_memory<non_const_T>(other.size());
         try {
           raft::copy(ptr_d, other.buffer, other.size(), stream_);
         } catch (const raft::cuda_error& err) {
