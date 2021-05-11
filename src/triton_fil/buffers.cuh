@@ -37,12 +37,12 @@ T product(const std::vector<T>& array) {
 }
 
 /**
- * @brief Allocate given number of bytes on GPU and return device pointer
+ * @brief Allocate given number of elements on GPU and return device pointer
  */
 template<typename T>
-T* allocate_device_memory(size_t bytes) {
+T* allocate_device_memory(size_t count) {
   T* ptr_d;
-  raft::allocate(ptr_d, bytes);
+  raft::allocate(ptr_d, count);
   return ptr_d;
 }
 
