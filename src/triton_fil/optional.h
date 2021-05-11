@@ -43,12 +43,6 @@ class optional {  // C++17: Switch to std::optional
   explicit operator bool() const { return has_value_; }
   T& operator*() { return value_; }
   T* operator->() { return &value_; }
-  optional& operator=(T&& new_value)
-  {
-    value_ = new_value;
-    has_value_ = true;
-    return *this;
-  }
   optional& operator=(const T& new_value)
   {
     value_ = new_value;
