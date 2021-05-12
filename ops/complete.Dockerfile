@@ -6,7 +6,9 @@ ARG BASE_IMAGE=ubuntu:20.04
 # Either the name of a cuDNN image or "cuda_base" to build from vanilla base
 # container
 ARG CUDA_IMAGE=cuda_base
-ARG FIL=on
+
+# Whether or not to build indicated components
+ARG FIL=1
 
 ###########################################################################################
 # Base stage for all other Triton-based build and runtime stages
@@ -184,8 +186,8 @@ WORKDIR /triton_fil_backend
 ###########################################################################################
 # Stage in which FIL backend is built
 ###########################################################################################
-FROM build as fil-build-off
-FROM fil-base as fil-build-on
+FROM build as fil-build-0
+FROM fil-base as fil-build-1
 
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
 ENV LIB_DIR=/opt/lib/fil
