@@ -24,7 +24,7 @@
 #include <memory>
 #include <raft/handle.hpp>
 #include <triton_fil/model_instance_state.cuh>
-#include <triton_fil/triton_buffer.cuh>
+#include <triton_fil/triton_tensor.cuh>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -50,12 +50,12 @@ ModelInstanceState::get_raft_handle()
 
 void
 ModelInstanceState::predict(
-    TritonBuffer<const float>& data, TritonBuffer<float>& preds, size_t num_rows,
+    TritonTensor<const float>& data, TritonTensor<float>& preds,
     bool predict_proba)
 {
   try {
     ML::fil::predict(
-        *handle, fil_forest, preds.data(), data.data(), num_rows,
+        *handle, fil_forest, preds.data(), data.data(), data.shape()[0],
         predict_proba);
   }
   catch (raft::cuda_error& err) {

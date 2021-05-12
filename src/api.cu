@@ -32,16 +32,13 @@
 #include <triton_fil/model_state.h>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_utils.h>
-#include <triton_fil/triton_buffer.cuh>
-#include <triton_fil/triton_buffer_utils.cuh>
+#include <triton_fil/triton_tensor.cuh>
+#include <triton_fil/triton_tensor_utils.cuh>
 
 namespace triton { namespace backend { namespace fil {
 
 extern "C" {
 
-// Implementing TRITONBACKEND_Initialize is optional. The backend
-// should initialize any global state that is intended to be shared
-// across all models and model instances that use the backend.
 TRITONSERVER_Error*
 TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
 {
@@ -63,9 +60,6 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_ModelInitialize is optional. The backend
-// should initialize any state that is intended to be shared across
-// all instances of the model.
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 {
@@ -89,9 +83,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_ModelFinalize is optional unless state
-// is set using TRITONBACKEND_ModelSetState. The backend must free
-// this state and perform any other cleanup.
 TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
@@ -112,9 +103,6 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_ModelInstanceInitialize is optional. The
-// backend should initialize any state that is required for a model
-// instance.
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 {
@@ -142,9 +130,6 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_ModelInstanceFinalize is optional unless
-// state is set using TRITONBACKEND_ModelInstanceSetState. The backend
-// must free this state and perform any other cleanup.
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
 {
@@ -168,83 +153,97 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
   return nullptr;  // success
 }
 
-// Implementing TRITONBACKEND_ModelInstanceExecute is required.
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInstanceExecute(
-    TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** requests,
+    TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
     const uint32_t request_count)
 {
+  std::vector<TRITONBACKEND_Response*> responses;
   try {
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
     ModelState* model_state = instance_state->StateForModel();
 
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string("model ") + model_state->Name() + ", instance " +
-         instance_state->Name() + ", executing " + std::to_string(request_count) +
-         " requests")
-            .c_str());
+    /* LOG_MESSAGE(
+     TRITONSERVER_LOG_INFO,
+     (std::string("model ") + model_state->Name() + ", instance " +
+      instance_state->Name() + ", executing " + std::to_string(request_count) +
+      " requests")
+         .c_str()); */
 
-    std::vector<TRITONBACKEND_Response*> responses =
-      construct_responses(requests, request_count);
+    std::vector<TRITONBACKEND_Request*> requests(
+      raw_requests, raw_requests + request_count
+    );
 
-    for (uint32_t r = 0; r < request_count; ++r) {
-      TRITONBACKEND_Request* request = requests[r];
-      TRITONBACKEND_Response* response = responses[r];
+    // One past index of last request that was successfully processed
+    size_t end_request = 0;
+    try {
+      auto input_batches = get_input_batches<float>(
+        static_cast<uint32_t>(0),
+        requests,
+        TRITONSERVER_MEMORY_GPU,
+        instance_state->get_raft_handle()
+      );
+      for (auto& batch: input_batches) {
 
-      try {
-        auto input_buffers = get_input_buffers<float>(
-          request,
-          TRITONSERVER_MEMORY_GPU,
-          instance_state->get_raft_handle()
-        );
-
-        std::vector<int64_t> output_shape{input_buffers[0].shape()[0]};
-        if (model_state->predict_proba) {
-          output_shape.push_back(model_state->num_class());
+        std::vector<std::vector<int64_t>> output_shapes;
+        output_shapes.reserve(batch.shapes.size());
+        for(auto& input_shape : batch.shapes) {
+          std::vector<int64_t> output_shape{input_shape[0]};
+          if (model_state->predict_proba) {
+            output_shape.push_back(model_state->num_class());
+          }
+          output_shapes.push_back(std::move(output_shape));
         }
-        auto output_buffers = get_output_buffers<float>(
-          request,
-          response,
-          TRITONSERVER_MEMORY_GPU,
-          TRITONSERVER_datatype_enum::TRITONSERVER_TYPE_FP32,
-          output_shape,
-          instance_state->get_raft_handle()
-        );
 
-        instance_state->predict(
-          input_buffers[0],
-          output_buffers[0],
-          static_cast<size_t>(input_buffers[0].shape()[0]),
-          model_state->predict_proba
-        );
 
-        for (auto& buffer : output_buffers) {
-          buffer.sync();
+        // TODO: Adjust function interfaces to allow passing iterators instead
+        std::vector<TRITONBACKEND_Request*> batch_requests(
+          requests.begin() + batch.extent.first,
+          requests.begin() + batch.extent.second
+        );
+        responses = construct_responses(batch_requests);
+        try {
+          auto output_batch = get_output_batch<float>(
+            static_cast<uint32_t>(0),
+            batch_requests,
+            responses,
+            TRITONSERVER_MEMORY_GPU,
+            output_shapes,
+            instance_state->get_raft_handle()
+          );
+          instance_state->predict(
+            batch.data,
+            output_batch,
+            model_state->predict_proba
+          );
+
+          output_batch.sync();
+          send_responses(responses);
+          responses.clear();
+          end_request = batch.extent.second;
+          release_requests(batch_requests);
+        } catch (TritonException& request_err) {
+          send_responses(responses, request_err.error());
+          responses.clear();
+          end_request = batch.extent.second;
+          release_requests(batch_requests);
         }
-      } catch (TritonException& request_err) {
-        LOG_IF_ERROR(
-          TRITONBACKEND_ResponseSend(
-            response,
-            TRITONSERVER_RESPONSE_COMPLETE_FINAL,
-            request_err.error()
-          ),
-          "failed to send error response"
-        );
-        responses[r] = nullptr;
-        TRITONSERVER_ErrorDelete(request_err.error());
       }
+    } catch (TritonException& request_err) {
+      // If any responses have already been constructed for this batch, send an
+      // error response
+      send_responses(responses, request_err.error());
+      responses.clear();
 
-      LOG_IF_ERROR(
-          TRITONBACKEND_ResponseSend(
-              responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
-              nullptr),
-          "failed sending response");
-
-      LOG_IF_ERROR(
-          TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
-          "failed releasing request");
+      // Return errors for all unprocessed requests
+      std::vector<TRITONBACKEND_Request*> requests(
+        raw_requests + end_request, raw_requests + request_count
+      );
+      send_error_responses(requests, request_err.error());
+      release_requests(requests);
+      return request_err.error();
     }
+
   } catch (TritonException& err) {
     return err.error();
   }
