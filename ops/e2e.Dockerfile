@@ -8,7 +8,7 @@ ARG BASE_IMAGE=ubuntu:20.04
 ARG CUDA_IMAGE=cuda_base
 
 # Whether or not to build indicated components
-ARG FIL=1
+ARG FIL=0
 
 ###########################################################################################
 # Base stage for all other Triton-based build and runtime stages
