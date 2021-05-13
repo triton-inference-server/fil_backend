@@ -135,21 +135,34 @@ def triton_predict(
         num_classes=1, attempts=3):
     client = get_triton_client(protocol=protocol)
     start = perf_counter()
-    triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
-        client,
-        arr,
-        protocol=protocol,
-        shared_mem=shared_mem,
-        predict_proba=predict_proba,
-        num_classes=num_classes
-    )
+    try:
+        triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
+            client,
+            arr,
+            protocol=protocol,
+            shared_mem=shared_mem,
+            predict_proba=predict_proba,
+            num_classes=num_classes
+        )
 
-    result = client.infer(
-        MODEL_NAME,
-        model_version=MODEL_VERSION,
-        inputs=[triton_input],
-        outputs=[triton_output]
-    )
+        result = client.infer(
+            MODEL_NAME,
+            model_version=MODEL_VERSION,
+            inputs=[triton_input],
+            outputs=[triton_output]
+        )
+    except triton_utils.InferenceServerException as exc:
+        # Workaround for Triton Python client bug
+        if exc.status() == 'StatusCode.NOT_FOUND' and attempts > 1:
+            return triton_predict(
+                arr,
+                protocol=protocol,
+                shared_mem=shared_mem,
+                predict_proba=predict_proba,
+                num_classes=num_classes,
+                attempts=attempts - 1
+            )
+        raise
     output = get_result(result, handle)
     elapsed = perf_counter() - start
 
@@ -167,6 +180,8 @@ if __name__ == '__main__':
     protocol = 'grpc'
     model_path = '/home/whicks/proj_cuml_triton/test_repository/fil/1/xgboost.model'
     concurrency = 12
+    timeout = 60
+    retries = 3
 
     concurrency = max(2, concurrency - concurrency % 2)
 
@@ -208,14 +223,16 @@ if __name__ == '__main__':
         protocol=protocol,
         shared_mem=None,
         predict_proba=predict_proba,
-        num_classes=num_classes
+        num_classes=num_classes,
+        attempts=retries
     )
     predict_shared = partial(
         triton_predict,
         protocol=protocol,
         shared_mem='cuda',
         predict_proba=predict_proba,
-        num_classes=num_classes
+        num_classes=num_classes,
+        attempts=retries
     )
 
     queue = Queue()
@@ -233,7 +250,6 @@ if __name__ == '__main__':
                 queue.task_done()
                 return
             arr, indices, sharing = next_input
-            sharing = 'cuda'
             if sharing is None:
                 results.append(
                     (indices, predict_networked(arr))
@@ -263,14 +279,14 @@ if __name__ == '__main__':
 
             arr = total_batch[indices[0]: indices[1]]
             queue.put((arr, indices, shared_mem[i % len(shared_mem)]))
-    queue.join()
-    total = perf_counter() - start
-
     for _ in range(concurrency):
         queue.put(None)
 
     for thread in pool:
-        thread.join()
+        thread.join(timeout=timeout)
+        if thread.is_alive():
+            raise RuntimeError("Test run exceeded timeout")
+    total = perf_counter() - start
 
     throughput = len(batch_sizes) * total_rows / total
     per_sample = 1 / throughput
