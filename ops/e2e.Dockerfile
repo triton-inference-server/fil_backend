@@ -26,15 +26,6 @@ ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 ENV NVIDIA_REQUIRE_CUDA "cuda>=11.2 brand=tesla,driver>=418,driver<419 brand=tesla,driver>=440,driver<441 driver>=450"
 ENV CUDNN_VERSION 8.2.0.53
 
-# TODO:
-#    BOTH:
-#        * cuda-libraries-11-2
-#    RUNTIME:
-#    BUILD:
-#        * cuda-compiler-11-2
-#        * cuda-libraries-dev-11-2
-#        * cuda-nvml-dev-11-2
-
 ########################
 # Install CUDA and cuDNN
 RUN apt-get update \
