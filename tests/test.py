@@ -161,10 +161,8 @@ def triton_predict(
     return output, elapsed
 
 if __name__ == '__main__':
-    # total_rows = 131072
-    # batch_sizes = (128, 1, 1024, 131072)
-    total_rows = 4096
-    batch_sizes = (128, 1, total_rows)
+    total_rows = 8192
+    batch_sizes = (128, 1, 1024, total_rows)
     shared_mem = (None, 'cuda')
     protocol = 'grpc'
     model_path = '/home/whicks/proj_cuml_triton/test_repository/fil/1/xgboost.model'
