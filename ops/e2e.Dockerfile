@@ -50,6 +50,7 @@ RUN apt-get update \
     libcudnn8=$CUDNN_VERSION-1+cuda11.3 \
     libcudnn8-dev=$CUDNN_VERSION-1+cuda11.3 \
  && apt-mark hold libcudnn8 \
+ && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
 FROM ${CUDA_IMAGE} AS base
@@ -84,11 +85,13 @@ RUN dpkg -i /tmp/tensorrt.deb \
     software-properties-common \
     tensorrt \
  && rm /tmp/tensorrt.deb \
+ && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip && \
-    pip3 install --upgrade wheel setuptools docker && \
-    pip3 install grpcio-tools grpcio-channelz
+RUN pip3 install --upgrade pip \
+ && pip3 install --upgrade wheel setuptools docker \
+ && pip3 install grpcio-tools grpcio-channelz \
+ && bash -c 'pip3 cache purge'
 
 ###########################################################################################
 # Stage containing all Triton build dependencies
@@ -114,6 +117,7 @@ RUN apt-get update \
     uuid-dev \
     wget \
     zlib1g-dev \
+ && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
 # Install CMake
@@ -125,6 +129,7 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && apt-get install -y --no-install-recommends \
     cmake-data=3.18.4-0kitware1ubuntu20.04.1 \
     cmake=3.18.4-0kitware1ubuntu20.04.1 \
+ && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
 # Retrieve Triton server source
