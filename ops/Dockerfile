@@ -1,4 +1,7 @@
-FROM nvcr.io/nvidia/tritonserver:21.04-py3 as base
+ARG TRITON_VERSION=21.04
+ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
+
+FROM ${BASE_IMAGE} as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
@@ -34,19 +37,25 @@ FROM base as build-stage
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
 ENV LIB_DIR=/opt/lib/fil
 
+ARG TRITON_VERSION
+ENV TRITON_VERSION=$TRITON_VERSION
+
+ARG BUILD_TYPE=Release
+ENV BUILD_TYPE=$BUILD_TYPE
+
 # TODO: I am not sure why the lapack dependency is not picked up by ldd
 RUN conda run --no-capture-output -n triton_dev \
-    /bin/bash /triton_fil_backend/ops/build.sh \
-  && cp -r /triton_fil_backend/build/install/backends/fil \
-    /opt/tritonserver/backends/fil \
-  && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
-  && conda run --no-capture-output -n triton_dev \
-    /bin/bash /triton_fil_backend/ops/move_deps.sh \
-  && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 /opt/lib/fil \
-  && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
+   /triton_fil_backend/ops/build.sh \
+ && cp -r /triton_fil_backend/build/install/backends/fil \
+   /opt/tritonserver/backends/fil \
+ && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
+ && conda run --no-capture-output -n triton_dev \
+   /bin/bash /triton_fil_backend/ops/move_deps.sh \
+ && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 /opt/lib/fil \
+ && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
 
 
-FROM nvcr.io/nvidia/tritonserver:21.04-py3
+FROM ${BASE_IMAGE}
 
 COPY --from=build-stage /opt/lib/fil /opt/lib/fil
 
