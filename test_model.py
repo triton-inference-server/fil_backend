@@ -1,16 +1,11 @@
-import concurrent.futures
-import io
 import threading
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
+from functools import partial, lru_cache
 from queue import Queue, Empty
 from time import perf_counter
 from uuid import uuid4
 
 import cuml
 import numpy as np
-import requests
 import tritonclient.http as triton_http
 import tritonclient.grpc as triton_grpc
 import tritonclient.utils.cuda_shared_memory as shm
@@ -21,30 +16,9 @@ HTTP_URL = 'localhost:8000'
 MODEL_NAME = 'fil'
 MODEL_VERSION = '1'
 
+
+@lru_cache(max_size=2)
 def get_triton_client(protocol="grpc"):
-    # try:
-    #     return get_triton_client.cache[protocol]
-    # except AttributeError:
-    #     get_triton_client.cache = {}
-    # except KeyError:
-    #     if protocol == 'grpc':
-    #         get_triton_client.cache[
-    #             protocol
-    #         ] = triton_grpc.InferenceServerClient(
-    #             url=GRPC_URL,
-    #             verbose=False
-    #         )
-    #     elif protocol == 'http':
-    #         get_triton_client.cache[
-    #             protocol
-    #         ] = triton_http.InferenceServerClient(
-    #             url=HTTP_URL,
-    #             verbose=False,
-    #             concurrency=12
-    #         )
-    #     else:
-    #         raise RuntimeError('Bad protocol: "{}"'.format(protocol))
-    # return get_triton_client(protocol=protocol)
     if protocol == 'grpc':
         return triton_grpc.InferenceServerClient(
             url=GRPC_URL,
