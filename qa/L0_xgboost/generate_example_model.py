@@ -271,12 +271,11 @@ def build_model(
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
 
-    if model_name is None:
-        model_name = f"{model_type}_{task}_{output_format}"
-
-    config_dir = os.path.abspath(os.path.join(model_repo, model_name))
-    model_dir = os.path.join(config_dir, '1')
-    os.makedirs(model_dir, exist_ok=True)
+    if model_repo is None:
+        model_repo = os.path.join(
+            os.path.dirname(__file__),
+            'model_repository'
+        )
 
     if output_format is None:
         if model_type == 'xgboost':
@@ -299,6 +298,13 @@ def build_model(
             f'Output format "{output_format}" inconsistent with model type'
             f' "{model_type}"'
         )
+
+    if model_name is None:
+        model_name = f"{model_type}_{task}_{output_format}"
+
+    config_dir = os.path.abspath(os.path.join(model_repo, model_name))
+    model_dir = os.path.join(config_dir, '1')
+    os.makedirs(model_dir, exist_ok=True)
 
     model = generate_model(
         task=task,
@@ -325,10 +331,11 @@ def build_model(
     with open(config_path, 'w') as config_file:
         config_file.write(config)
 
-    return config_dir
+    return model_name
 
 
 def parse_args():
+    """Parse CLI arguments for model creation"""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--type',
@@ -410,10 +417,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    if args.repo is None:
-        model_repo = os.path.dirname(__file__)
 
-    build_model(
+    print(build_model(
         task=args.task,
         model_type=args.type,
         output_format=args.format,
@@ -422,9 +427,9 @@ if __name__ == '__main__':
         classes=args.classes,
         samples=args.samples,
         features=args.features,
-        model_repo=model_repo,
+        model_repo=args.repo,
         model_name=args.name,
         classification_threshold=args.threshold,
         predict_proba=args.predict_proba,
         batching_window=args.batching_window
-    )
+    ))
