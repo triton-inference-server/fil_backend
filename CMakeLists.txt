@@ -66,7 +66,7 @@ find_path(RAFT_DIR "raft"
 
 message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
 
-find_package(Treelite 1.1.0 REQUIRED)
+find_package(Treelite 1.3.0 REQUIRED)
 
 #
 # Shared library implementing the Triton Backend API
