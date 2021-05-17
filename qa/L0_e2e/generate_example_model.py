@@ -11,8 +11,6 @@ try:
 except ImportError:
     xgb = None
 
-CONFIG_TEMPLATE = ""
-
 def generate_classification_data(classes=2, rows=1000, cols=32):
     """Generate classification training set"""
     with cuml.using_output_type('numpy'):
@@ -409,7 +407,8 @@ def parse_args():
     parser.add_argument(
         '--batching_window',
         type=int,
-        help='window (in microseconds) for gathering batches'
+        help='window (in microseconds) for gathering batches',
+        default=30000
     )
 
     return parser.parse_args()
