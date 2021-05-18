@@ -139,7 +139,9 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
     ModelInstanceState* instance_state =
         reinterpret_cast<ModelInstanceState*>(vstate);
 
-    instance_state->UnloadFILModel();
+    if (instance_state != nullptr) {
+      instance_state->UnloadFILModel();
+    }
 
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
