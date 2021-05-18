@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+TRITON_IMAGE="${TRITON_IMAGE:-triton_fil}"
+
+cd "$(git rev-parse --show-toplevel)"
+
 [ -d qa/logs ] || mkdir qa/logs
 
 models=()
@@ -10,7 +14,7 @@ models+=( $(python qa/L0_e2e/generate_example_model.py \
   --name xgboost \
   --depth 11 \
   --trees 2000 \
-  --classes 15 \
+  --classes 3 \
   --features 500) )
 models+=( $(python qa/L0_e2e/generate_example_model.py \
   --name xgboost_json \
@@ -33,7 +37,7 @@ models+=( $(python qa/L0_e2e/generate_example_model.py \
   --task regression) )
 
 echo 'Starting Triton server...'
-container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v $PWD/qa/L0_e2e/model_repository/:/models triton_fil tritonserver --model-repository=/models)
+container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v $PWD/qa/L0_e2e/model_repository/:/models ${TRITON_IMAGE} tritonserver --model-repository=/models)
 
 function cleanup {
   docker logs $container > qa/logs/local_container.log 2>&1
