@@ -1,0 +1,15 @@
+name: triton_test
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai-nightly
+dependencies:
+  - cudatoolkit=11.0
+  - cuml=0.20
+  - lightgbm
+  - pip
+  - python=3.8
+  - rapidsai-nightly::py-xgboost
+  - pip:
+      - nvidia-pyindex
+      - tritonclient[all]
