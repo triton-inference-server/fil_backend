@@ -257,25 +257,25 @@ def run_test(
     # Perform single-inference tests
     triton_result, _ = triton_predict(
         model_name,
-        total_batch[0:128],
+        total_batch[0: 1],
         model_version=model_version,
         protocol='http',
         shared_mem=None,
         predict_proba=predict_proba,
         num_classes=num_classes
     )
-    np.testing.assert_almost_equal(triton_result, fil_result[0:128])
+    np.testing.assert_almost_equal(triton_result, fil_result[0: 1])
 
     triton_result, _ = triton_predict(
         model_name,
-        total_batch[0:128],
+        total_batch[0: 1],
         model_version=model_version,
         protocol='grpc',
         shared_mem='cuda',
         predict_proba=predict_proba,
         num_classes=num_classes
     )
-    np.testing.assert_almost_equal(triton_result, fil_result[0:128])
+    np.testing.assert_almost_equal(triton_result, fil_result[0: 1])
 
     # Perform multi-threaded tests
     def predict_networked(arr):
