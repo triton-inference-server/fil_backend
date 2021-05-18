@@ -1,3 +1,14 @@
+image: docker:20.10.6-dind
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
+services:
+  - docker:20.10.6-dind
+
+before_script:
+  - docker info
+
 build-job:
   stage: build
   script:
