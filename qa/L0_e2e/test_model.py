@@ -15,12 +15,35 @@ import tritonclient.utils.cuda_shared_memory as shm
 from tritonclient import utils as triton_utils
 
 
+STANDARD_PORTS = {
+    'http': 8000,
+    'grpc': 8001
+}
+
+
+class TritonMessage:
+    """Adapter to read output from both GRPC and HTTP responses"""
+    def __init__(self, message):
+        self.message = message
+
+    def __getattr__(self, attr):
+        try:
+            return getattr(self.message, attr)
+        except AttributeError:
+            try:
+                return self.message[attr]
+            except Exception:  # Re-raise AttributeError
+                pass
+            raise
+
+
 def get_triton_client(
         protocol="grpc",
         host='localhost',
         port=None,
         concurrency=4):
-    """Get Triton client instance of desired type"""
+    """Get Triton client instance of desired type """
+
     if protocol == 'grpc':
         if port is None:
             port = 8001
@@ -99,7 +122,13 @@ def set_up_triton_io(
 
         triton_output.set_shared_memory(output_name, output_size)
 
-        shared_memory_regions = client.get_cuda_shared_memory_status().regions
+        shared_memory_regions = client.get_cuda_shared_memory_status()
+        try:
+            shared_memory_regions = shared_memory_regions.regions
+        except AttributeError:  # HTTP response
+            shared_memory_regions = [
+                region['name'] for region in shared_memory_regions
+            ]
         assert input_name in shared_memory_regions
         assert output_name in shared_memory_regions
 
@@ -111,7 +140,7 @@ def get_result(response, output_handle):
     if output_handle is None:
         return response.as_numpy('output__0')
     else:
-        network_result = response.get_output('output__0')
+        network_result = TritonMessage(response.get_output('output__0'))
         return shm.get_contents_as_numpy(
             output_handle,
             triton_utils.triton_to_np_dtype(network_result.datatype),
@@ -120,10 +149,13 @@ def get_result(response, output_handle):
 
 
 def triton_predict(
-        model_name, arr, model_version='1', protocol='grpc', shared_mem=None,
-        predict_proba=False, num_classes=1, attempts=3):
+        model_name, arr, model_version='1', protocol='grpc', host='localhost',
+        port=None, shared_mem=None, predict_proba=False, num_classes=1,
+        attempts=3):
     """Perform prediction on a numpy array using a Triton model"""
-    client = get_triton_client(protocol=protocol)
+    if port is None:
+        port = STANDARD_PORTS[protocol]
+    client = get_triton_client(protocol=protocol, host=host, port=port)
     start = perf_counter()
     try:
         triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
@@ -149,6 +181,8 @@ def triton_predict(
                 arr,
                 model_version=model_version,
                 protocol=protocol,
+                host=host,
+                port=port,
                 shared_mem=shared_mem,
                 predict_proba=predict_proba,
                 num_classes=num_classes,
@@ -169,7 +203,6 @@ def triton_predict(
 def run_test(
         model_repo=None,
         model_name='xgboost_classification_xgboost',
-        model_format='xgboost',
         model_version=1,
         protocol='grpc',
         total_rows=8192,
@@ -179,8 +212,8 @@ def run_test(
         timeout=60,
         retries=3,
         host='localhost',
-        http_port=8000,
-        grpc_port=8001):
+        http_port=STANDARD_PORTS['http'],
+        grpc_port=STANDARD_PORTS['grpc']):
 
     if batch_sizes is None:
         batch_sizes = []
@@ -198,35 +231,15 @@ def run_test(
             'model_repository'
         )
 
-    model_path = os.path.join(model_repo, model_name, str(model_version))
-    if model_format == 'xgboost':
-        model_path = os.path.join(model_path, 'xgboost.model')
-        model_type = 'xgboost'
-    elif model_format == 'xgboost_json':
-        model_path = os.path.join(model_path, 'xgboost.json')
-        model_type = 'xgboost_json'
-    elif model_format == 'lightgbm':
-        model_path = os.path.join(model_path, 'model.txt')
-        model_type = 'lightgbm'
-    else:
-        raise RuntimeError('Model format not recognized')
-
     concurrency = max(
         len(shared_mem), concurrency - concurrency % len(shared_mem)
     )
 
-    client = [
-        get_triton_client(
-            protocol='http',
-            host=host,
-            port=http_port
-        ),
-        get_triton_client(
-            protocol='grpc',
-            host=host,
-            port=grpc_port
-        )
-    ][protocol == 'grpc']
+    client = get_triton_client(
+        protocol='grpc',
+        host=host,
+        port=grpc_port
+    )
 
     # Wait up to 60 seconds for server startup
     server_wait_start = time()
@@ -257,6 +270,25 @@ def run_test(
         output_class is None or output_class.string_value == 'true'
     )
 
+    model_format = config.parameters.get('model_type', None)
+    if model_format is None:
+        model_format = 'xgboost'
+    else:
+        model_format = model_format.string_value
+
+    model_path = os.path.join(model_repo, model_name, str(model_version))
+    if model_format == 'xgboost':
+        model_path = os.path.join(model_path, 'xgboost.model')
+        model_type = 'xgboost'
+    elif model_format == 'xgboost_json':
+        model_path = os.path.join(model_path, 'xgboost.json')
+        model_type = 'xgboost_json'
+    elif model_format == 'lightgbm':
+        model_path = os.path.join(model_path, 'model.txt')
+        model_type = 'lightgbm'
+    else:
+        raise RuntimeError('Model format not recognized')
+
     fil_model = cuml.ForestInference.load(
         model_path, output_class=output_class, model_type=model_type
     )
@@ -274,6 +306,8 @@ def run_test(
         total_batch[0: 1],
         model_version=model_version,
         protocol='http',
+        host=host,
+        port=http_port,
         shared_mem=None,
         predict_proba=predict_proba,
         num_classes=num_classes
@@ -285,6 +319,8 @@ def run_test(
         total_batch[0: 1],
         model_version=model_version,
         protocol='grpc',
+        host=host,
+        port=grpc_port,
         shared_mem='cuda',
         predict_proba=predict_proba,
         num_classes=num_classes
@@ -299,6 +335,8 @@ def run_test(
                 arr,
                 model_version=model_version,
                 protocol=protocol,
+                host=host,
+                port=[http_port, grpc_port][protocol == 'grpc'],
                 shared_mem=None,
                 predict_proba=predict_proba,
                 num_classes=num_classes,
@@ -314,6 +352,8 @@ def run_test(
                 arr,
                 model_version=model_version,
                 protocol=protocol,
+                host=host,
+                port=[http_port, grpc_port][protocol == 'grpc'],
                 shared_mem='cuda',
                 predict_proba=predict_proba,
                 num_classes=num_classes,
@@ -321,9 +361,6 @@ def run_test(
             )
         except Exception:
             return (None, traceback.format_exc())
-
-    triton_result, _ = predict_shared(total_batch[0:1])
-    np.testing.assert_almost_equal(triton_result, fil_result[0:1])
 
     queue = Queue()
     results = []
@@ -396,7 +433,7 @@ def run_test(
     request_latency /= len(results)
     row_latency /= len(results)
 
-    print("*****************************************")
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     print(f"Total rows: {total_rows}")
     print("Batch sizes: {}".format(", ".join(
         (str(size_) for size_ in batch_sizes)
@@ -413,7 +450,7 @@ def run_test(
     print("-----------------------------------------")
     print("Throughput, Request latency, Time/sample, Row latency")
     print(f"{throughput}, {request_latency}, {per_sample}, {row_latency}")
-    print("*****************************************")
+    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 
 def parse_args():
@@ -433,24 +470,18 @@ def parse_args():
         '--http_port',
         type=int,
         help='HTTP port for Triton server',
-        default=8000
+        default=STANDARD_PORTS['http']
     )
     parser.add_argument(
         '--grpc_port',
         type=int,
         help='GRPC port for Triton server',
-        default=8001
+        default=STANDARD_PORTS['grpc']
     )
     parser.add_argument(
         '--name',
         help='name for model',
         default='xgboost_classification_xgboost'
-    )
-    parser.add_argument(
-        '--format',
-        choices=('xgboost', 'xgboost_json', 'lightgbm'),
-        default='xgboost',
-        help='serialization format for model',
     )
     parser.add_argument(
         '--model_version',
@@ -521,7 +552,6 @@ if __name__ == '__main__':
     run_test(
         model_repo=args.repo,
         model_name=args.name,
-        model_format=args.format,
         model_version=args.model_version,
         protocol=args.protocol,
         total_rows=args.samples,

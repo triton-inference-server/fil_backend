@@ -48,11 +48,20 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
         raise RuntimeError('LightGBM could not be imported')
     lgb_data = lgb.Dataset(data, label=labels)
 
+    if classes <= 2:
+        classes = 1
+        objective = 'binary'
+        metric = 'binary_logloss'
+    else:
+        objective = 'multiclass'
+        metric = 'multi_logloss'
+
     training_params = {
-        'metric': 'binary_logloss',
-        'objective': 'binary',
-        'num_class': classes - 1,
-        'max_depth': depth
+        'metric': metric,
+        'objective': objective,
+        'num_class': classes,
+        'max_depth': depth,
+        'verbose': -1
     }
     model = lgb.train(training_params, lgb_data, trees)
 
@@ -116,7 +125,8 @@ def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     training_params = {
         'metric': 'l2',
         'objective': 'regression',
-        'max_depth': depth
+        'max_depth': depth,
+        'verbose': -1
     }
     model = lgb.train(training_params, lgb_data, trees)
 
@@ -187,7 +197,7 @@ def serialize_model(model, directory, output_format='xgboost'):
 
 def generate_config(
         model_name,
-        model_type='xgboost',
+        model_format='xgboost',
         features=32,
         num_classes=2,
         predict_proba=False,
@@ -224,7 +234,7 @@ instance_group [{{ kind: KIND_GPU }}]
 parameters [
   {{
     key: "model_type"
-    value: {{ string_value: "{model_type}" }}
+    value: {{ string_value: "{model_format}" }}
   }},
   {{
     key: "predict_proba"
@@ -324,8 +334,9 @@ def build_model(
 
     config = generate_config(
         model_name,
-        model_type=model_type,
+        model_format=output_format,
         features=features,
+        num_classes=classes,
         predict_proba=predict_proba,
         task=task,
         threshold=classification_threshold,
