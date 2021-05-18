@@ -77,7 +77,7 @@ and a version of
 [XGBoost](https://xgboost.readthedocs.io/en/latest/install.html) compiled with
 GPU support. These can all be installed via
 [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
-using the provided `environmemt.yml` configuration file as shown below:
+using the provided `environment.yml` configuration file as shown below:
 
 ```bash
 conda env update -f qa/environment.yml
