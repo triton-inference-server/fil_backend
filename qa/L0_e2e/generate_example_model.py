@@ -203,7 +203,7 @@ def generate_config(
     predict_proba = str(bool(predict_proba)).lower()
     output_class = str(task == 'classification').lower()
 
-    return f""" name: "{model_name}"
+    return f"""name: "{model_name}"
 backend: "fil"
 max_batch_size: 8192
 input [

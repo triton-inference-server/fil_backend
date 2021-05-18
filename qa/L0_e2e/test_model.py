@@ -4,7 +4,7 @@ import threading
 import traceback
 from functools import partial
 from queue import Queue, Empty
-from time import perf_counter
+from time import perf_counter, time
 from uuid import uuid4
 
 import cuml
@@ -201,10 +201,13 @@ def run_test(
     model_path = os.path.join(model_repo, model_name, str(model_version))
     if model_format == 'xgboost':
         model_path = os.path.join(model_path, 'xgboost.model')
+        model_type = 'xgboost'
     elif model_format == 'xgboost_json':
         model_path = os.path.join(model_path, 'xgboost.json')
+        model_type = 'xgboost_json'
     elif model_format == 'lightgbm':
         model_path = os.path.join(model_path, 'model.txt')
+        model_type = 'lightgbm'
     else:
         raise RuntimeError('Model format not recognized')
 
@@ -224,6 +227,15 @@ def run_test(
             port=grpc_port
         )
     ][protocol == 'grpc']
+
+    # Wait up to 60 seconds for server startup
+    server_wait_start = time()
+    while time() - server_wait_start < 60:
+        try:
+            if client.is_server_ready():
+                break
+        except triton_utils.InferenceServerException:
+            pass
 
     client.unregister_cuda_shared_memory()
     client.unregister_system_shared_memory()
@@ -245,7 +257,9 @@ def run_test(
         output_class is None or output_class.string_value == 'true'
     )
 
-    fil_model = cuml.ForestInference.load(model_path, output_class=output_class)
+    fil_model = cuml.ForestInference.load(
+        model_path, output_class=output_class, model_type=model_type
+    )
 
     total_batch = np.random.rand(total_rows, features).astype('float32')
 
