@@ -188,12 +188,18 @@ def serialize_model(model, directory, output_format='xgboost'):
 def generate_config(
         model_name,
         model_type='xgboost',
+        features=32,
+        num_classes=2,
         predict_proba=False,
         task='classification',
         threshold=0.5,
         batching_window=30000):
     """Return a string with the full Triton config.pbtxt for this model
     """
+    if predict_proba:
+        output_dim = num_classes
+    else:
+        output_dim = 2  # TODO: Why not 1?
     predict_proba = str(bool(predict_proba)).lower()
     output_class = str(task == 'classification').lower()
 
@@ -204,14 +210,14 @@ input [
  {{
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ 500 ]
+    dims: [ {features} ]
   }}
 ]
 output [
  {{
     name: "output__0"
     data_type: TYPE_FP32
-    dims: [ 2 ]
+    dims: [ {output_dim} ]
   }}
 ]
 instance_group [{{ kind: KIND_GPU }}]
@@ -319,6 +325,7 @@ def build_model(
     config = generate_config(
         model_name,
         model_type=model_type,
+        features=features,
         predict_proba=predict_proba,
         task=task,
         threshold=classification_threshold,

@@ -70,7 +70,6 @@ def set_up_triton_io(
     elif shared_mem == 'cuda':
         input_size = arr.size * arr.itemsize
         output_size = arr.shape[0] * arr.itemsize
-        print(arr.shape, output_size)
         if predict_proba:
             output_size *= num_classes
 
@@ -105,6 +104,7 @@ def set_up_triton_io(
         assert output_name in shared_memory_regions
 
     return (triton_input, triton_output, output_handle, input_name, output_name)
+
 
 def get_result(response, output_handle):
     """Convert Triton response to NumPy array"""
@@ -231,35 +231,40 @@ def run_test(
     config = client.get_model_config(model_name).config
     features = config.input[0].dims[0]
     output_dims = config.output[0].dims
-    try:
-        num_classes = output_dims[1]
+
+    predict_proba = config.parameters.get('predict_proba', None)
+    if predict_proba is not None and predict_proba.string_value == 'true':
         predict_proba = True
-    except IndexError:
-        num_classes = 1
+        num_classes = output_dims[0]
+    else:
         predict_proba = False
+        num_classes = 2
 
     output_class = config.parameters.get('output_class')
     output_class = (
         output_class is None or output_class.string_value == 'true'
     )
 
-    fil_model = cuml.ForestInference.load(model_path, output_class=True)
+    fil_model = cuml.ForestInference.load(model_path, output_class=output_class)
 
     total_batch = np.random.rand(total_rows, features).astype('float32')
 
-    fil_result = fil_model.predict(total_batch)
+    if predict_proba:
+        fil_result = fil_model.predict_proba(total_batch)
+    else:
+        fil_result = fil_model.predict(total_batch)
 
     # Perform single-inference tests
-    # triton_result, _ = triton_predict(
-    #     model_name,
-    #     total_batch[0:128],
-    #     model_version=model_version,
-    #     protocol='http',
-    #     shared_mem=None,
-    #     predict_proba=predict_proba,
-    #     num_classes=num_classes
-    # )
-    # np.testing.assert_almost_equal(triton_result, fil_result[0:128])
+    triton_result, _ = triton_predict(
+        model_name,
+        total_batch[0:128],
+        model_version=model_version,
+        protocol='http',
+        shared_mem=None,
+        predict_proba=predict_proba,
+        num_classes=num_classes
+    )
+    np.testing.assert_almost_equal(triton_result, fil_result[0:128])
 
     triton_result, _ = triton_predict(
         model_name,
@@ -302,6 +307,9 @@ def run_test(
             )
         except Exception:
             return (None, traceback.format_exc())
+
+    triton_result, _ = predict_shared(total_batch[0:1])
+    np.testing.assert_almost_equal(triton_result, fil_result[0:1])
 
     queue = Queue()
     results = []
@@ -445,7 +453,7 @@ def parse_args():
         '--samples',
         type=int,
         help='number of total test samples per batch size',
-        default=1000
+        default=8192
     )
     parser.add_argument(
         '-b',
