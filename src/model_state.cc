@@ -113,7 +113,8 @@ ModelState::LoadModel(
   if (load_result != 0) {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNAVAILABLE,
-        "Treelite model could not be loaded");
+        "Treelite model could not be loaded. Error: "
+        + std::string(TreeliteGetLastError()));
   }
 
   if (TreeliteQueryNumClass(treelite_handle, &num_class_) != 0) {
