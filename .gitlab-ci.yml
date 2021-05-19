@@ -13,13 +13,9 @@ build:
   stage: build
   script:
     - docker build -t gitlab-master.nvidia.com:5005/whicks/triton_fil_backend -f ops/Dockerfile .
-
-build-tests:
-  stage: build-tests
-  script:
     - docker build -t triton_test -f qa/Dockerfile ./qa
 
-run-tests:
+test:
   stage: test
   script:
     - docker run --gpus all --rm -it triton_test
