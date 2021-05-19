@@ -8,7 +8,7 @@ test:
   stage: test
   script:
     - mkdir /tmp/$CI_BUILD_REF
-    - docker run -v /tmp/$CI_BUILD_REF/server.log:/logs/server.log --gpus all --rm triton_test
+    - docker run -v /tmp/$CI_BUILD_REF:/logs --gpus all --rm triton_test
   artifacts:
     paths:
       - /tmp/$CI_BUILD_REF/server.log
