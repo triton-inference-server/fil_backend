@@ -1,7 +1,8 @@
 image: docker:20.10.6-dind
 
 variables:
-  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "tcp://dind:2375"
 
 services:
   - docker:20.10.6-dind
