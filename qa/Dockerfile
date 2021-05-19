@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=triton_fil
+ARG BASE_IMAGE=gitlab-master.nvidia.com:5005/whicks/triton_fil_backend
 FROM $BASE_IMAGE
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
