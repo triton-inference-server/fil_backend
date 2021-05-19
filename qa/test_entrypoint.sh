@@ -3,9 +3,6 @@ set -e
 
 models=()
 
-python -c 'import sys; print(sys.executable)'
-python -c 'import tritonclient.http'
-
 echo 'Generating example models...'
 models+=( $(python /L0_e2e/generate_example_model.py \
   --name xgboost \

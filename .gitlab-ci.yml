@@ -7,7 +7,11 @@ build:
 test:
   stage: test
   script:
-    - docker run --gpus all --rm triton_test
+    - mkdir /tmp/$CI_BUILD_REF
+    - docker run -v /tmp/$CI_BUILD_REF/server.log:/logs/server.log --gpus all --rm triton_test
+  artifacts:
+    paths:
+      - /tmp/$CI_BUILD_REF/serverlog
 
 deploy:
   stage: deploy
