@@ -1,6 +1,7 @@
 build:
   stage: build
   script:
+    - echo "HELLO FROM GITHUB"
     - >
       docker pull
       gitlab-master.nvidia.com:5005/dl/dgx/tritonserver:master-py3-base
