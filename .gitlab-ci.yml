@@ -24,4 +24,6 @@ test:
 deploy:
   stage: deploy
   script:
-    - echo 'This is where we would push the container'
+    - docker push gitlab-master.nvidia.com:5005/whicks/triton_fil_backend:latest
+  only:
+    - main
