@@ -1,7 +1,12 @@
 build:
   stage: build
   script:
-    - docker build -t gitlab-master.nvidia.com:5005/whicks/triton_fil_backend -f ops/Dockerfile .
+    - >
+      docker build
+      -t gitlab-master.nvidia.com:5005/whicks/triton_fil_backend
+      --build-arg
+      BASE_IMAGE=gitlab-master.nvidia.com:5005/dl/dgx/tritonserver:master-py3-base
+      -f ops/Dockerfile .
     - docker build -t triton_test -f qa/Dockerfile ./qa
 
 test:
