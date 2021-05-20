@@ -219,6 +219,10 @@ def run_test(
         batch_sizes = []
         if total_rows > 128:
             batch_sizes.append(128)
+        # Note: We default to putting the batch size 1 runs in between the
+        # batch size 128 and 1024 runs in order to increase the likelihood that
+        # the server will have to deal with different-sized arrays in a single
+        # server-side batch.
         batch_sizes.append(1)
         if total_rows > 1024:
             batch_sizes.append(1024)
