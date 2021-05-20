@@ -27,3 +27,10 @@ deploy:
     - docker push gitlab-master.nvidia.com:5005/whicks/triton_fil_backend:latest
   only:
     - main
+
+deploy-tag:
+  stage: deploy
+  script:
+    - docker push gitlab-master.nvidia.com:5005/whicks/triton_fil_backend:$CI_COMMIT_TAG
+  only:
+    - tags
