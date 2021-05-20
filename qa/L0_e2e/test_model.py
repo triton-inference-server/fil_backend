@@ -425,8 +425,12 @@ def run_test(
     row_latency = 0
     for indices, (triton_result, batch_latency) in results:
         if triton_result is None:
+            # On failure, the second output from the prediction call is the
+            # traceback for the exception (stored in the "batch_latency"
+            # variable during unpacking)
+            error_msg = batch_latency
             raise RuntimeError(
-                f'Prediction failed with error:\n\n{batch_latency}'
+                f'Prediction failed with error:\n\n{error_msg}'
             )
         np.testing.assert_almost_equal(
             triton_result, fil_result[indices[0]: indices[1]]
