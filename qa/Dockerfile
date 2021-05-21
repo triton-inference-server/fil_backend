@@ -34,7 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=false
 
 RUN mkdir /logs
 
-COPY ./test_entrypoint.sh /entrypoint.sh
+COPY ./run_tests.sh /entrypoint.sh
 COPY ./L0_e2e /L0_e2e
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_test"]

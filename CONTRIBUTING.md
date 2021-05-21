@@ -67,10 +67,11 @@ To contribute code to this project, please follow these steps:
 ## Tests
 Currently, contributions to the FIL backend are tested by running a series of
 end-to-end checks on a set of example models. To run these tests locally, you
-can invoke the `qa/run_ci_local.sh` helper script. If the `TRITON_IMAGE`
-environment variable is set, this Docker image will be used for the Triton
-server container. Otherwise, `triton_fil` will be used as the image tag. In
-order to run these tests, you will need [RAPIDS
+can invoke the `qa/run_tests.sh` helper script with environment variable
+`LOCAL` set to `1`. If the `TRITON_IMAGE` environment variable is set, this
+Docker image will be used for the Triton server container. Otherwise,
+`triton_fil` will be used as the image tag. In order to run these tests, you
+will need [RAPIDS
 cuML](https://rapids.ai/start.html),
 [LightGBM](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html),
 and a version of
@@ -82,7 +83,7 @@ using the provided `environment.yml` configuration file as shown below:
 ```bash
 conda env update -f qa/environment.yml
 conda activate triton_test
-./qa/run_ci_local.sh
+LOCAL=1 ./qa/run_tests.sh
 ```
 
 ## Implementation Details
