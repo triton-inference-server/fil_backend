@@ -1,3 +1,5 @@
 /build
 /.vscode
 *.so
+qa/L0_e2e/model_repository
+qa/logs

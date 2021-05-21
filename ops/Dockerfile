@@ -54,6 +54,14 @@ RUN conda run --no-capture-output -n triton_dev \
  && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 /opt/lib/fil \
  && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
 
+RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
+    then \
+      apt-get update \
+      && apt-get install -y gdb valgrind \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 
 FROM ${BASE_IMAGE}
 

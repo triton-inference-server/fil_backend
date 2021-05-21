@@ -2,3 +2,4 @@
 *.pyc
 build/
 ops/Dockerfile
+qa/L0_e2e/model_repository
