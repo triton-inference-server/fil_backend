@@ -49,6 +49,10 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
         TRITONSERVER_LOG_INFO,
         (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
 
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
+
     if (!check_backend_version(*backend)) {
       return TRITONSERVER_ErrorNew(
           TRITONSERVER_ERROR_UNSUPPORTED,
