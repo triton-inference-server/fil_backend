@@ -27,8 +27,8 @@ option(TRITON_FIL_DOCKER_BUILD OFF)
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_BUILD_CONTAINER CACHE STRING "nvcr.io/nvidia/tritonserver:21.04-py3" "Build image for Dockerized builds")
-set(TRITON_BUILD_CONTAINER_VERSION CACHE STRING "21.04" "Triton version for Dockerized builds")
+set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.04-py3" CACHE STRING "Build image for Dockerized builds")
+set(TRITON_BUILD_CONTAINER_VERSION "21.04" CACHE STRING "Triton version for Dockerized builds")
 
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -49,7 +49,9 @@ if(TRITON_FIL_DOCKER_BUILD)
     COMMENT "Building FIL backend in Docker"
   )
   add_custom_target(
-    fil_docker DEPENDS fil/libtriton_fil.so fil/deps
+    fil_docker
+    ALL
+    DEPENDS fil/libtriton_fil.so fil/deps
   )
   install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fil
