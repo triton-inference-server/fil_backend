@@ -131,6 +131,11 @@ set_target_properties(
 )
 
 #
+# Compatibility targets for Triton's build.py
+#
+
+
+#
 # Install
 #
 include(GNUInstallDirs)
