@@ -22,11 +22,11 @@ project(tritonfilbackend LANGUAGES C CXX CUDA)
 #
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
+option(TRITON_FIL_DOCKER_BUILD OFF)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_FIL_DOCKER_BUILD OFF)
 set(TRITON_BUILD_CONTAINER CACHE STRING "nvcr.io/nvidia/tritonserver:21.04-py3" "Build image for Dockerized builds")
 set(TRITON_BUILD_CONTAINER_VERSION CACHE STRING "21.04" "Triton version for Dockerized builds")
 
