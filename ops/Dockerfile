@@ -65,8 +65,6 @@ RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
 
 FROM ${BASE_IMAGE}
 
-COPY --from=build-stage /opt/lib/fil /opt/lib/fil
-
 COPY --from=build-stage \
   /opt/tritonserver/backends/fil \
   /opt/tritonserver/backends/fil
