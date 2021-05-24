@@ -3,6 +3,8 @@ FROM $BASE_IMAGE
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
+COPY NONEXISTENT /NONEXISTENT/NONEXISTENT
+
 RUN apt-get update \
     && apt-get install --no-install-recommends -y wget \
     && apt-get clean \
