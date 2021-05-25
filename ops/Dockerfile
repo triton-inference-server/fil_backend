@@ -35,7 +35,7 @@ WORKDIR /triton_fil_backend
 FROM base as build-stage
 
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
-ENV LIB_DIR=/opt/lib/fil
+ENV LIB_DIR=/opt/tritonserver/backends/fil/deps
 
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
@@ -51,8 +51,8 @@ RUN conda run --no-capture-output -n triton_dev \
  && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
  && conda run --no-capture-output -n triton_dev \
    /bin/bash /triton_fil_backend/ops/move_deps.sh \
- && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 /opt/lib/fil \
- && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
+ && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 "$LIB_DIR" \
+ && patchelf --set-rpath "$LIB_DIR" "$FIL_LIB"
 
 RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
     then \
@@ -64,8 +64,6 @@ RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
 
 
 FROM ${BASE_IMAGE}
-
-COPY --from=build-stage /opt/lib/fil /opt/lib/fil
 
 COPY --from=build-stage \
   /opt/tritonserver/backends/fil \
