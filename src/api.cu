@@ -15,8 +15,8 @@
  */
 
 #include <cuml/fil/fil.h>
-#include <raft/handle.hpp>
 #include <treelite/c_api.h>
+#include <raft/handle.hpp>
 
 #include <limits>
 #include <memory>
@@ -26,12 +26,12 @@
 #include "triton/backend/backend_model.h"
 #include "triton/backend/backend_model_instance.h"
 
-#include <triton_fil/enum_conversions.h>
 #include <triton_fil/config.h>
+#include <triton_fil/enum_conversions.h>
 #include <triton_fil/exceptions.h>
 #include <triton_fil/model_state.h>
-#include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_utils.h>
+#include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
 #include <triton_fil/triton_tensor_utils.cuh>
 
@@ -54,7 +54,8 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
           TRITONSERVER_ERROR_UNSUPPORTED,
           "triton backend API version does not support this backend");
     }
-  } catch(TritonException& err) {
+  }
+  catch (TritonException& err) {
     return err.error();
   }
   return nullptr;  // success
@@ -75,8 +76,8 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
             .c_str());
 
     set_model_state(*model, ModelState::Create(*model));
-
-  } catch (TritonException& err) {
+  }
+  catch (TritonException& err) {
     return err.error();
   }
 
@@ -93,10 +94,12 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
     }
 
     LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO, "TRITONBACKEND_ModelFinalize: delete model state");
+        TRITONSERVER_LOG_INFO,
+        "TRITONBACKEND_ModelFinalize: delete model state");
 
     delete model_state;
-  } catch (TritonException& err) {
+  }
+  catch (TritonException& err) {
     return err.error();
   }
 
@@ -120,11 +123,10 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 
     ModelState* model_state = get_model_state<ModelState>(*instance);
 
-    set_instance_state<ModelInstanceState>(*instance,
-                                           ModelInstanceState::Create(model_state,
-                                                                      instance));
-
-  } catch (TritonException& err) {
+    set_instance_state<ModelInstanceState>(
+        *instance, ModelInstanceState::Create(model_state, instance));
+  }
+  catch (TritonException& err) {
     return err.error();
   }
   return nullptr;  // success
@@ -148,7 +150,8 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
 
       delete instance_state;
     }
-  } catch (TritonException& err) {
+  }
+  catch (TritonException& err) {
     return err.error();
   }
 
@@ -173,23 +176,18 @@ TRITONBACKEND_ModelInstanceExecute(
          .c_str()); */
 
     std::vector<TRITONBACKEND_Request*> requests(
-      raw_requests, raw_requests + request_count
-    );
+        raw_requests, raw_requests + request_count);
 
     // One past index of last request that was successfully processed
     size_t end_request = 0;
     try {
       auto input_batches = get_input_batches<float>(
-        static_cast<uint32_t>(0),
-        requests,
-        TRITONSERVER_MEMORY_GPU,
-        instance_state->get_raft_handle()
-      );
-      for (auto& batch: input_batches) {
-
+          static_cast<uint32_t>(0), requests, TRITONSERVER_MEMORY_GPU,
+          instance_state->get_raft_handle());
+      for (auto& batch : input_batches) {
         std::vector<std::vector<int64_t>> output_shapes;
         output_shapes.reserve(batch.shapes.size());
-        for(auto& input_shape : batch.shapes) {
+        for (auto& input_shape : batch.shapes) {
           std::vector<int64_t> output_shape{input_shape[0]};
           if (model_state->predict_proba) {
             output_shape.push_back(model_state->num_class());
@@ -200,38 +198,32 @@ TRITONBACKEND_ModelInstanceExecute(
 
         // TODO: Adjust function interfaces to allow passing iterators instead
         std::vector<TRITONBACKEND_Request*> batch_requests(
-          requests.begin() + batch.extent.first,
-          requests.begin() + batch.extent.second
-        );
+            requests.begin() + batch.extent.first,
+            requests.begin() + batch.extent.second);
         responses = construct_responses(batch_requests);
         try {
           auto output_batch = get_output_batch<float>(
-            static_cast<uint32_t>(0),
-            batch_requests,
-            responses,
-            TRITONSERVER_MEMORY_GPU,
-            output_shapes,
-            instance_state->get_raft_handle()
-          );
+              static_cast<uint32_t>(0), batch_requests, responses,
+              TRITONSERVER_MEMORY_GPU, output_shapes,
+              instance_state->get_raft_handle());
           instance_state->predict(
-            batch.data,
-            output_batch,
-            model_state->predict_proba
-          );
+              batch.data, output_batch, model_state->predict_proba);
 
           output_batch.sync();
           send_responses(responses);
           responses.clear();
           end_request = batch.extent.second;
           release_requests(batch_requests);
-        } catch (TritonException& request_err) {
+        }
+        catch (TritonException& request_err) {
           send_responses(responses, request_err.error());
           responses.clear();
           end_request = batch.extent.second;
           release_requests(batch_requests);
         }
       }
-    } catch (TritonException& request_err) {
+    }
+    catch (TritonException& request_err) {
       // If any responses have already been constructed for this batch, send an
       // error response
       send_responses(responses, request_err.error());
@@ -239,14 +231,13 @@ TRITONBACKEND_ModelInstanceExecute(
 
       // Return errors for all unprocessed requests
       std::vector<TRITONBACKEND_Request*> requests(
-        raw_requests + end_request, raw_requests + request_count
-      );
+          raw_requests + end_request, raw_requests + request_count);
       send_error_responses(requests, request_err.error());
       release_requests(requests);
       return request_err.error();
     }
-
-  } catch (TritonException& err) {
+  }
+  catch (TritonException& err) {
     return err.error();
   }
 

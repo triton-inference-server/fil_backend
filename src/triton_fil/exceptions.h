@@ -15,36 +15,43 @@
  */
 
 #pragma once
+#include <triton/core/tritonserver.h>
 #include <exception>
 #include <string>
-#include <triton/core/tritonserver.h>
 
 namespace triton { namespace backend { namespace fil {
 
 class TritonException : public std::exception {
-  private:
-    TRITONSERVER_Error * error_;
-  public:
-    TritonException() : error_(TRITONSERVER_ErrorNew(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNKNOWN,
-        "encountered unknown error")) {}
+ private:
+  TRITONSERVER_Error* error_;
 
-    TritonException(TRITONSERVER_Error_Code code, const std::string& msg) :
-      error_(TRITONSERVER_ErrorNew(code, msg.c_str())) {}
+ public:
+  TritonException()
+      : error_(TRITONSERVER_ErrorNew(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNKNOWN,
+            "encountered unknown error"))
+  {
+  }
 
-    TritonException(TRITONSERVER_Error_Code code, const char * msg) :
-      error_{TRITONSERVER_ErrorNew(code, msg)} {}
-    TritonException(TRITONSERVER_Error * prev_error) : error_(prev_error) {}
+  TritonException(TRITONSERVER_Error_Code code, const std::string& msg)
+      : error_(TRITONSERVER_ErrorNew(code, msg.c_str()))
+  {
+  }
 
-    const char * what() const noexcept {
-      return TRITONSERVER_ErrorMessage(error_);
-    }
+  TritonException(TRITONSERVER_Error_Code code, const char* msg)
+      : error_{TRITONSERVER_ErrorNew(code, msg)}
+  {
+  }
+  TritonException(TRITONSERVER_Error* prev_error) : error_(prev_error) {}
 
-    TRITONSERVER_Error * error() {
-      return error_;
-    }
+  const char* what() const noexcept
+  {
+    return TRITONSERVER_ErrorMessage(error_);
+  }
+
+  TRITONSERVER_Error* error() { return error_; }
 };
 
-void triton_check(TRITONSERVER_Error * err);
+void triton_check(TRITONSERVER_Error* err);
 
-}}}
+}}}  // namespace triton::backend::fil

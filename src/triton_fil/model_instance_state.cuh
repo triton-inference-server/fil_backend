@@ -28,7 +28,7 @@
 
 namespace triton { namespace backend { namespace fil {
 
-template<typename T>
+template <typename T>
 class TritonTensor;
 
 //
@@ -63,4 +63,4 @@ class ModelInstanceState : public BackendModelInstance {
   std::unique_ptr<raft::handle_t> handle;
 };
 
-}}}
+}}}  // namespace triton::backend::fil
