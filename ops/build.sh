@@ -24,7 +24,7 @@ cmake \
     -DTRITON_COMMON_REPO_TAG="${TRITON_VERSION}" \
     -DTRITON_CORE_REPO_TAG="${TRITON_VERSION}" \
     .. \
-  && make install
+  && make install -j$(nproc)
 status=$?
 popd > /dev/null 2>&1
 exit $status
