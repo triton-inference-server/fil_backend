@@ -69,6 +69,7 @@ class TritonTensor {
     const std::string& name,
     const std::vector<int64_t>& shape,
     TRITONSERVER_DataType dtype,
+    TRITONSERVER_MemoryType target_memory,
     cudaStream_t stream
   ) : name_{name},
       shape_{shape},
@@ -79,12 +80,11 @@ class TritonTensor {
       },
       is_owner_{
         buffers.size() > 1  // non-contiguous
-        || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
+        || buffers[0].memory_type != target_memory  // non-device memory
       },
       stream_{stream},
       buffer{[&] {
         if (is_owner_) {
-          LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Copying to device??");
           auto ptr_d = allocate_device_memory<byte>(size_bytes_);
           auto cur_head = ptr_d;
           for (auto& buffer_ : buffers) {
@@ -116,6 +116,7 @@ class TritonTensor {
     const std::string& name,
     const std::vector<int64_t>& shape,
     const TRITONSERVER_DataType dtype,
+    TRITONSERVER_MemoryType target_memory,
     raft::handle_t& handle
   ) : name_{name},
       shape_{shape},
@@ -126,7 +127,7 @@ class TritonTensor {
       },
       is_owner_{
         buffers.size() > 1  // non-contiguous
-        || buffers[0].memory_type != TRITONSERVER_MEMORY_GPU  // non-device memory
+        || buffers[0].memory_type != target_memory  // non-device memory
       },
       stream_{handle.get_stream()},
       buffer{[&] {

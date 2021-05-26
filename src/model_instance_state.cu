@@ -94,11 +94,12 @@ ModelInstanceState::ModelInstanceState(
   treelite_handle_ = model_state_->treelite_handle;
 
   if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using GPU for inference");
     ML::fil::from_treelite(
         *handle, &fil_forest, treelite_handle_,
         &(model_state_->tl_params));
   } else if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU");
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU for inference");
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,

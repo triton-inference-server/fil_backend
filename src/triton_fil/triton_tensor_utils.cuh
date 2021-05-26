@@ -445,7 +445,8 @@ std::vector<InputBatch<T>> get_input_batches(
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
     batches.emplace_back(
       TritonTensor<const T>(
-        raw_batch.first, input_name, batch_shape, TritonDtype<T>::value, cuda_stream
+        raw_batch.first, input_name, batch_shape, TritonDtype<T>::value,
+        target_memory_type, cuda_stream
       ),
       std::move(raw_batch.second),
       std::move(input_shapes)
@@ -505,7 +506,8 @@ TritonTensor<T> get_output_batch(
   }
 
   return TritonTensor<T>(
-    std::move(raw_buffers), output_name, total_output_shape, TritonDtype<T>::value, handle
+    std::move(raw_buffers), output_name, total_output_shape,
+    TritonDtype<T>::value, output_memory_type, handle
   );
 }
 

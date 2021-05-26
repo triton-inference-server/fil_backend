@@ -167,9 +167,6 @@ TRITONBACKEND_ModelInstanceExecute(
     auto instance_kind = instance_state->GetInstanceKind();
     auto target_memory = get_native_memory_for_instance(instance_kind);
 
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO, TRITONSERVER_MemoryTypeString(target_memory));
-
     /* LOG_MESSAGE(
      TRITONSERVER_LOG_INFO,
      (std::string("model ") + model_state->Name() + ", instance " +
