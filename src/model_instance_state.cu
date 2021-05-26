@@ -43,10 +43,10 @@ ModelInstanceState::Create(
       instance_id);
 }
 
-raft::handle_t&
+raft::handle_t*
 ModelInstanceState::get_raft_handle()
 {
-  return *handle;
+  return handle.get();
 }
 
 void
@@ -88,7 +88,13 @@ ModelInstanceState::ModelInstanceState(
       model_state_(model_state),
       treelite_handle_(nullptr),
       instance_kind_(kind),
-      handle(std::make_unique<raft::handle_t>())
+      handle([&]() {
+        if (kind == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+          return std::make_unique<raft::handle_t>();
+        } else {
+          return std::unique_ptr<raft::handle_t>(nullptr);
+        }
+      }())
 {
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
   treelite_handle_ = model_state_->treelite_handle;

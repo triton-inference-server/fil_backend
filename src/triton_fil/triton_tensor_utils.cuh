@@ -412,10 +412,10 @@ std::vector<InputBatch<T>> get_input_batches(
   uint32_t input_index,
   std::vector<TRITONBACKEND_Request*>& requests,
   TRITONSERVER_memorytype_enum target_memory_type,
-  raft::handle_t& handle,
+  raft::handle_t* handle,
   bool validate=false
 ) {
-  cudaStream_t cuda_stream = handle.get_stream();
+  cudaStream_t cuda_stream = (handle ? handle->get_stream() : 0);
   // Name of input
   auto input_name = get_input_name(input_index, requests, validate);
   // Objects representing input for each request that can be queried to get
@@ -477,11 +477,10 @@ TritonTensor<T> get_output_batch(
   std::vector<TRITONBACKEND_Response*>& responses,
   TRITONSERVER_MemoryType output_memory_type,
   const std::vector<std::vector<int64_t>>& tensor_shapes,
-  raft::handle_t& handle
+  raft::handle_t* handle
   // bool validate=false TODO
 ) {
   bool validate=false;
-  cudaStream_t cuda_stream = handle.get_stream();
   // Name of output
   auto output_name = get_output_name(output_index, requests, validate);
   // Objects representing output for each request that can be queried to get

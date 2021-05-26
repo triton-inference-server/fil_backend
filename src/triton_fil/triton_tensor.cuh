@@ -18,6 +18,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <cstring>
 #include <raft/cudart_utils.h>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
@@ -117,7 +118,7 @@ class TritonTensor {
     const std::vector<int64_t>& shape,
     const TRITONSERVER_DataType dtype,
     TRITONSERVER_MemoryType target_memory,
-    raft::handle_t& handle
+    raft::handle_t* handle
   ) : name_{name},
       shape_{shape},
       dtype_{dtype_},
@@ -129,7 +130,7 @@ class TritonTensor {
         buffers.size() > 1  // non-contiguous
         || buffers[0].memory_type != target_memory  // non-device memory
       },
-      stream_{handle.get_stream()},
+      stream_{(handle ? handle->get_stream() : 0)},
       buffer{[&] {
         if (is_owner_) {
           return allocate_device_memory<non_const_T>(size_bytes_ /
@@ -209,12 +210,28 @@ class TritonTensor {
     >(buffer);
     for (auto& out_buffer : final_buffers) {
       try {
-        raft::copy(
-          reinterpret_cast<byte*>(out_buffer.data),
-          head,
-          out_buffer.size_bytes,
-          stream_
-        );
+        if (out_buffer.memory_type == TRITONSERVER_MEMORY_CPU) {
+          std::memcpy(
+            reinterpret_cast<byte*>(out_buffer.data),
+            head,
+            out_buffer.size_bytes
+          );
+        } else if (out_buffer.memory_type == TRITONSERVER_MEMORY_GPU) {
+          raft::copy(
+            reinterpret_cast<byte*>(out_buffer.data),
+            head,
+            out_buffer.size_bytes,
+            stream_
+          );
+        } else {
+          std::string err
+            = std::string("Unrecognized memory type: ")
+              + TRITONSERVER_MemoryTypeString(out_buffer.memory_type);
+          throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+            err.c_str()
+          );
+        }
       } catch (const raft::cuda_error& err) {
         throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,

@@ -53,7 +53,7 @@ class ModelInstanceState : public BackendModelInstance {
     return instance_kind_;
   }
 
-  raft::handle_t& get_raft_handle();
+  raft::handle_t* get_raft_handle();
 
   ModelInstanceState(
       ModelState* model_state,
