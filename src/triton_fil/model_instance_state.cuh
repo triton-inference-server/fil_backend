@@ -49,6 +49,9 @@ class ModelInstanceState : public BackendModelInstance {
   void predict(
       TritonTensor<const float>& data, TritonTensor<float>& preds,
       bool predict_proba = false);
+  inline TRITONSERVER_InstanceGroupKind GetInstanceKind() {
+    return instance_kind_;
+  }
 
   raft::handle_t& get_raft_handle();
 
@@ -59,6 +62,8 @@ class ModelInstanceState : public BackendModelInstance {
 
  private:
   ModelState* model_state_;
+  void* treelite_handle_;  // non-owning reference to the Treelite object
+  TRITONSERVER_InstanceGroupKind instance_kind_;
   ML::fil::forest_t fil_forest;
   std::unique_ptr<raft::handle_t> handle;
 };

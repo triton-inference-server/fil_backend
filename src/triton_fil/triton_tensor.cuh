@@ -84,6 +84,7 @@ class TritonTensor {
       stream_{stream},
       buffer{[&] {
         if (is_owner_) {
+          LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Copying to device??");
           auto ptr_d = allocate_device_memory<byte>(size_bytes_);
           auto cur_head = ptr_d;
           for (auto& buffer_ : buffers) {

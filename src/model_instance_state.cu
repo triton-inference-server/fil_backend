@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <raft/handle.hpp>
+#include <treelite/c_api.h>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
 
@@ -53,14 +54,29 @@ ModelInstanceState::predict(
     TritonTensor<const float>& data, TritonTensor<float>& preds,
     bool predict_proba)
 {
-  try {
-    ML::fil::predict(
-        *handle, fil_forest, preds.data(), data.data(), data.shape()[0],
-        predict_proba);
-  }
-  catch (raft::cuda_error& err) {
+  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+    try {
+      ML::fil::predict(
+          *handle, fil_forest, preds.data(), data.data(), data.shape()[0],
+          predict_proba);
+    }
+    catch (raft::cuda_error& err) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
+    }
+  } else if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
+    std::size_t out_result_size;
+    int res = TreeliteGTILPredict(treelite_handle_, data.data(), data.shape()[0],
+                  preds.data(), 1, &out_result_size);
+    if (res != 0) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          TreeliteGetLastError());
+    }
+  } else {
     throw TritonException(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+        "Instance kind must be set to either GPU or CPU");
   }
 }
 
@@ -69,18 +85,33 @@ ModelInstanceState::ModelInstanceState(
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
     const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
-      model_state_(model_state), handle(std::make_unique<raft::handle_t>())
+      model_state_(model_state),
+      treelite_handle_(nullptr),
+      instance_kind_(kind),
+      handle(std::make_unique<raft::handle_t>())
 {
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
-  ML::fil::from_treelite(
-      *handle, &fil_forest, model_state_->treelite_handle,
-      &(model_state_->tl_params));
+  treelite_handle_ = model_state_->treelite_handle;
+
+  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+    ML::fil::from_treelite(
+        *handle, &fil_forest, treelite_handle_,
+        &(model_state_->tl_params));
+  } else if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU");
+  } else {
+    throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+        "Instance kind must be set to either GPU or CPU");
+  }
 }
 
 void
 ModelInstanceState::UnloadFILModel()
 {
-  ML::fil::free(*handle, fil_forest);
+  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+    ML::fil::free(*handle, fil_forest);
+  }
 }
 
 }}}  // namespace triton::backend::fil

@@ -192,7 +192,7 @@ std::vector<
  std::pair<std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>
 > get_raw_input_batches(
   std::vector<TRITONBACKEND_Input*>& all_inputs,
-  TRITONSERVER_MemoryType& input_memory_type,
+  TRITONSERVER_MemoryType& target_memory_type,
   std::vector<uint32_t>& all_buffer_counts
 ) {
   std::vector<
@@ -202,7 +202,7 @@ std::vector<
   optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t r=0; r < all_inputs.size(); ++r) {
-    TRITONSERVER_MemoryType memory_type = input_memory_type;
+    TRITONSERVER_MemoryType memory_type = target_memory_type;
 
     for (uint32_t j = 0; j < all_buffer_counts[r]; ++j) {
       byte* cur_buffer;
@@ -224,7 +224,7 @@ std::vector<
         // If it's already in device memory, do not batch it with other
         // requests
         if (
-            (j == 0 && memory_type == TRITONSERVER_MEMORY_GPU) ||
+            (j == 0 && memory_type == target_memory_type) ||
             buffer_requests.empty()
         ) {
           buffer_requests.push_back({{}, {r, r}});
@@ -411,7 +411,7 @@ template<typename T>
 std::vector<InputBatch<T>> get_input_batches(
   uint32_t input_index,
   std::vector<TRITONBACKEND_Request*>& requests,
-  TRITONSERVER_memorytype_enum input_memory_type,
+  TRITONSERVER_memorytype_enum target_memory_type,
   raft::handle_t& handle,
   bool validate=false
 ) {
@@ -435,7 +435,7 @@ std::vector<InputBatch<T>> get_input_batches(
   // last indices of the corresponding requests are indicated by the second
   // element in each pair representing the batch.
   auto raw_batches = get_raw_input_batches(
-    backend_inputs, input_memory_type, buffer_counts
+    backend_inputs, target_memory_type, buffer_counts
   );
 
   std::vector<InputBatch<T>> batches;

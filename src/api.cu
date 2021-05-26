@@ -164,6 +164,11 @@ TRITONBACKEND_ModelInstanceExecute(
   try {
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
     ModelState* model_state = instance_state->StateForModel();
+    auto instance_kind = instance_state->GetInstanceKind();
+    auto target_memory = get_native_memory_for_instance(instance_kind);
+
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO, TRITONSERVER_MemoryTypeString(target_memory));
 
     /* LOG_MESSAGE(
      TRITONSERVER_LOG_INFO,
@@ -182,7 +187,7 @@ TRITONBACKEND_ModelInstanceExecute(
       auto input_batches = get_input_batches<float>(
         static_cast<uint32_t>(0),
         requests,
-        TRITONSERVER_MEMORY_GPU,
+        target_memory,
         instance_state->get_raft_handle()
       );
       for (auto& batch: input_batches) {
@@ -209,7 +214,7 @@ TRITONBACKEND_ModelInstanceExecute(
             static_cast<uint32_t>(0),
             batch_requests,
             responses,
-            TRITONSERVER_MEMORY_GPU,
+            target_memory,
             output_shapes,
             instance_state->get_raft_handle()
           );
