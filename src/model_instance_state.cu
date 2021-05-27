@@ -54,7 +54,7 @@ ModelInstanceState::predict(
     TritonTensor<const float>& data, TritonTensor<float>& preds,
     bool predict_proba)
 {
-  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+  if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     try {
       ML::fil::predict(
           *handle, fil_forest, preds.data(), data.data(), data.shape()[0],
@@ -64,7 +64,7 @@ ModelInstanceState::predict(
       throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
     }
-  } else if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
+  } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
     std::size_t out_result_size;
     int res = TreeliteGTILPredict(treelite_handle_, data.data(), data.shape()[0],
                   preds.data(), 1, &out_result_size);
@@ -87,9 +87,8 @@ ModelInstanceState::ModelInstanceState(
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state),
       treelite_handle_(nullptr),
-      instance_kind_(kind),
       handle([&]() {
-        if (kind == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+        if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
           return std::make_unique<raft::handle_t>();
         } else {
           return std::unique_ptr<raft::handle_t>(nullptr);
@@ -99,12 +98,12 @@ ModelInstanceState::ModelInstanceState(
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
   treelite_handle_ = model_state_->treelite_handle;
 
-  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+  if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using GPU for inference");
     ML::fil::from_treelite(
         *handle, &fil_forest, treelite_handle_,
         &(model_state_->tl_params));
-  } else if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
+  } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
     LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU for inference");
   } else {
     throw TritonException(
@@ -116,7 +115,7 @@ ModelInstanceState::ModelInstanceState(
 void
 ModelInstanceState::UnloadFILModel()
 {
-  if (instance_kind_ == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+  if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     ML::fil::free(*handle, fil_forest);
   }
 }

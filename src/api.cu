@@ -164,7 +164,7 @@ TRITONBACKEND_ModelInstanceExecute(
   try {
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
     ModelState* model_state = instance_state->StateForModel();
-    auto instance_kind = instance_state->GetInstanceKind();
+    auto instance_kind = instance_state->Kind();
     auto target_memory = get_native_memory_for_instance(instance_kind);
 
     /* LOG_MESSAGE(

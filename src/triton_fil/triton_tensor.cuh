@@ -81,7 +81,7 @@ class TritonTensor {
       },
       is_owner_{
         buffers.size() > 1  // non-contiguous
-        || buffers[0].memory_type != target_memory  // non-device memory
+        || buffers[0].memory_type != target_memory
       },
       stream_{stream},
       buffer{[&] {
@@ -128,7 +128,7 @@ class TritonTensor {
       },
       is_owner_{
         buffers.size() > 1  // non-contiguous
-        || buffers[0].memory_type != target_memory  // non-device memory
+        || buffers[0].memory_type != target_memory
       },
       stream_{(handle ? handle->get_stream() : 0)},
       buffer{[&] {

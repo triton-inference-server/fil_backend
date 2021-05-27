@@ -66,20 +66,9 @@ ModelStateType* get_model_state(TRITONBACKEND_Model& model) {
   return model_state;
 }
 
-inline TRITONSERVER_MemoryType get_native_memory_for_instance(
-    TRITONSERVER_InstanceGroupKind kind) {
-  switch (kind) {
-   case TRITONSERVER_INSTANCEGROUPKIND_GPU:
-    return TRITONSERVER_MEMORY_GPU;
-   case TRITONSERVER_INSTANCEGROUPKIND_CPU:
-    return TRITONSERVER_MEMORY_CPU;
-   default:
-    throw TritonException(
-        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
-        "Instance kind must be set to either GPU or CPU");
-    return TRITONSERVER_MEMORY_CPU;
-  }
-}
+/** Get the memory type corresponding to the instance type */
+TRITONSERVER_MemoryType get_native_memory_for_instance(
+    TRITONSERVER_InstanceGroupKind kind);
 
 /** Get the name of the given model instance */
 std::string get_model_instance_name(TRITONBACKEND_ModelInstance& instance);

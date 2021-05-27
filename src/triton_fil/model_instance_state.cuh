@@ -49,9 +49,6 @@ class ModelInstanceState : public BackendModelInstance {
   void predict(
       TritonTensor<const float>& data, TritonTensor<float>& preds,
       bool predict_proba = false);
-  inline TRITONSERVER_InstanceGroupKind GetInstanceKind() {
-    return instance_kind_;
-  }
 
   raft::handle_t* get_raft_handle();
 
