@@ -34,13 +34,10 @@ ModelInstanceState::Create(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance)
 {
   std::string instance_name = get_model_instance_name(*triton_model_instance);
-  TRITONSERVER_InstanceGroupKind instance_kind =
-      get_instance_kind(*triton_model_instance);
   int32_t instance_id = get_device_id(*triton_model_instance);
 
   return std::make_unique<ModelInstanceState>(
-      model_state, triton_model_instance, instance_name.c_str(), instance_kind,
-      instance_id);
+      model_state, triton_model_instance, instance_name.c_str(), instance_id);
 }
 
 raft::handle_t*
@@ -82,8 +79,7 @@ ModelInstanceState::predict(
 
 ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
-    const char* name, const TRITONSERVER_InstanceGroupKind kind,
-    const int32_t device_id)
+    const char* name, const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state),
       treelite_handle_(nullptr),

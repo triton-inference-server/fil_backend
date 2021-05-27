@@ -55,7 +55,7 @@ class ModelInstanceState : public BackendModelInstance {
   ModelInstanceState(
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance, const char* name,
-      const TRITONSERVER_InstanceGroupKind kind, const int32_t device_id);
+      const int32_t device_id);
 
  private:
   ModelState* model_state_;
