@@ -43,6 +43,8 @@ ENV TRITON_VERSION=$TRITON_VERSION
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=$BUILD_TYPE
 
+RUN [ -d /opt/tritonserver/backends ] || mkdir -p /opt/tritonserver/backends
+
 # TODO: I am not sure why the lapack dependency is not picked up by ldd
 RUN conda run --no-capture-output -n triton_dev \
    /triton_fil_backend/ops/build.sh \
