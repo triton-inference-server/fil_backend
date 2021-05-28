@@ -128,6 +128,7 @@ else()
     -Wall
     -Wextra
     -Wno-unused-parameter
+    -Wno-unused-variable
     -Wno-type-limits
     "$<$<COMPILE_LANGUAGE:CUDA>:-Werror=all-warnings>"
     "$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>"

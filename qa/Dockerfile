@@ -19,7 +19,7 @@ RUN wget \
 # Use mamba to substantially improve speed of environment install
 RUN conda install mamba -n base -c conda-forge
 
-COPY ./environment.yml /environment.yml
+COPY ./qa/environment.yml /environment.yml
 
 RUN conda create -n triton_test \
     && mamba install -n triton_test python=3.8 pip \
@@ -34,8 +34,9 @@ ENV PYTHONDONTWRITEBYTECODE=false
 
 RUN mkdir /logs
 
-COPY ./run_tests.sh /entrypoint.sh
-COPY ./L0_e2e /L0_e2e
+COPY ./ /triton_fil
+
+WORKDIR /triton_fil
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_test"]
-CMD ["bash", "/entrypoint.sh"]
+CMD ["bash", "/triton_fil/qa/run_tests.sh"]

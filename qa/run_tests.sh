@@ -11,7 +11,7 @@ then
   test_dir=qa/L0_e2e
 else
   log_dir=/logs
-  test_dir=/L0_e2e
+  test_dir=/triton_fil/qa/L0_e2e
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
@@ -57,7 +57,7 @@ then
 
   trap cleanup EXIT
 else
-  tritonserver --model-repository=/L0_e2e/model_repository > /logs/server.log 2>&1 &
+  tritonserver --model-repository=${test_dir}/model_repository > /logs/server.log 2>&1 &
 fi
 
 echo 'Testing example models...'

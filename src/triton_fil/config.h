@@ -69,7 +69,7 @@ retrieve_param(
   }
 }
 
-ML::fil::treelite_params_t
-tl_params_from_config(triton::common::TritonJson::Value& config);
+ML::fil::treelite_params_t tl_params_from_config(
+    triton::common::TritonJson::Value& config);
 
-}}}
+}}}  // namespace triton::backend::fil
