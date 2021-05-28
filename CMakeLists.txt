@@ -119,7 +119,6 @@ else()
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       ${RAFT_DIR}
-      $ENV{CONDA_PREFIX}/include/cuml
   )
 
   target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
