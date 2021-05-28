@@ -209,7 +209,7 @@ def generate_config(
     if predict_proba:
         output_dim = num_classes
     else:
-        output_dim = 2  # TODO: Why not 1?
+        output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
     output_class = str(task == 'classification').lower()
 
