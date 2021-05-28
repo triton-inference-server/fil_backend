@@ -15,32 +15,34 @@
  */
 
 #pragma once
-#include <numeric>
-#include <string>
-#include <vector>
 #include <raft/cudart_utils.h>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+#include <numeric>
+#include <string>
+#include <vector>
 
 namespace triton { namespace backend { namespace fil {
 
 /**
  * @brief Return the product of all elements in a vector
  */
-template<typename T>
-T product(const std::vector<T>& array) {
-  return std::accumulate(std::begin(array),
-                         std::end(array),
-                         1,
-                         std::multiplies<>());
+template <typename T>
+T
+product(const std::vector<T>& array)
+{
+  return std::accumulate(
+      std::begin(array), std::end(array), 1, std::multiplies<>());
 }
 
 /**
  * @brief Allocate given number of elements on GPU and return device pointer
  */
-template<typename T>
-T* allocate_device_memory(size_t count) {
+template <typename T>
+T*
+allocate_device_memory(size_t count)
+{
   T* ptr_d;
   raft::allocate(ptr_d, count);
   return ptr_d;
@@ -62,10 +64,12 @@ struct RawInputBuffer {
   /** ID of GPU on which data is stored; 0 if data is stored on host */
   int64_t device_id;
   RawInputBuffer(
-    const void* data, uint64_t size_bytes,
-    TRITONSERVER_MemoryType& memory_type, int64_t device_id
-  ) : data(data), size_bytes(size_bytes), memory_type(memory_type),
-  device_id(device_id) {}
+      const void* data, uint64_t size_bytes,
+      TRITONSERVER_MemoryType& memory_type, int64_t device_id)
+      : data(data), size_bytes(size_bytes), memory_type(memory_type),
+        device_id(device_id)
+  {
+  }
 };
 
 /**
@@ -85,10 +89,12 @@ struct RawOutputBuffer {
   int64_t device_id;
 
   RawOutputBuffer(
-    void* data, uint64_t size_bytes,
-    TRITONSERVER_MemoryType& memory_type, int64_t device_id
-  ) : data(data), size_bytes(size_bytes), memory_type(memory_type),
-  device_id(device_id) {}
+      void* data, uint64_t size_bytes, TRITONSERVER_MemoryType& memory_type,
+      int64_t device_id)
+      : data(data), size_bytes(size_bytes), memory_type(memory_type),
+        device_id(device_id)
+  {
+  }
 };
 
-}}}
+}}}  // namespace triton::backend::fil
