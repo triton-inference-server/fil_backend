@@ -5,7 +5,7 @@ channels:
   - rapidsai-nightly
 dependencies:
   - cudatoolkit=11.0
-  - cuml=0.20
+  - cuml=21.06
   - lightgbm
   - pip
   - python=3.8
