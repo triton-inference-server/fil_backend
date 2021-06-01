@@ -11,6 +11,7 @@ dependencies:
   - pip
   - python=3.8
   - rapidsai-nightly::py-xgboost
+  - scikit-learn
   - pip:
       - nvidia-pyindex
       - tritonclient[all]
