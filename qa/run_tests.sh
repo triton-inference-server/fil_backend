@@ -54,6 +54,14 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 10 \
   --features 500) )
 "$script_dir/convert_sklearn" "$test_dir/model_repository/sklearn/1/model.pkl"
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name cuml \
+  --type cuml \
+  --depth 3 \
+  --trees 10 \
+  --features 500 \
+  --task regression) )
+"$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
 
 echo 'Starting Triton server...'
 if [ $LOCAL -eq 1 ]

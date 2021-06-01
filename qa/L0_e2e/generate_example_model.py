@@ -1,3 +1,17 @@
+# Copyright (c) 2021, NVIDIA CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import os
 import pickle
@@ -96,17 +110,6 @@ def train_cuml_classifier(data, labels, depth=25, trees=100):
     return model.fit(data, labels)
 
 
-def train_cuml_regressor(data, labels, depth=25, trees=100):
-    """Train SKLearn regression model"""
-    if skl is None:
-        raise RuntimeError('SKLearn could not be imported')
-    model = skl.ensemble.RandomForestClassifier(
-        max_depth=depth, n_estimators=trees, random_state=0
-    )
-
-    return model.fit(data, labels)
-
-
 def train_classifier(
         data,
         labels,
@@ -191,6 +194,15 @@ def train_sklearn_regressor(data, targets, depth=25, trees=100):
     return model.fit(data, targets)
 
 
+def train_cuml_regressor(data, targets, depth=25, trees=100):
+    """Train cuML regression model"""
+    model = cuRFR(
+        max_depth=depth, n_estimators=trees, random_state=0
+    )
+
+    return model.fit(data, targets)
+
+
 def train_regressor(
         data,
         targets,
@@ -204,6 +216,14 @@ def train_regressor(
         )
     if model_type == 'lightgbm':
         return train_lightgbm_regressor(
+            data, targets, depth=depth, trees=trees
+        )
+    if model_type == 'sklearn':
+        return train_sklearn_regressor(
+            data, targets, depth=depth, trees=trees
+        )
+    if model_type == 'cuml':
+        return train_cuml_regressor(
             data, targets, depth=depth, trees=trees
         )
 
@@ -362,7 +382,7 @@ def build_model(
             output_format = 'xgboost'
         elif model_type == 'lightgbm':
             output_format = 'lightgbm'
-        elif model_type == 'sklearn':
+        elif model_type in {'sklearn', 'cuml'}:
             output_format = 'pickle'
         else:
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
