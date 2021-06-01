@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ $# -ne 1 ] || [ ! -f $1 ]
+then
+  echo "USAGE: convert_sklearn PKL_FILE"
+else
+  out_file="$(dirname $1)/checkpoint.tl"
+
+  python -m treelite.serialize --input-model "$1" \
+    --input-model-type sklearn_pkl --output-checkpoint "$out_file"
+fi
