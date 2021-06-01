@@ -164,7 +164,10 @@ specific to FIL:
 - `input`: This configuration block specifies information about the input
   arrays that will be provided to the FIL model. The `dims` field should be set
   to `[ NUMBER_OF_FEATURES ]`, but all other fields should be left as they
-  are in the example.
+  are in the example. Note that the `name` field should always be given a value
+  of `input__0`. Unlike some deep learning frameworks where models may have
+  multiple input layers with different names, FIL-based tree models take a
+  single input array with a consistent name of `input__0`.
 - `output`: This configuration block specifies information about the arrays
   output by the FIL model. If the `predict_proba` option (described later) is
   set to "true" and you are using a classification model, the `dims` field
