@@ -45,6 +45,28 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 10 \
   --task regression) )
 models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost-cpu \
+  --instance_kind cpu \
+  --depth 11 \
+  --trees 2000 \
+  --classes 3 \
+  --features 500) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_json-cpu \
+  --instance_kind cpu \
+  --format xgboost_json \
+  --depth 7 \
+  --trees 500 \
+  --features 500 \
+  --predict_proba) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name lightgbm-cpu \
+  --instance_kind cpu \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 3 \
+  --trees 2000) )
+models+=( $(python ${test_dir}/generate_example_model.py \
   --name regression-cpu \
   --instance_kind cpu \
   --depth 25 \
