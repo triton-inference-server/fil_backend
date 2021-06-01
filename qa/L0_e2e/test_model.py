@@ -301,7 +301,8 @@ def run_test(
     # models, this workaround should be removed
     if model_format == 'treelite_checkpoint':
         pkl_path = os.path.join(model_dir, 'model.pkl')
-        fil_model = pickle.load(pkl_path)
+        with open(pkl_path, 'rb') as pkl_file:
+            fil_model = pickle.load(pkl_file)
     else:
         fil_model = cuml.ForestInference.load(
             model_path, output_class=output_class, model_type=model_type

@@ -9,9 +9,11 @@ then
   cd "$(git rev-parse --show-toplevel)"
   log_dir=qa/logs
   test_dir=qa/L0_e2e
+  script_dir=scripts
 else
   log_dir=/logs
   test_dir=/triton_fil/qa/L0_e2e
+  script_dir=/triton_fil/scripts
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
@@ -44,6 +46,14 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --features 400 \
   --trees 10 \
   --task regression) )
+
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name sklearn \
+  --type sklearn \
+  --depth 3 \
+  --trees 10 \
+  --features 500) )
+"$script_dir/convert_sklearn" "$test_dir/model_repository/sklearn/1/model.pkl"
 
 echo 'Starting Triton server...'
 if [ $LOCAL -eq 1 ]
