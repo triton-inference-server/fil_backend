@@ -3,12 +3,15 @@ import os
 import pickle
 
 import cuml
+from cuml.ensemble import RandomForestClassifier as cuRFC
+from cuml.ensemble import RandomForestRegressor as cuRFR
 try:
     import lightgbm as lgb
 except ImportError:
     lgb = None
 try:
     from sklearn.ensemble import RandomForestClassifier as skRFC
+    from sklearn.ensemble import RandomForestRegressor as skRFR
 except ImportError:
     skRFC = None
 try:
@@ -84,22 +87,9 @@ def train_sklearn_classifier(data, labels, depth=25, trees=100):
     return model.fit(data, labels)
 
 
-# def train_sklearn_regressor(data, labels, depth=25, trees=100):
-#     """Train SKLearn regression model"""
-#     if skl is None:
-#         raise RuntimeError('SKLearn could not be imported')
-#     model = skl.ensemble.RandomForestClassifier(
-#         max_depth=depth, n_estimators=trees, random_state=0
-#     )
-# 
-#     return model.fit(data, labels)
-
-
 def train_cuml_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
-    if skl is None:
-        raise RuntimeError('SKLearn could not be imported')
-    model = skl.ensemble.RandomForestClassifier(
+    model = cuRFC(
         max_depth=depth, n_estimators=trees, random_state=0
     )
 
@@ -190,6 +180,17 @@ def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     return model
 
 
+def train_sklearn_regressor(data, targets, depth=25, trees=100):
+    """Train SKLearn regression model"""
+    if skRFR is None:
+        raise RuntimeError('SKLearn could not be imported')
+    model = skRFR(
+        max_depth=depth, n_estimators=trees, random_state=0
+    )
+
+    return model.fit(data, targets)
+
+
 def train_regressor(
         data,
         targets,
@@ -248,7 +249,7 @@ def serialize_model(model, directory, output_format='xgboost'):
         model_path = os.path.join(directory, 'model.txt')
         model.save_model(model_path)
         return model_path
-    if output_format == 'sklearn':
+    if output_format == 'pickle':
         model_path = os.path.join(directory, 'model.pkl')
         with open(model_path, 'wb') as model_file:
             pickle.dump(model, model_file)
@@ -275,7 +276,7 @@ def generate_config(
     predict_proba = str(bool(predict_proba)).lower()
     output_class = str(task == 'classification').lower()
 
-    if model_format in {'sklearn', 'cuml'}:
+    if model_format == 'pickle':
         model_format = 'treelite_checkpoint'
 
     return f"""name: "{model_name}"
@@ -362,7 +363,7 @@ def build_model(
         elif model_type == 'lightgbm':
             output_format = 'lightgbm'
         elif model_type == 'sklearn':
-            output_format = 'sklearn'
+            output_format = 'pickle'
         else:
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
@@ -375,7 +376,10 @@ def build_model(
             output_format not in {'lightgbm'}
         ) or (
             model_type == 'sklearn' and
-            output_format not in {'sklearn'}
+            output_format not in {'pickle'}
+        ) or (
+            model_type == 'cuml' and
+            output_format not in {'pickle'}
         )
     ):
         raise RuntimeError(
@@ -425,7 +429,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--type',
-        choices=('lightgbm', 'xgboost', 'sklearn'),
+        choices=('lightgbm', 'xgboost', 'sklearn', 'cuml'),
         default='xgboost',
         help='type of model',
     )
@@ -437,7 +441,7 @@ def parse_args():
     )
     parser.add_argument(
         '--format',
-        choices=('xgboost', 'xgboost_json', 'lightgbm', 'sklearn'),
+        choices=('xgboost', 'xgboost_json', 'lightgbm', 'pickle'),
         default=None,
         help='serialization format for model',
     )
