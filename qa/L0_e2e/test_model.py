@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 import threading
 import traceback
 from functools import partial
@@ -280,24 +281,27 @@ def run_test(
     else:
         model_format = model_format.string_value
 
-    model_path = os.path.join(model_repo, model_name, str(model_version))
+    model_dir = os.path.join(model_repo, model_name, str(model_version))
     if model_format == 'xgboost':
-        model_path = os.path.join(model_path, 'xgboost.model')
+        model_path = os.path.join(model_dir, 'xgboost.model')
         model_type = 'xgboost'
     elif model_format == 'xgboost_json':
-        model_path = os.path.join(model_path, 'xgboost.json')
+        model_path = os.path.join(model_dir, 'xgboost.json')
         model_type = 'xgboost_json'
     elif model_format == 'lightgbm':
-        model_path = os.path.join(model_path, 'model.txt')
+        model_path = os.path.join(model_dir, 'model.txt')
         model_type = 'lightgbm'
     elif model_format == 'treelite_checkpoint':
-        model_path = os.path.join(model_path, 'checkpoint.tl')
+        model_path = os.path.join(model_dir, 'checkpoint.tl')
         model_type = 'treelite_checkpoint'
     else:
         raise RuntimeError('Model format not recognized')
 
+    # NOTE: Once FIL has been updated to directly load treelite_checkpoint
+    # models, this workaround should be removed
     if model_format == 'treelite_checkpoint':
-        pass  # TODO
+        pkl_path = os.path.join(model_dir, 'model.pkl')
+        fil_model = pickle.load(pkl_path)
     else:
         fil_model = cuml.ForestInference.load(
             model_path, output_class=output_class, model_type=model_type
