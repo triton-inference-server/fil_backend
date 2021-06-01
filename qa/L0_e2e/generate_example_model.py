@@ -210,7 +210,7 @@ def generate_config(
     """
     if instance_kind == 'gpu':
         instance_kind = 'KIND_GPU'
-    elif instance_kind == 'cpu'
+    elif instance_kind == 'cpu':
         instance_kind = 'KIND_CPU'
     else:
         raise ValueError("instance_kind must be either 'gpu' or 'cpu'")
