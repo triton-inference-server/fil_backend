@@ -1,11 +1,16 @@
 import argparse
 import os
+import pickle
 
 import cuml
 try:
     import lightgbm as lgb
 except ImportError:
     lgb = None
+try:
+    from sklearn.ensemble import RandomForestClassifier as skRFC
+except ImportError:
+    skRFC = None
 try:
     import xgboost as xgb
 except ImportError:
@@ -68,6 +73,50 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     return model
 
 
+def train_sklearn_classifier(data, labels, depth=25, trees=100):
+    """Train SKLearn classification model"""
+    if skRFC is None:
+        raise RuntimeError('SKLearn could not be imported')
+    model = skRFC(
+        max_depth=depth, n_estimators=trees, random_state=0
+    )
+
+    return model.fit(data, labels)
+
+
+# def train_sklearn_regressor(data, labels, depth=25, trees=100):
+#     """Train SKLearn regression model"""
+#     if skl is None:
+#         raise RuntimeError('SKLearn could not be imported')
+#     model = skl.ensemble.RandomForestClassifier(
+#         max_depth=depth, n_estimators=trees, random_state=0
+#     )
+# 
+#     return model.fit(data, labels)
+
+
+def train_cuml_classifier(data, labels, depth=25, trees=100):
+    """Train SKLearn classification model"""
+    if skl is None:
+        raise RuntimeError('SKLearn could not be imported')
+    model = skl.ensemble.RandomForestClassifier(
+        max_depth=depth, n_estimators=trees, random_state=0
+    )
+
+    return model.fit(data, labels)
+
+
+def train_cuml_regressor(data, labels, depth=25, trees=100):
+    """Train SKLearn regression model"""
+    if skl is None:
+        raise RuntimeError('SKLearn could not be imported')
+    model = skl.ensemble.RandomForestClassifier(
+        max_depth=depth, n_estimators=trees, random_state=0
+    )
+
+    return model.fit(data, labels)
+
+
 def train_classifier(
         data,
         labels,
@@ -83,6 +132,14 @@ def train_classifier(
     if model_type == 'lightgbm':
         return train_lightgbm_classifier(
             data, labels, depth=depth, trees=trees, classes=classes
+        )
+    if model_type == 'cuml':
+        return train_cuml_classifier(
+            data, labels, depth=depth, trees=trees
+        )
+    if model_type == 'sklearn':
+        return train_sklearn_classifier(
+            data, labels, depth=depth, trees=trees
         )
 
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
@@ -191,6 +248,11 @@ def serialize_model(model, directory, output_format='xgboost'):
         model_path = os.path.join(directory, 'model.txt')
         model.save_model(model_path)
         return model_path
+    if output_format == 'sklearn':
+        model_path = os.path.join(directory, 'model.pkl')
+        with open(model_path, 'wb') as model_file:
+            pickle.dump(model, model_file)
+        return model_path
     raise RuntimeError(
         f'Unknown serialization format "{output_format}"'
     )
@@ -209,9 +271,12 @@ def generate_config(
     if predict_proba:
         output_dim = num_classes
     else:
-        output_dim = 2  # TODO: Why not 1?
+        output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
     output_class = str(task == 'classification').lower()
+
+    if model_format in {'sklearn', 'cuml'}:
+        model_format = 'treelite_checkpoint'
 
     return f"""name: "{model_name}"
 backend: "fil"
@@ -296,6 +361,8 @@ def build_model(
             output_format = 'xgboost'
         elif model_type == 'lightgbm':
             output_format = 'lightgbm'
+        elif model_type == 'sklearn':
+            output_format = 'sklearn'
         else:
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
@@ -306,6 +373,9 @@ def build_model(
         ) or (
             model_type == 'lightgbm' and
             output_format not in {'lightgbm'}
+        ) or (
+            model_type == 'sklearn' and
+            output_format not in {'sklearn'}
         )
     ):
         raise RuntimeError(
@@ -355,7 +425,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--type',
-        choices=('lightgbm', 'xgboost'),
+        choices=('lightgbm', 'xgboost', 'sklearn'),
         default='xgboost',
         help='type of model',
     )
@@ -367,7 +437,7 @@ def parse_args():
     )
     parser.add_argument(
         '--format',
-        choices=('xgboost', 'xgboost_json', 'lightgbm'),
+        choices=('xgboost', 'xgboost_json', 'lightgbm', 'sklearn'),
         default=None,
         help='serialization format for model',
     )

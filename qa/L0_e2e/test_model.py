@@ -290,12 +290,18 @@ def run_test(
     elif model_format == 'lightgbm':
         model_path = os.path.join(model_path, 'model.txt')
         model_type = 'lightgbm'
+    elif model_format == 'treelite_checkpoint':
+        model_path = os.path.join(model_path, 'checkpoint.tl')
+        model_type = 'treelite_checkpoint'
     else:
         raise RuntimeError('Model format not recognized')
 
-    fil_model = cuml.ForestInference.load(
-        model_path, output_class=output_class, model_type=model_type
-    )
+    if model_format == 'treelite_checkpoint':
+        pass  # TODO
+    else:
+        fil_model = cuml.ForestInference.load(
+            model_path, output_class=output_class, model_type=model_type
+        )
 
     total_batch = np.random.rand(total_rows, features).astype('float32')
 
