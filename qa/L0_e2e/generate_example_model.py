@@ -197,6 +197,8 @@ def serialize_model(model, directory, output_format='xgboost'):
 
 def generate_config(
         model_name,
+        *,
+        instance_kind='gpu',
         model_format='xgboost',
         features=32,
         num_classes=2,
@@ -206,6 +208,12 @@ def generate_config(
         batching_window=30000):
     """Return a string with the full Triton config.pbtxt for this model
     """
+    if instance_kind == 'gpu':
+        instance_kind = 'KIND_GPU'
+    elif instance_kind == 'cpu'
+        instance_kind = 'KIND_CPU'
+    else:
+        raise ValueError("instance_kind must be either 'gpu' or 'cpu'")
     if predict_proba:
         output_dim = num_classes
     else:
@@ -230,7 +238,7 @@ output [
     dims: [ {output_dim} ]
   }}
 ]
-instance_group [{{ kind: KIND_GPU }}]
+instance_group [{{ kind: {instance_kind} }}]
 parameters [
   {{
     key: "model_type"
@@ -271,6 +279,7 @@ dynamic_batching {{
 def build_model(
         task='classification',
         model_type='xgboost',
+        instance_kind='gpu',
         output_format=None,
         depth=25,
         trees=100,
@@ -334,6 +343,7 @@ def build_model(
 
     config = generate_config(
         model_name,
+        instance_kind=instance_kind,
         model_format=output_format,
         features=features,
         num_classes=classes,
@@ -358,6 +368,12 @@ def parse_args():
         choices=('lightgbm', 'xgboost'),
         default='xgboost',
         help='type of model',
+    )
+    parser.add_argument(
+        '--instance_kind',
+        choices=('gpu', 'cpu'),
+        default='gpu',
+        help='Whether to use GPU or CPU for prediction',
     )
     parser.add_argument(
         '--task',
@@ -438,6 +454,7 @@ if __name__ == '__main__':
     print(build_model(
         task=args.task,
         model_type=args.type,
+        instance_kind=args.instance_kind,
         output_format=args.format,
         depth=args.depth,
         trees=args.trees,

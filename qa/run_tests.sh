@@ -44,6 +44,13 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --features 400 \
   --trees 10 \
   --task regression) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name regression-cpu \
+  --instance_kind cpu \
+  --depth 25 \
+  --features 400 \
+  --trees 10 \
+  --task regression) )
 
 echo 'Starting Triton server...'
 if [ $LOCAL -eq 1 ]
