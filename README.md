@@ -104,7 +104,7 @@ Once you have chosen a model to deploy, you will need to create a corresponding
 ```
 name: "fil"
 backend: "fil"
-max_batch_size: 1048576
+max_batch_size: 8192
 input [
  {
     name: "input__0"
@@ -152,7 +152,7 @@ parameters [
 ]
 
 dynamic_batching {
-  preferred_batch_size: [1, 2, 4, 8, 16, 32, 64, 128, 1024, 131072, 1048576]
+  preferred_batch_size: [1, 2, 4, 8, 16, 32, 64, 128, 1024, 8192]
   max_queue_delay_microseconds: 30000
 }
 ```
@@ -164,12 +164,17 @@ specific to FIL:
 
 - `max_batch_size`: The maximum number of samples to process in a batch. In
   general, FIL's efficient handling of even large forest models means that this
-  value can be quite high (2^20 in the example), but this may need to be
-  reduced if you find that you are exhausting system resources.
+  value can be quite high (2^13 in the example), but this may need to be
+  reduced if you find that you are exhausting system resources. (NOTE: Due to a
+  [current bug](https://github.com/wphicks/triton_fil_backend/issues/40), this
+  value should not be set to 16384 or higher.
 - `input`: This configuration block specifies information about the input
   arrays that will be provided to the FIL model. The `dims` field should be set
   to `[ NUMBER_OF_FEATURES ]`, but all other fields should be left as they
-  are in the example.
+  are in the example. Note that the `name` field should always be given a value
+  of `input__0`. Unlike some deep learning frameworks where models may have
+  multiple input layers with different names, FIL-based tree models take a
+  single input array with a consistent name of `input__0`.
 - `output`: This configuration block specifies information about the arrays
   output by the FIL model. If the `predict_proba` option (described later) is
   set to "true" and you are using a classification model, the `dims` field
@@ -257,7 +262,7 @@ grpc_client = triton_grpc.InferenceServerClient(
 
 # Generate dummy data to classify
 features = 1_000
-samples = 10_000
+samples = 8_192
 data = numpy.random.rand(samples, features).astype('float32')
 
 # Set up Triton input and output objects for both HTTP and GRPC

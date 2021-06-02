@@ -64,6 +64,8 @@ ModelState::LoadModel(
       artifact_name = "xgboost.json";
     } else if (model_type == "lightgbm") {
       artifact_name = "model.txt";
+    } else if (model_type == "treelite_checkpoint") {
+      artifact_name = "checkpoint.tl";
     } else {
       throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
@@ -100,6 +102,9 @@ ModelState::LoadModel(
   } else if (model_type == "lightgbm") {
     load_result =
         TreeliteLoadLightGBMModel(model_path.c_str(), &treelite_handle);
+  } else if (model_type == "treelite_checkpoint") {
+    load_result =
+        TreeliteDeserializeModel(model_path.c_str(), &treelite_handle);
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
@@ -108,7 +113,8 @@ ModelState::LoadModel(
   if (load_result != 0) {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_UNAVAILABLE,
-        "Treelite model could not be loaded");
+        "Treelite model could not be loaded. Error: "
+        + std::string(TreeliteGetLastError()));
   }
 
   if (TreeliteQueryNumClass(treelite_handle, &num_class_) != 0) {

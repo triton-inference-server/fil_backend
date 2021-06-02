@@ -49,8 +49,8 @@ class ModelState : public BackendModel {
   bool predict_proba;
 
   ModelState(
-      TRITONBACKEND_Model* triton_model,
-      const char* name, const uint64_t version);
+      TRITONBACKEND_Model* triton_model, const char* name,
+      const uint64_t version);
 
   size_t num_class();
 
@@ -58,4 +58,4 @@ class ModelState : public BackendModel {
   size_t num_class_;  // C++17: Use std::optional
 };
 
-}}}
+}}}  // namespace triton::backend::fil
