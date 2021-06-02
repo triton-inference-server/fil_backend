@@ -391,12 +391,21 @@ get_input_batches(
     TRITONSERVER_memorytype_enum target_memory_type, raft::handle_t* handle,
     bool validate = false)
 {
+
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
   cudaStream_t cuda_stream = (handle ? handle->get_stream() : 0);
+
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
   // Name of input
   auto input_name = get_input_name(input_index, requests, validate);
   // Objects representing input for each request that can be queried to get
   // underlying data and properties
   auto backend_inputs = get_backend_inputs(input_name, requests);
+
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
 
   // Shape of each input tensor
   std::vector<std::vector<int64_t>> input_shapes;
@@ -405,6 +414,9 @@ get_input_batches(
   std::tie(input_shapes, buffer_counts) =
       get_input_shapes(backend_inputs, TritonDtype<T>::value);
 
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
+
   // Pointers to underlying contiguous buffers along with their size and what
   // device they are stored on, divided up into optimal batches. The first and
   // last indices of the corresponding requests are indicated by the second
@@ -412,17 +424,28 @@ get_input_batches(
   auto raw_batches =
       get_raw_input_batches(backend_inputs, target_memory_type, buffer_counts);
 
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
+
   std::vector<InputBatch<T>> batches;
   batches.reserve(raw_batches.size());
 
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
+
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
     batches.emplace_back(
         TritonTensor<const T>(
             raw_batch.first, input_name, batch_shape, TritonDtype<T>::value,
             target_memory_type, cuda_stream),
         std::move(raw_batch.second), std::move(input_shapes));
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
   }
+
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
+
 
   return batches;
 }

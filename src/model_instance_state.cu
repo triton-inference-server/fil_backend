@@ -62,14 +62,87 @@ ModelInstanceState::predict(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
     }
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
-    std::size_t out_result_size;
-    int res = TreeliteGTILPredict(model_state_->treelite_handle, data.data(),
-                  data.shape()[0], preds.data(), 1, &out_result_size);
+    {
+      std::ostringstream oss;
+      oss << "preds.shape = ";
+      for (int64_t e : preds.shape()) {
+        oss << e << ", ";
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
+    }
+    {
+      std::ostringstream oss;
+      oss << "data.shape = ";
+      for (int64_t e : data.shape()) {
+        oss << e << ", ";
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
+    }
+
+    std::size_t output_size;
+    int res = TreeliteGTILGetPredictOutputSize(model_state_->treelite_handle,
+                  data.shape()[0], &output_size);
     if (res != 0) {
       throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
           TreeliteGetLastError());
     }
+
+    std::string msg = std::string("output_size = ") + std::to_string(output_size);
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, msg.c_str());
+
+    std::vector<float> out_buffer(data.shape()[0] * output_size);
+    std::size_t out_result_size;
+    {
+      char buf[1000] = {0};
+      sprintf(buf, "treelite_handle = %p", model_state_->treelite_handle);
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, buf);
+    }
+    res = TreeliteGTILPredict(model_state_->treelite_handle, data.data(),
+                data.shape()[0], out_buffer.data(), 1, &out_result_size);
+    if (res != 0) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          TreeliteGetLastError());
+    }
+
+    msg = std::string("out_result_size = ") + std::to_string(out_result_size);
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, msg.c_str());
+
+    if (out_result_size > 1 && !predict_proba) {
+      // Compute argmax and return the best class
+      if (preds.size() != 1) {
+        throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+            "Failed assumption: preds was assumed to be 1-element long");
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+      float max_score = out_buffer[0];
+      std::size_t best_class = 0;
+      for (std::size_t i = 1; i < out_result_size; ++i) {
+        if (out_buffer[i] > max_score) {
+          max_score = out_buffer[i];
+          best_class = i;
+        }
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+      preds.data()[0] = static_cast<float>(best_class);
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+    } else {
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+      if (out_result_size != static_cast<std::size_t>(preds.size())) {
+        throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+            "Failed assumption: Treelite was expected to produce an output "
+            "that is as long as preds tensor");
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+      for (std::size_t i = 0; i < out_result_size; ++i) {
+        preds.data()[i] = out_buffer[i];
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+    }
+
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
@@ -83,11 +156,11 @@ ModelInstanceState::ModelInstanceState(
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state),
       handle([&]() {
-        if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+        //if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
           return std::make_unique<raft::handle_t>();
-        } else {
-          return std::unique_ptr<raft::handle_t>(nullptr);
-        }
+        //} else {
+        //  return std::unique_ptr<raft::handle_t>(nullptr);
+        //}
       }())
 {
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
