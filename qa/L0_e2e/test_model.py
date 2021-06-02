@@ -1,5 +1,20 @@
+# Copyright (c) 2021, NVIDIA CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import os
+import pickle
 import threading
 import traceback
 from functools import partial
@@ -280,22 +295,33 @@ def run_test(
     else:
         model_format = model_format.string_value
 
-    model_path = os.path.join(model_repo, model_name, str(model_version))
+    model_dir = os.path.join(model_repo, model_name, str(model_version))
     if model_format == 'xgboost':
-        model_path = os.path.join(model_path, 'xgboost.model')
+        model_path = os.path.join(model_dir, 'xgboost.model')
         model_type = 'xgboost'
     elif model_format == 'xgboost_json':
-        model_path = os.path.join(model_path, 'xgboost.json')
+        model_path = os.path.join(model_dir, 'xgboost.json')
         model_type = 'xgboost_json'
     elif model_format == 'lightgbm':
-        model_path = os.path.join(model_path, 'model.txt')
+        model_path = os.path.join(model_dir, 'model.txt')
         model_type = 'lightgbm'
+    elif model_format == 'treelite_checkpoint':
+        model_path = os.path.join(model_dir, 'checkpoint.tl')
+        model_type = 'treelite_checkpoint'
     else:
         raise RuntimeError('Model format not recognized')
 
-    fil_model = cuml.ForestInference.load(
-        model_path, output_class=output_class, model_type=model_type
-    )
+    # NOTE: Once FIL has been updated to directly load treelite_checkpoint
+    # models, this workaround should be removed
+    # (https://github.com/rapidsai/cuml/issues/3934)
+    if model_format == 'treelite_checkpoint':
+        pkl_path = os.path.join(model_dir, 'model.pkl')
+        with open(pkl_path, 'rb') as pkl_file:
+            fil_model = pickle.load(pkl_file)
+    else:
+        fil_model = cuml.ForestInference.load(
+            model_path, output_class=output_class, model_type=model_type
+        )
 
     total_batch = np.random.rand(total_rows, features).astype('float32')
 
