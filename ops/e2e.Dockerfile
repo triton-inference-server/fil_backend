@@ -133,13 +133,15 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && rm -rf /var/lib/apt/lists/*
 
 # Retrieve Triton server source
-ARG TRITON_VERSION=2.9.0
+ARG TRITON_VERSION=2.10.0
 RUN mkdir /src \
  && cd /src/ \
  && wget https://github.com/triton-inference-server/server/archive/refs/tags/v${TRITON_VERSION}.tar.gz \
  && tar -xzf v${TRITON_VERSION}.tar.gz \
  && rm v${TRITON_VERSION}.tar.gz \
  && mkdir /src/server-${TRITON_VERSION}/build/output
+
+RUN update-alternatives --set cuda /usr/local/cuda-11.2
 
 # Build base Triton server
 ARG PARALLEL=4
