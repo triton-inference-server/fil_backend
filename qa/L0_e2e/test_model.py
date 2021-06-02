@@ -313,6 +313,7 @@ def run_test(
 
     # NOTE: Once FIL has been updated to directly load treelite_checkpoint
     # models, this workaround should be removed
+    # (https://github.com/rapidsai/cuml/issues/3934)
     if model_format == 'treelite_checkpoint':
         pkl_path = os.path.join(model_dir, 'model.pkl')
         with open(pkl_path, 'rb') as pkl_file:
