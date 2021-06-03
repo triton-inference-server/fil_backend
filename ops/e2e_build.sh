@@ -2,7 +2,7 @@
 
 PARALLEL=${PARALLEL:=$(nproc)}
 BASE_IMAGE=${BASE_IMAGE:=ubuntu:20.04}
-TAG="triton_fil"
+TAG=${TAG:=triton_fil}
 
 FIL=${FIL:=1}
 
