@@ -141,7 +141,8 @@ RUN mkdir /src \
  && rm v${TRITON_VERSION}.tar.gz \
  && mkdir /src/server-${TRITON_VERSION}/build/output
 
-RUN update-alternatives --set cuda /usr/local/cuda-11.2
+RUN update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 9 \
+ && update-alternatives --set cuda /usr/local/cuda-11.2
 
 # Build base Triton server
 ARG PARALLEL=4
@@ -187,8 +188,11 @@ WORKDIR /triton_fil_backend
 FROM build as fil-build-0
 FROM fil-base as fil-build-1
 
+ARG TRITON_REPO_VERSION=main
+
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
 ENV LIB_DIR=/opt/lib/fil
+ENV TRITON_VERSION=$TRITON_REPO_VERSION
 
 # TODO: I am not sure why the lapack dependency is not picked up by ldd
 RUN conda run --no-capture-output -n triton_dev \
