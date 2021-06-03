@@ -80,7 +80,9 @@ useful.
 Before starting the server, you will need to set up a "model repository"
 directory containing the model you wish to serve as well as a configuration
 file. The FIL backend currently supports forest models serialized in XGBoost's
-binary format, XGBoost's JSON format, and LightGBM's text format. See the
+binary format, XGBoost's JSON format, LightGBM's text format, and Treelite's
+binary checkpoint format (see below for details on using this format for
+Scikit-Learn and cuML random forest models). See the
 following example directory structure for an XGBoost binary file:
 
 ```
@@ -92,9 +94,76 @@ model_repository/
 ```
 
 By default, the FIL backend assumes that XGBoost binary models will be named
-`xgboost.model`, XGBoost json models will be named `xgboost.json`, and LightGBM
-models will be named `model.txt`, but this can be tweaked through standard
-Triton configuration options.
+`xgboost.model`, XGBoost json models will be named `xgboost.json`, LightGBM
+models will be named `model.txt`, and Treelite binary models will be named
+`checkpoint.tl`, but this can be tweaked through standard Triton configuration
+options.
+
+#### Scikit-Learn and cuML random forest support
+
+While LightGBM and XGBoost have their own serialization formats that are
+directly supported by the Triton FIL backend, random forest models trained with
+[Scikit-Learn](https://scikit-learn.org/stable/modules/model_persistence.html)
+or [cuML](https://docs.rapids.ai/api/cuml/stable/pickling_cuml_models.html) are
+generally serialized using Python's
+[pickle](https://docs.python.org/3/library/pickle.html) module. In order to
+avoid a round-trip through Python in Triton, we instead provide scripts to
+convert pickled RF models to Treelite's binary checkpoint format. You can
+download the relevant script for Scikit-Learn [here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_sklearn)
+and for cuML
+[here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_cuml.py).
+
+##### Prerequisites
+
+To use the Scikit-Learn conversion script, you must run it from within a Python
+environment containing both
+[Scikit-Learn](https://scikit-learn.org/stable/install.html) and
+[Treelite](https://treelite.readthedocs.io/en/latest/install.html). To use the
+cuML conversion script, you must run it from within a Python environment
+containing [cuML](https://rapids.ai/start.html).
+
+For convenience, a conda environment config file
+[is provided](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/environment.yml)
+which will install all three of these prerequisites:
+
+```
+conda env update -f scripts/environment.yml
+conda activate triton_scripts
+```
+
+##### Converting the model
+
+**NOTE:** The following steps are **not** necessary for LightGBM or XGBoost
+models.  The FIL backend supports the native serialization formats for these
+frameworks directly.
+
+If you already have a Scikit-Learn or cuML RF model saved as a pickle file
+(`model.pkl`), place it in a directory structure as follows:
+
+```
+model_repository/
+`-- fil
+    |-- 1
+    |   `-- model.pkl
+    `-- config.pbtxt
+```
+
+Then perform the conversion by running either:
+```bash
+./convert_sklearn model_repository/fil/1/model.pkl
+```
+for Scikit-Learn models or
+```bash
+./convert_cuml.py model_repository/fil/1/model.pkl
+```
+for cuML models. This will generate a `checkpoint.tl` file in the model
+repository in the necessary location. You can then proceed as with XGBoost or
+LightGBM.
+
+Note that Treelite does not guarantee compatibility between minor release
+versions for its binary checkpoint model, so it is recommended that you keep
+the original pickle file. If you later make use of a newer version of Treelite,
+you can simple re-run the conversion on this pickle file.
 
 #### Configuration
 
@@ -184,9 +253,10 @@ specific to FIL:
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.
-  * `model_type`: One of `"xgboost"`, `"xgboost_json"`, or `"lightgbm"`,
-    indicating whether the provided model is in XGBoost binary format, XGBoost
-    JSON format or LightGBM text format respectively.
+  * `model_type`: One of `"xgboost"`, `"xgboost_json"`, `"lightgbm"`, or
+    `"treelite_checkpoint"`, indicating whether the provided model is in
+    XGBoost binary format, XGBoost JSON format, LightGBM text format, or
+    Treelite binary format respectively.
   * `predict_proba`: Either `"true"` or `"false"`, depending on whether the
     desired output is a score for each class or merely the predicted class ID.
   * `output_class`: Either `"true"` or `"false"`, depending on whether the
