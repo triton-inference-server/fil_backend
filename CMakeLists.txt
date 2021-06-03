@@ -147,6 +147,8 @@ else()
     PRIVATE
       triton-backend-utils    # from repo-backend
       triton-core-serverstub  # from repo-core
+      cuda
+      cudart
   )
 
   set_target_properties(

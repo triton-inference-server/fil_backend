@@ -19,6 +19,8 @@
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
 #include <string>
 #include <triton_fil/buffers.cuh>
 #include <type_traits>
@@ -102,6 +104,9 @@ class TritonTensor {
               LOG_MESSAGE(TRITONSERVER_LOG_INFO, "TritonTensor::TritonTensor()");
 
               ptr_d = static_cast<byte*>(std::malloc(size_bytes_ * sizeof(byte)));
+
+              LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("size_bytes_ = ") + std::to_string(size_bytes_)).c_str());
+
               auto cur_head = ptr_d;
               for (auto& buffer_ : buffers) {
 
@@ -115,13 +120,14 @@ class TritonTensor {
                   throw TritonException(
                       TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, msg);
                 }
-                cudaPointerGetAttributes(&s_att, reinterpret_cast<const byte*>(buffer_.data));
 
                 if (s_att.type == cudaMemoryTypeDevice) {
                   LOG_MESSAGE(TRITONSERVER_LOG_INFO, "buffer is on device");
-                  cudaPointerGetAttributes(&s_att, cur_head);
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, std::to_string(static_cast<int>(s_att.type)).c_str());
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, std::to_string(buffer_.size_bytes).c_str());
+                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("buffer_.size_bytes = ") + std::to_string(buffer_.size_bytes)).c_str());
+                  CUdeviceptr pbase;
+                  std::size_t psize;
+                  cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)(uintptr_t)(buffer_.data));
+                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("buffer_.data() has size ") + std::to_string(psize)).c_str());
                   raft::copy(
                       cur_head, reinterpret_cast<const byte*>(buffer_.data),
                       buffer_.size_bytes, stream_);
