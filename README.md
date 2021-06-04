@@ -63,6 +63,13 @@ from the repo root:
 docker build -t triton_fil -f ops/Dockerfile .
 ```
 
+#### Customized builds (ADVANCED)
+
+For those with special build needs (including using a custom base container),
+you may find our documentation on [customized end-to-end
+builds](https://github.com/wphicks/triton_fil_backend/blob/fea-e2e_build/ops/E2E.md)
+useful.
+
 ### Running the server
 
 Before starting the server, you will need to set up a "model repository"

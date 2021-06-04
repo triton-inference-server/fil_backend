@@ -1,5 +1,5 @@
 *.swp
 *.pyc
 build/
-ops/Dockerfile
+ops/*Dockerfile*
 qa/L0_e2e/model_repository
