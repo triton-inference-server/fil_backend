@@ -31,9 +31,10 @@
 # Triton Inference Server FIL Backend
 
 This backend allows forest models trained by several popular machine learning
-frameworks to be deployed in a [Triton inference
-server](https://developer.nvidia.com/nvidia-triton-inference-server) using
-the RAPIDS [Forest Inference
+frameworks (including XGBoost, LightGBM, Scikit-Learn, and cuML) to be deployed
+in a [Triton inference
+server](https://developer.nvidia.com/nvidia-triton-inference-server) using the
+RAPIDS [Forest Inference
 LIbrary](https://medium.com/rapids-ai/rapids-forest-inference-library-prediction-at-100-million-rows-per-second-19558890bc35)
 for fast GPU-based inference. Using this backend, forest models can be deployed
 seamlessly alongside deep learning models for fast, unified inference
@@ -76,9 +77,12 @@ Before starting the server, you will need to set up a "model repository"
 directory containing the model you wish to serve as well as a configuration
 file. The FIL backend currently supports forest models serialized in XGBoost's
 binary format, XGBoost's JSON format, LightGBM's text format, and Treelite's
-binary checkpoint format (see below for details on using this format for
-Scikit-Learn and cuML random forest models). See the
-following example directory structure for an XGBoost binary file:
+binary checkpoint format. For those using cuML or Scikit-Learn random forest
+models, please see the [documentation on how to prepare such
+models](https://github.com/triton-inference-server/fil_backend/blob/main/SKLearn_and_cuML.md)
+for use in Triton. Once you have a serialized model, you will need to prepare a
+directory structure similar to the following example, which uses an XGBoost
+binary file:
 
 ```
 model_repository/
@@ -94,76 +98,20 @@ models will be named `model.txt`, and Treelite binary models will be named
 `checkpoint.tl`, but this can be tweaked through standard Triton configuration
 options.
 
-#### Scikit-Learn and cuML random forest support
-
-While LightGBM and XGBoost have their own serialization formats that are
-directly supported by the Triton FIL backend, random forest models trained with
-[Scikit-Learn](https://scikit-learn.org/stable/modules/model_persistence.html)
-or [cuML](https://docs.rapids.ai/api/cuml/stable/pickling_cuml_models.html) are
-generally serialized using Python's
-[pickle](https://docs.python.org/3/library/pickle.html) module. In order to
-avoid a round-trip through Python in Triton, we instead provide scripts to
-convert pickled RF models to Treelite's binary checkpoint format. You can
-download the relevant script for Scikit-Learn [here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_sklearn)
-and for cuML
-[here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_cuml.py).
-
-##### Prerequisites
-
-To use the Scikit-Learn conversion script, you must run it from within a Python
-environment containing both
-[Scikit-Learn](https://scikit-learn.org/stable/install.html) and
-[Treelite](https://treelite.readthedocs.io/en/latest/install.html). To use the
-cuML conversion script, you must run it from within a Python environment
-containing [cuML](https://rapids.ai/start.html).
-
-For convenience, a conda environment config file
-[is provided](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/environment.yml)
-which will install all three of these prerequisites:
-
-```
-conda env update -f scripts/environment.yml
-conda activate triton_scripts
-```
-
-##### Converting the model
-
-**NOTE:** The following steps are **not** necessary for LightGBM or XGBoost
-models.  The FIL backend supports the native serialization formats for these
-frameworks directly.
-
-If you already have a Scikit-Learn or cuML RF model saved as a pickle file
-(`model.pkl`), place it in a directory structure as follows:
-
-```
-model_repository/
-`-- fil
-    |-- 1
-    |   `-- model.pkl
-    `-- config.pbtxt
-```
-
-Then perform the conversion by running either:
-```bash
-./convert_sklearn model_repository/fil/1/model.pkl
-```
-for Scikit-Learn models or
-```bash
-./convert_cuml.py model_repository/fil/1/model.pkl
-```
-for cuML models. This will generate a `checkpoint.tl` file in the model
-repository in the necessary location. You can then proceed as with XGBoost or
-LightGBM.
-
-Note that Treelite does not guarantee compatibility between minor release
-versions for its binary checkpoint model, so it is recommended that you keep
-the original pickle file. If you later make use of a newer version of Treelite,
-you can simple re-run the conversion on this pickle file.
+The FIL backend repository includes [a Python
+script](https://github.com/triton-inference-server/fil_backend/blob/main/qa/L0_e2e/generate_example_model.py)
+for generating example models and configuration files using XGBoost, LightGBM,
+Scikit-Learn, and cuML. These examples may serve as a useful template for
+setting up your own models on Triton. See the [documentation on generating
+example
+models](https://github.com/triton-inference-server/fil_backend/blob/main/Example_Models.md)
+for more details.
 
 #### Configuration
 
-Once you have chosen a model to deploy, you will need to create a corresponding
-`config.pbtxt` file. An example of this configuration file is shown below:
+Once you have chosen a model to deploy and placed it in the correct directory
+structure, you will need to create a corresponding `config.pbtxt` file. An
+example of this configuration file is shown below:
 
 ```
 name: "fil"
@@ -229,7 +177,8 @@ specific to FIL:
 - `max_batch_size`: The maximum number of samples to process in a batch. In
   general, FIL's efficient handling of even large forest models means that this
   value can be quite high (2^13 in the example), but this may need to be
-  reduced if you find that you are exhausting system resources. (NOTE: Due to a
+  reduced for your particular hardware configuration if you find that you are
+  exhausting system resources (such as GPU or system RAM). (NOTE: Due to a
   [current bug](https://github.com/wphicks/triton_fil_backend/issues/40), this
   value should not be set to 16384 or higher.
 - `input`: This configuration block specifies information about the input
@@ -260,8 +209,9 @@ specific to FIL:
   * `algo`: One of `"ALGO_AUTO"`, `"NAIVE"`, `"TREE_REORG"` or
     `"BATCH_TREE_REORG"` indicating which FIL inference algorithm to use. More
     details are available in the [cuML
-    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model),
-    but `"ALGO_AUTO"` is a safe choice for all models.
+    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model).
+    If you are uncertain of what algorithm to use, we recommend selecting
+    `"ALGO_AUTO"`, since it is a safe choice for all models.
   * `storage_type`: One of `"AUTO"`, `"DENSE"`, `"SPARSE"`, and `"SPARSE8"`, indicating
     the storage format that should be used to represent the imported model.
     `"AUTO"` indicates that the storage format should be automatically chosen.
@@ -270,7 +220,9 @@ specific to FIL:
     this provides a limit to improve the cache hit rate for large forest
     models. In general, network latency will significantly overshadow any
     speedup from tweaking this setting, but it is provided for cases where
-    maximizing throughput is essential.
+    maximizing throughput is essential. Please see the [cuML
+    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model)
+    for a more thorough explanation of this parameter and how it may be used.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
