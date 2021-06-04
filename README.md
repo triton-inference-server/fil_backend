@@ -103,6 +103,15 @@ models will be named `model.txt`, and Treelite binary models will be named
 `checkpoint.tl`, but this can be tweaked through standard Triton configuration
 options.
 
+The FIL backend repository includes [a Python
+script](https://github.com/triton-inference-server/fil_backend/blob/main/qa/L0_e2e/generate_example_model.py)
+for generating example models and configuration files using XGBoost, LightGBM,
+Scikit-Learn, and cuML. These examples may serve as a useful template for
+setting up your own models on Triton. See the [documentation on generating
+example
+models](https://github.com/triton-inference-server/fil_backend/blob/main/Example_Models.md)
+for more details.
+
 #### Configuration
 
 Once you have chosen a model to deploy and placed it in the correct directory
@@ -173,7 +182,8 @@ specific to FIL:
 - `max_batch_size`: The maximum number of samples to process in a batch. In
   general, FIL's efficient handling of even large forest models means that this
   value can be quite high (2^13 in the example), but this may need to be
-  reduced if you find that you are exhausting system resources. (NOTE: Due to a
+  reduced for your particular hardware configuration if you find that you are
+  exhausting system resources (such as GPU or system RAM). (NOTE: Due to a
   [current bug](https://github.com/wphicks/triton_fil_backend/issues/40), this
   value should not be set to 16384 or higher.
 - `input`: This configuration block specifies information about the input
@@ -204,8 +214,9 @@ specific to FIL:
   * `algo`: One of `"ALGO_AUTO"`, `"NAIVE"`, `"TREE_REORG"` or
     `"BATCH_TREE_REORG"` indicating which FIL inference algorithm to use. More
     details are available in the [cuML
-    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model),
-    but `"ALGO_AUTO"` is a safe choice for all models.
+    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model).
+    If you are uncertain of what algorithm to use, we recommend selecting
+    `"ALGO_AUTO"`, since it is a safe choice for all models.
   * `storage_type`: One of `"AUTO"`, `"DENSE"`, `"SPARSE"`, and `"SPARSE8"`, indicating
     the storage format that should be used to represent the imported model.
     `"AUTO"` indicates that the storage format should be automatically chosen.
@@ -214,7 +225,9 @@ specific to FIL:
     this provides a limit to improve the cache hit rate for large forest
     models. In general, network latency will significantly overshadow any
     speedup from tweaking this setting, but it is provided for cases where
-    maximizing throughput is essential.
+    maximizing throughput is essential. Please see the [cuML
+    documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model)
+    for a more thorough explanation of this parameter and how it may be used.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
