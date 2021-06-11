@@ -1,6 +1,7 @@
 name: triton_dev
 channels:
   - conda-forge
+  - nvidia
   - rapidsai
 dependencies:
   - cmake
