@@ -137,8 +137,12 @@ ModelInstanceState::predict(
             "that is as long as preds tensor");
       }
       LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
-      for (std::size_t i = 0; i < out_result_size; ++i) {
-        preds.data()[i] = out_buffer[i];
+      if (out_result_size == 1 && !predict_proba) {
+        preds.data()[0] = (out_buffer[0] >= 0.5f ? 1.0f : 0.0f);
+      } else {
+        for (std::size_t i = 0; i < out_result_size; ++i) {
+          preds.data()[i] = out_buffer[i];
+        }
       }
       LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
     }
