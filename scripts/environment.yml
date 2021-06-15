@@ -1,0 +1,11 @@
+name: triton_scripts
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai
+dependencies:
+  - cudatoolkit=11.0
+  - cuml=21.06
+  - python=3.8
+  - scikit-learn
+  - treelite>=1.3.0

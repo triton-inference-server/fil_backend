@@ -1,9 +1,10 @@
 name: triton_dev
 channels:
   - conda-forge
-  - rapidsai-nightly
+  - nvidia
+  - rapidsai
 dependencies:
   - cmake
   - cudatoolkit=11
-  - libcuml
+  - libcuml=21.06
   - rapidjson

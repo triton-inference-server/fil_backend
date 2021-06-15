@@ -2,7 +2,7 @@ name: triton_test
 channels:
   - conda-forge
   - nvidia
-  - rapidsai-nightly
+  - rapidsai
 dependencies:
   - clang-tools=8.0.1
   - cudatoolkit=11.0
@@ -10,7 +10,8 @@ dependencies:
   - lightgbm
   - pip
   - python=3.8
-  - rapidsai-nightly::py-xgboost
+  - rapidsai::py-xgboost
+  - scikit-learn
   - pip:
       - nvidia-pyindex
       - tritonclient[all]
