@@ -18,16 +18,14 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/dtype.h>
 #include <triton_fil/exceptions.h>
-#include <triton_fil/optional.h>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <raft/handle.hpp>
 #include <triton_fil/triton_tensor.cuh>
 #include <vector>
 
 namespace triton { namespace backend { namespace fil {
-
-using byte = char;  // C++17: Use std::byte
 
 namespace {
 /* Get the number of inputs in each request in a batch
@@ -36,11 +34,7 @@ uint32_t
 get_input_count(
     std::vector<TRITONBACKEND_Request*>& requests, bool validate = true)
 {
-  // C++17: Switch to std::optional and remove pragmas
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  optional<uint32_t> input_count;
-#pragma GCC diagnostic pop
+  std::optional<uint32_t> input_count;
   for (auto& request : requests) {
     uint32_t cur_input_count = 0;
     triton_check(TRITONBACKEND_RequestInputCount(request, &cur_input_count));
@@ -48,11 +42,7 @@ get_input_count(
       return cur_input_count;
     }
     if (input_count) {
-      // C++17: Switch to std::optional and remove pragmas
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
       if (*input_count != cur_input_count) {
-#pragma GCC diagnostic pop
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
             "inconsistent number of inputs in batched requests");
@@ -75,7 +65,7 @@ get_input_name(
     uint32_t input_index, std::vector<TRITONBACKEND_Request*>& requests,
     bool validate = true)
 {
-  optional<std::string> input_name;
+  std::optional<std::string> input_name;
   for (auto& request : requests) {
     const char* cur_input_name_c = nullptr;
     triton_check(TRITONBACKEND_RequestInputName(
@@ -192,14 +182,14 @@ get_raw_input_batches(
   std::vector<std::pair<
       std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>>
       buffer_requests;
-  byte* next_ptr = nullptr;
-  optional<TRITONSERVER_MemoryType> last_memory_type;
+  std::byte* next_ptr = nullptr;
+  std::optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t r = 0; r < all_inputs.size(); ++r) {
     TRITONSERVER_MemoryType memory_type = input_memory_type;
 
     for (uint32_t j = 0; j < all_buffer_counts[r]; ++j) {
-      byte* cur_buffer;
+      std::byte* cur_buffer;
       uint64_t cur_byte_size = 0;
       int64_t cur_memory_type_id = 0;
       triton_check(TRITONBACKEND_InputBuffer(
@@ -253,7 +243,7 @@ get_output_name(
     uint32_t output_index, std::vector<TRITONBACKEND_Request*>& requests,
     bool validate = true)
 {
-  optional<std::string> output_name;
+  std::optional<std::string> output_name;
   for (auto& request : requests) {
     const char* cur_output_name_c = nullptr;
     triton_check(TRITONBACKEND_RequestOutputName(
@@ -308,13 +298,13 @@ get_raw_output_buffers(
 {
   std::vector<RawOutputBuffer> buffers;
 
-  byte* next_ptr = nullptr;
-  optional<TRITONSERVER_MemoryType> last_memory_type;
+  std::byte* next_ptr = nullptr;
+  std::optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t i = 0; i < all_outputs.size(); ++i) {
     uint64_t byte_size =
         product(shapes[i]) * sizeof(typename TritonType<D>::type);
-    byte* cur_buffer;
+    std::byte* cur_buffer;
     int64_t cur_memory_type_id = 0;
     TRITONSERVER_MemoryType memory_type = output_memory_type;
     triton_check(TRITONBACKEND_OutputBuffer(
