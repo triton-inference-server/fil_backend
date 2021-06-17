@@ -159,7 +159,6 @@ ModelInstanceState::predict(
                 "Assertion failed 7");
           }
         }
-        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("preds[0] = ") + std::to_string(preds.data()[0])).c_str());
       } else {
         if (!predict_proba && model_state_->tl_params.output_class && num_class == 1) {
           std::ostringstream oss;
