@@ -192,8 +192,8 @@ get_raw_input_batches(
   std::vector<std::pair<
       std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>>
       buffer_requests;
-  byte* next_ptr = nullptr;
-  optional<TRITONSERVER_MemoryType> last_memory_type;
+  //byte* next_ptr = nullptr;
+  //optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t r = 0; r < all_inputs.size(); ++r) {
     TRITONSERVER_MemoryType memory_type = target_memory_type;
@@ -206,13 +206,19 @@ get_raw_input_batches(
           all_inputs[r], j,
           const_cast<const void**>(reinterpret_cast<void**>(&cur_buffer)),
           &cur_byte_size, &memory_type, &cur_memory_type_id));
+
+      // TODO(hcho3): Re-enable batching once the issue with CUDA shared memory
+      // feature in Triton is sorted out.
+      // Current issue: You cannot combine two contigous memory blocks and
+      // copy them in a single cudaMemcpy (it will throw cudaErrorInvalidValue)
+
       // Check if this buffer is contiguous with previous
-      if (cur_buffer == next_ptr && last_memory_type &&
-          *last_memory_type == memory_type &&
-          buffer_requests.back().first.back().device_id == cur_memory_type_id) {
-        buffer_requests.back().first.back().size_bytes += cur_byte_size;
-        buffer_requests.back().second.second = r + 1;
-      } else {
+      //if (cur_buffer == next_ptr && last_memory_type &&
+      //    *last_memory_type == memory_type &&
+      //    buffer_requests.back().first.back().device_id == cur_memory_type_id) {
+      //  buffer_requests.back().first.back().size_bytes += cur_byte_size;
+      //  buffer_requests.back().second.second = r + 1;
+      //} else {
         // If it's already in device memory, do not batch it with other
         // requests
         if ((j == 0 && memory_type == target_memory_type) ||
@@ -223,9 +229,9 @@ get_raw_input_batches(
             const_cast<const void*>(reinterpret_cast<void*>(cur_buffer)),
             cur_byte_size, memory_type, cur_memory_type_id);
         buffer_requests.back().second.second = r + 1;
-        last_memory_type = memory_type;
-        next_ptr = cur_buffer + cur_byte_size;
-      }
+        //last_memory_type = memory_type;
+        //next_ptr = cur_buffer + cur_byte_size;
+      //}
     }
   }
 
@@ -308,8 +314,8 @@ get_raw_output_buffers(
 {
   std::vector<RawOutputBuffer> buffers;
 
-  byte* next_ptr = nullptr;
-  optional<TRITONSERVER_MemoryType> last_memory_type;
+  //byte* next_ptr = nullptr;
+  //optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t i = 0; i < all_outputs.size(); ++i) {
     uint64_t byte_size =
@@ -321,17 +327,21 @@ get_raw_output_buffers(
         all_outputs[i], reinterpret_cast<void**>(&cur_buffer), byte_size,
         &memory_type, &device_id));
 
-    if (cur_buffer == next_ptr && last_memory_type &&
-        *last_memory_type == memory_type &&
-        buffers.back().device_id == cur_memory_type_id) {
-      buffers.back().size_bytes += byte_size;
-    } else {
+    // TODO(hcho3): Re-enable batching once the issue with CUDA shared memory
+    // feature in Triton is sorted out.
+    // Current issue: You cannot combine two contigous memory blocks and
+    // copy them in a single cudaMemcpy (it will throw cudaErrorInvalidValue)
+    //if (cur_buffer == next_ptr && last_memory_type &&
+    //    *last_memory_type == memory_type &&
+    //    buffers.back().device_id == cur_memory_type_id) {
+    //  buffers.back().size_bytes += byte_size;
+    //} else {
       buffers.emplace_back(
           reinterpret_cast<void*>(cur_buffer), static_cast<uint64_t>(byte_size),
           memory_type, cur_memory_type_id);
-      last_memory_type = memory_type;
-      next_ptr = cur_buffer + byte_size;
-    }
+      //last_memory_type = memory_type;
+      //next_ptr = cur_buffer + byte_size;
+    //}
   }
   return buffers;
 }
@@ -391,21 +401,13 @@ get_input_batches(
     TRITONSERVER_memorytype_enum target_memory_type, raft::handle_t* handle,
     bool validate = false)
 {
-
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
   cudaStream_t cuda_stream = (handle ? handle->get_stream() : 0);
-
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
 
   // Name of input
   auto input_name = get_input_name(input_index, requests, validate);
   // Objects representing input for each request that can be queried to get
   // underlying data and properties
   auto backend_inputs = get_backend_inputs(input_name, requests);
-
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
 
   // Shape of each input tensor
   std::vector<std::vector<int64_t>> input_shapes;
@@ -414,9 +416,6 @@ get_input_batches(
   std::tie(input_shapes, buffer_counts) =
       get_input_shapes(backend_inputs, TritonDtype<T>::value);
 
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
-
   // Pointers to underlying contiguous buffers along with their size and what
   // device they are stored on, divided up into optimal batches. The first and
   // last indices of the corresponding requests are indicated by the second
@@ -424,28 +423,17 @@ get_input_batches(
   auto raw_batches =
       get_raw_input_batches(backend_inputs, target_memory_type, buffer_counts);
 
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
-
   std::vector<InputBatch<T>> batches;
   batches.reserve(raw_batches.size());
 
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
-
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
     batches.emplace_back(
         TritonTensor<const T>(
             raw_batch.first, input_name, batch_shape, TritonDtype<T>::value,
             target_memory_type, cuda_stream),
         std::move(raw_batch.second), std::move(input_shapes));
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
   }
-
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "get_input_batches()");
-
 
   return batches;
 }

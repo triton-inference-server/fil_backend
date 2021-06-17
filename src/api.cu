@@ -170,12 +170,12 @@ TRITONBACKEND_ModelInstanceExecute(
     auto instance_kind = instance_state->Kind();
     auto target_memory = get_native_memory_for_instance(instance_kind);
 
-    LOG_MESSAGE(
+    /* LOG_MESSAGE(
      TRITONSERVER_LOG_INFO,
      (std::string("model ") + model_state->Name() + ", instance " +
       instance_state->Name() + ", executing " + std::to_string(request_count) +
       " requests")
-         .c_str());
+         .c_str()); */
 
     std::vector<TRITONBACKEND_Request*> requests(
         raw_requests, raw_requests + request_count);
@@ -183,11 +183,9 @@ TRITONBACKEND_ModelInstanceExecute(
     // One past index of last request that was successfully processed
     size_t end_request = 0;
     try {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
       auto input_batches = get_input_batches<float>(
           static_cast<uint32_t>(0), requests, target_memory,
           instance_state->get_raft_handle());
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
       for (auto& batch : input_batches) {
         std::vector<std::vector<int64_t>> output_shapes;
         output_shapes.reserve(batch.shapes.size());
@@ -206,18 +204,14 @@ TRITONBACKEND_ModelInstanceExecute(
             requests.begin() + batch.extent.second);
         responses = construct_responses(batch_requests);
         try {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
           auto output_batch = get_output_batch<float>(
               static_cast<uint32_t>(0), batch_requests, responses,
               target_memory, output_shapes,
               instance_state->get_raft_handle());
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
           instance_state->predict(
               batch.data, output_batch, model_state->predict_proba);
 
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
           output_batch.sync();
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
           send_responses(responses);
           responses.clear();
           end_request = batch.extent.second;

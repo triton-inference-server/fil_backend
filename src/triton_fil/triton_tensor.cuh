@@ -63,9 +63,6 @@ class TritonTensor {
         target_memory_{TRITONSERVER_MEMORY_CPU}, is_owner_{false},
         stream_{0}, buffer{nullptr}, final_buffers{}
   {
-    std::ostringstream oss;
-    oss << "TritonTensor::TritonTensor(): is_owner_ = " << is_owner_;
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
   }
 
   template <typename U = T>
@@ -100,18 +97,10 @@ class TritonTensor {
                 cur_head += buffer_.size_bytes;
               }
             } else if (target_memory == TRITONSERVER_MEMORY_CPU) {
-
-              LOG_MESSAGE(TRITONSERVER_LOG_INFO, "TritonTensor::TritonTensor()");
-
               ptr_d = static_cast<byte*>(std::malloc(size_bytes_ * sizeof(byte)));
-
-              LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("size_bytes_ = ") + std::to_string(size_bytes_)).c_str());
 
               auto cur_head = ptr_d;
               for (auto& buffer_ : buffers) {
-
-                LOG_MESSAGE(TRITONSERVER_LOG_INFO, TRITONSERVER_MemoryTypeString(buffer_.memory_type));
-
                 cudaPointerAttributes s_att;
                 cudaError_t s_err = cudaPointerGetAttributes(&s_att, buffer_.data);
                 if (s_err != cudaSuccess) {
@@ -122,29 +111,33 @@ class TritonTensor {
                 }
 
                 if (s_att.type == cudaMemoryTypeDevice) {
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "buffer is on device");
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("buffer_.size_bytes = ") + std::to_string(buffer_.size_bytes)).c_str());
-                  CUdeviceptr pbase;
-                  std::size_t psize;
-                  cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)(uintptr_t)(buffer_.data));
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("buffer_.data() has size ") + std::to_string(psize)).c_str());
-                  raft::copy(
-                      cur_head, reinterpret_cast<const byte*>(buffer_.data),
-                      buffer_.size_bytes, stream_);
+                  try {
+                    raft::copy(
+                        cur_head, reinterpret_cast<const byte*>(buffer_.data),
+                        buffer_.size_bytes, stream_);
+                  } catch (raft::cuda_error& e) {
+                    std::ostringstream oss;
+                    auto ptr_to_str = [](auto* ptr) {
+                      char buf[100] = {0};
+                      sprintf(buf, "%p", ptr);
+                      return std::string(buf);
+                    };
+                    oss << "raft::copy() failed. Error: " << e.what()
+                        << "\ncur_head = " << ptr_to_str(cur_head)
+                        << ", buffer_.data = " << ptr_to_str(buffer_.data)
+                        << ", buffer_.size_bytes = " << buffer_.size_bytes
+                        << ", stream_ = " << ptr_to_str(stream_);
+                    throw TritonException(
+                        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                        oss.str().c_str());
+                  }
                 } else {
-                  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "buffer is on host");
                   std::memcpy(
                       cur_head, reinterpret_cast<const byte*>(buffer_.data),
                       buffer_.size_bytes);
                 }
                 cur_head += buffer_.size_bytes;
-
-              LOG_MESSAGE(TRITONSERVER_LOG_INFO, "TritonTensor::TritonTensor()");
-
               }
-
-              LOG_MESSAGE(TRITONSERVER_LOG_INFO, "TritonTensor::TritonTensor()");
-
             } else {
               throw TritonException(
                   TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
@@ -157,10 +150,6 @@ class TritonTensor {
         }()},
         final_buffers{}
   {
-    std::ostringstream oss;
-    oss << "TritonTensor::TritonTensor(): is_owner_ = " << is_owner_
-        << ", target_memory = " << TRITONSERVER_MemoryTypeString(target_memory);
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
   }
 
   template <typename U = T>
@@ -190,10 +179,6 @@ class TritonTensor {
         }()},
         final_buffers{buffers}
   {
-    std::ostringstream oss;
-    oss << "TritonTensor::TritonTensor(): is_owner_ = " << is_owner_
-        << ", target_memory = " << TRITONSERVER_MemoryTypeString(target_memory);
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
   }
 
   ~TritonTensor()
@@ -236,9 +221,6 @@ class TritonTensor {
         }()},
         final_buffers{other.final_buffers}
   {
-    std::ostringstream oss;
-    oss << "TritonTensor::TritonTensor(const TritonTensor&): is_owner_ = " << is_owner_;
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
   }
 
   TritonTensor(TritonTensor<T>&& other) noexcept
@@ -249,9 +231,6 @@ class TritonTensor {
   {
     other.is_owner_ = false;
     other.buffer = nullptr;
-    std::ostringstream oss;
-    oss << "TritonTensor::TritonTensor(TritonTensor&&): is_owner_ = " << is_owner_;
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
   }
 
   TritonTensor<T>& operator=(const TritonTensor<T>& other)
@@ -284,9 +263,20 @@ class TritonTensor {
           );
       }
       catch (const raft::cuda_error& err) {
+        std::ostringstream oss;
+        auto ptr_to_str = [](auto* ptr) {
+          char buf[100] = {0};
+          sprintf(buf, "%p", ptr);
+          return std::string(buf);
+        };
+        oss << "raft::copy() failed. Error: " << err.what()
+            << "\nout_buffer.data = " << ptr_to_str(out_buffer.data)
+            << ", head = " << ptr_to_str(head)
+            << ", out_buffer.size_bytes = " << out_buffer.size_bytes
+            << ", stream_ = " << ptr_to_str(stream_);
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            err.what());
+            oss.str().c_str());
       }
       head += out_buffer.size_bytes;
     }

@@ -24,6 +24,7 @@
 #include <memory>
 #include <raft/handle.hpp>
 #include <treelite/c_api.h>
+#include <treelite/tree.h>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
 
@@ -62,23 +63,6 @@ ModelInstanceState::predict(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
     }
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
-    {
-      std::ostringstream oss;
-      oss << "preds.shape = ";
-      for (int64_t e : preds.shape()) {
-        oss << e << ", ";
-      }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
-    }
-    {
-      std::ostringstream oss;
-      oss << "data.shape = ";
-      for (int64_t e : data.shape()) {
-        oss << e << ", ";
-      }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
-    }
-
     std::size_t output_size;
     int res = TreeliteGTILGetPredictOutputSize(model_state_->treelite_handle,
                   data.shape()[0], &output_size);
@@ -88,15 +72,16 @@ ModelInstanceState::predict(
           TreeliteGetLastError());
     }
 
-    std::string msg = std::string("output_size = ") + std::to_string(output_size);
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, msg.c_str());
-
-    std::vector<float> out_buffer(data.shape()[0] * output_size);
+    std::size_t num_row = data.shape()[0];
+    std::vector<float> out_buffer(num_row * output_size);
     std::size_t out_result_size;
+    std::size_t num_class = 1;
     {
-      char buf[1000] = {0};
-      sprintf(buf, "treelite_handle = %p", model_state_->treelite_handle);
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, buf);
+      auto* model_ = static_cast<treelite::Model*>(model_state_->treelite_handle);
+      num_class = model_->task_param.num_class;
+      if (!predict_proba && model_state_->tl_params.output_class && num_class > 1) {
+        std::strcpy(model_->param.pred_transform, "max_index");
+      }
     }
     res = TreeliteGTILPredict(model_state_->treelite_handle, data.data(),
                 data.shape()[0], out_buffer.data(), 1, &out_result_size);
@@ -106,45 +91,86 @@ ModelInstanceState::predict(
           TreeliteGetLastError());
     }
 
-    msg = std::string("out_result_size = ") + std::to_string(out_result_size);
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, msg.c_str());
+    if (out_result_size > num_row * output_size) {
+      std::ostringstream oss;
+      oss << "Assertion failed 1: out_result_size = " << out_result_size
+          << ", num_row = " << num_row << ", output_size = " << output_size;
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          oss.str().c_str());
+    }
 
-    if (out_result_size > 1 && !predict_proba) {
-      // Compute argmax and return the best class
-      if (preds.size() != 1) {
+    if (num_class == 1 && predict_proba) {
+      if (out_result_size * 2 != static_cast<std::size_t>(preds.size())) {
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Failed assumption: preds was assumed to be 1-element long");
+            "Assertion failed 2");
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
-      float max_score = out_buffer[0];
-      std::size_t best_class = 0;
-      for (std::size_t i = 1; i < out_result_size; ++i) {
-        if (out_buffer[i] > max_score) {
-          max_score = out_buffer[i];
-          best_class = i;
-        }
+      if (num_row != static_cast<std::size_t>(preds.size())) {
+        throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+            "Assertion failed 3");
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
-      preds.data()[0] = static_cast<float>(best_class);
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
+      for (std::size_t i = 0; i < num_row; ++i) {
+        preds.data()[i * 2] = 1.0f - out_buffer[i];
+        preds.data()[i * 2 + 1] = out_buffer[i];
+      }
     } else {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
       if (out_result_size != static_cast<std::size_t>(preds.size())) {
+        std::ostringstream oss;
+        oss << "Failed assumption: Treelite was expected to produce an output " 
+            << "that is as long as preds tensor: out_result_size = " << out_result_size
+            << " vs. preds.size() = " << preds.size();
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Failed assumption: Treelite was expected to produce an output "
-            "that is as long as preds tensor");
+            oss.str().c_str());
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
-      if (out_result_size == 1 && !predict_proba) {
-        preds.data()[0] = (out_buffer[0] >= 0.5f ? 1.0f : 0.0f);
+      if (num_class == 1 && !predict_proba && model_state_->tl_params.output_class) {
+        if (num_row != out_result_size) {
+          throw TritonException(
+              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+              "Assertion failed 4");
+        }
+        if (num_row != static_cast<std::size_t>(preds.size())) {
+          std::ostringstream oss;
+          oss << "Assertion failed 5: num_row = " << num_row << ", preds.size() = " << preds.size()
+              << ", out_result_size = " << out_result_size;
+          throw TritonException(
+              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+              oss.str().c_str());
+        }
+        if (preds.shape().size() != 1
+            || num_row != static_cast<std::size_t>(preds.shape()[0])) {
+          std::ostringstream oss;
+          oss << "Assertion failed 6: num_row = " << num_row << ", preds.size() = " << preds.size()
+              << ", preds.shape() = {";
+          for (auto e : preds.shape()) {
+            oss << e << ", ";
+          }
+          oss << "}";
+          throw TritonException(
+              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+              oss.str().c_str());
+        }
+        for (std::size_t i = 0; i < num_row; ++i) {
+          preds.data()[i] = ((out_buffer[i] > model_state_->tl_params.threshold) ? 1.0f : 0.0f);
+          if (preds.data()[i] != 1.0f && preds.data()[i] != 0.0f) {
+            throw TritonException(TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                "Assertion failed 7");
+          }
+        }
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("preds[0] = ") + std::to_string(preds.data()[0])).c_str());
       } else {
+        if (!predict_proba && model_state_->tl_params.output_class && num_class == 1) {
+          std::ostringstream oss;
+          throw TritonException(
+              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+              "Assertion failed 8");
+        }
         for (std::size_t i = 0; i < out_result_size; ++i) {
           preds.data()[i] = out_buffer[i];
         }
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO, "here");
     }
 
   } else {
@@ -160,11 +186,11 @@ ModelInstanceState::ModelInstanceState(
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state),
       handle([&]() {
-        //if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
+        if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
           return std::make_unique<raft::handle_t>();
-        //} else {
-        //  return std::unique_ptr<raft::handle_t>(nullptr);
-        //}
+        } else {
+          return std::unique_ptr<raft::handle_t>(nullptr);
+        }
       }())
 {
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
