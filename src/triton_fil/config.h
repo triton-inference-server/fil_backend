@@ -20,8 +20,8 @@
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
-#include <triton_fil/optional.h>
 
+#include <optional>
 #include <sstream>
 #include <type_traits>
 
@@ -31,7 +31,7 @@ template <typename out_type>
 out_type
 retrieve_param(
     triton::common::TritonJson::Value& config, const std::string& param_name,
-    optional<out_type> default_value = optional<out_type>())
+    std::optional<out_type> default_value = std::optional<out_type>())
 {
   common::TritonJson::Value value;
   out_type output;
