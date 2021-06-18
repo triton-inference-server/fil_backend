@@ -121,7 +121,7 @@ else()
       ${RAFT_DIR}
   )
 
-  target_compile_features(triton-fil-backend PRIVATE cxx_std_11)
+  target_compile_features(triton-fil-backend PRIVATE cxx_std_17)
 
   target_compile_options(
     triton-fil-backend PRIVATE

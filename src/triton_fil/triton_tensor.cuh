@@ -19,14 +19,13 @@
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+#include <cstddef>
 #include <string>
 #include <triton_fil/buffers.cuh>
 #include <type_traits>
 #include <vector>
 
 namespace triton { namespace backend { namespace fil {
-
-using byte = char;  // C++17: Use std::byte
 
 /**
  * @brief Representation of a tensor constructed from data provided by Triton
@@ -74,12 +73,12 @@ class TritonTensor {
         },
         stream_{stream}, buffer{[&] {
           if (is_owner_) {
-            auto ptr_d = allocate_device_memory<byte>(size_bytes_);
+            auto ptr_d = allocate_device_memory<std::byte>(size_bytes_);
             auto cur_head = ptr_d;
             for (auto& buffer_ : buffers) {
               try {
                 raft::copy(
-                    cur_head, reinterpret_cast<const byte*>(buffer_.data),
+                    cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
                     buffer_.size_bytes, stream_);
               }
               catch (const raft::cuda_error& err) {
@@ -184,11 +183,11 @@ class TritonTensor {
   void sync()
   {
     auto head = reinterpret_cast<typename std::conditional<
-        std::is_const<T>::value, const byte*, byte*>::type>(buffer);
+        std::is_const<T>::value, const std::byte*, std::byte*>::type>(buffer);
     for (auto& out_buffer : final_buffers) {
       try {
         raft::copy(
-            reinterpret_cast<byte*>(out_buffer.data), head,
+            reinterpret_cast<std::byte*>(out_buffer.data), head,
             out_buffer.size_bytes, stream_);
       }
       catch (const raft::cuda_error& err) {
