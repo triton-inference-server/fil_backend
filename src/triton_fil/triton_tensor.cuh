@@ -20,6 +20,7 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
 #include <cstddef>
+#include <cstdlib>
 #include <string>
 #include <triton_fil/buffers.cuh>
 #include <type_traits>
@@ -94,6 +95,7 @@ class TritonTensor {
                 cur_head += buffer_.size_bytes;
               }
             } else if (target_memory == TRITONSERVER_MEMORY_CPU) {
+              ptr_d = reinterpret_cast<std::byte*>(std::malloc(size_bytes_));
               auto cur_head = ptr_d;
               for (auto& buffer_ : buffers) {
                 if (buffer_.memory_type == TRITONSERVER_MEMORY_GPU) {
