@@ -342,7 +342,7 @@ def run_test(
         predict_proba=predict_proba,
         num_classes=num_classes
     )
-    np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=5)
+    np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=3)
 
     triton_result, _ = triton_predict(
         model_name,
@@ -355,7 +355,7 @@ def run_test(
         predict_proba=predict_proba,
         num_classes=num_classes
     )
-    np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=5)
+    np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=3)
 
     # Perform multi-threaded tests
     def predict_networked(arr):
