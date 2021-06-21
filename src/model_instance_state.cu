@@ -101,12 +101,12 @@ ModelInstanceState::predict(
     }
 
     if (num_class == 1 && predict_proba) {
-      if (out_result_size * 2 != static_cast<std::size_t>(preds.size())) {
+      if (num_row != out_result_size) {
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
             "Assertion failed 2");
       }
-      if (num_row != static_cast<std::size_t>(preds.size())) {
+      if (num_row * 2 > static_cast<std::size_t>(preds.size())) {
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
             "Assertion failed 3");
