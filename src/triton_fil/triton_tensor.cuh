@@ -24,7 +24,6 @@
 #include <triton_fil/buffers.cuh>
 #include <type_traits>
 #include <vector>
-#include <cstring>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -57,7 +56,7 @@ class TritonTensor {
  public:
   TritonTensor()
       : name_{}, shape_{}, dtype_{TRITONSERVER_TYPE_FP32}, size_bytes_{0},
-        target_memory_{TRITONSERVER_MEMORY_CPU}, is_owner_{false},
+        target_memory_{TRITONSERVER_MEMORY_GPU}, is_owner_{false},
         stream_{0}, buffer{nullptr}, final_buffers{}
   {
   }
@@ -75,8 +74,9 @@ class TritonTensor {
             || buffers[0].memory_type != target_memory
         },
         stream_{stream}, buffer{[&] {
+          // TODO (whicks): Consider explicitly managed host memory
           if (is_owner_) {
-            std::byte* ptr_d;
+            std::byte* ptr_d = nullptr;
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
               ptr_d = allocate_device_memory<std::byte>(size_bytes_);
               auto cur_head = ptr_d;
@@ -94,39 +94,18 @@ class TritonTensor {
                 cur_head += buffer_.size_bytes;
               }
             } else if (target_memory == TRITONSERVER_MEMORY_CPU) {
-              ptr_d = static_cast<std::byte*>(std::malloc(size_bytes_ * sizeof(byte)));
-
               auto cur_head = ptr_d;
               for (auto& buffer_ : buffers) {
-                cudaPointerAttributes s_att;
-                cudaError_t s_err = cudaPointerGetAttributes(&s_att, buffer_.data);
-                if (s_err != cudaSuccess) {
-                  std::string msg{"Call to cudaPointerGetAttributes() failed"};
-                  msg += cudaGetErrorString(s_err);
-                  throw TritonException(
-                      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, msg);
-                }
-
-                if (s_att.type == cudaMemoryTypeDevice) {
+                if (buffer_.memory_type == TRITONSERVER_MEMORY_GPU) {
                   try {
                     raft::copy(
                         cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
                         buffer_.size_bytes, stream_);
-                  } catch (raft::cuda_error& e) {
-                    std::ostringstream oss;
-                    auto ptr_to_str = [](auto* ptr) {
-                      char buf[100] = {0};
-                      sprintf(buf, "%p", ptr);
-                      return std::string(buf);
-                    };
-                    oss << "raft::copy() failed. Error: " << e.what()
-                        << "\ncur_head = " << ptr_to_str(cur_head)
-                        << ", buffer_.data = " << ptr_to_str(buffer_.data)
-                        << ", buffer_.size_bytes = " << buffer_.size_bytes
-                        << ", stream_ = " << ptr_to_str(stream_);
+                  }
+                  catch (const raft::cuda_error& err) {
                     throw TritonException(
                         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-                        oss.str().c_str());
+                        err.what());
                   }
                 } else {
                   std::memcpy(
@@ -153,7 +132,7 @@ class TritonTensor {
   TritonTensor(
       std::vector<RawOutputBuffer>&& buffers, const std::string& name,
       const std::vector<int64_t>& shape, const TRITONSERVER_DataType dtype,
-      TRITONSERVER_MemoryType target_memory, raft::handle_t* handle)
+      TRITONSERVER_MemoryType target_memory, std::optional<raft::handle_t>& handle)
       : name_{name}, shape_{shape}, dtype_{dtype_},
         size_bytes_{sizeof(T) * product(shape_)},
         target_memory_{target_memory},
@@ -255,25 +234,13 @@ class TritonTensor {
     for (auto& out_buffer : final_buffers) {
       try {
           raft::copy(
-            reinterpret_cast<std::byte*>(out_buffer.data), head,
-            out_buffer.size_bytes, stream_
-          );
+              reinterpret_cast<std::byte*>(out_buffer.data), head,
+              out_buffer.size_bytes, stream_);
       }
       catch (const raft::cuda_error& err) {
-        std::ostringstream oss;
-        auto ptr_to_str = [](auto* ptr) {
-          char buf[100] = {0};
-          sprintf(buf, "%p", ptr);
-          return std::string(buf);
-        };
-        oss << "raft::copy() failed. Error: " << err.what()
-            << "\nout_buffer.data = " << ptr_to_str(out_buffer.data)
-            << ", head = " << ptr_to_str(head)
-            << ", out_buffer.size_bytes = " << out_buffer.size_bytes
-            << ", stream_ = " << ptr_to_str(stream_);
         throw TritonException(
             TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            oss.str().c_str());
+            err.what());
       }
       head += out_buffer.size_bytes;
     }

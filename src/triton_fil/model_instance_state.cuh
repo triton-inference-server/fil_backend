@@ -23,6 +23,7 @@
 #include <triton_fil/model_state.h>
 
 #include <memory>
+#include <optional>
 #include <raft/handle.hpp>
 #include <string>
 
@@ -50,7 +51,7 @@ class ModelInstanceState : public BackendModelInstance {
       TritonTensor<const float>& data, TritonTensor<float>& preds,
       bool predict_proba = false);
 
-  raft::handle_t* get_raft_handle();
+  std::optional<raft::handle_t>& get_raft_handle();
 
   ModelInstanceState(
       ModelState* model_state,
@@ -59,9 +60,8 @@ class ModelInstanceState : public BackendModelInstance {
 
  private:
   ModelState* model_state_;
-  TRITONSERVER_InstanceGroupKind instance_kind_;
   ML::fil::forest_t fil_forest;
-  std::unique_ptr<raft::handle_t> handle;
+  std::optional<raft::handle_t> handle;
 };
 
 }}}  // namespace triton::backend::fil

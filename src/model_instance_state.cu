@@ -22,6 +22,7 @@
 #include <triton_fil/model_state.h>
 
 #include <memory>
+#include <optional>
 #include <raft/handle.hpp>
 #include <treelite/c_api.h>
 #include <treelite/tree.h>
@@ -41,10 +42,10 @@ ModelInstanceState::Create(
       model_state, triton_model_instance, instance_name.c_str(), instance_id);
 }
 
-raft::handle_t*
+std::optional<raft::handle_t>&
 ModelInstanceState::get_raft_handle()
 {
-  return handle.get();
+  return handle;
 }
 
 void
@@ -55,12 +56,17 @@ ModelInstanceState::predict(
   if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     try {
       ML::fil::predict(
-          *handle, fil_forest, preds.data(), data.data(), data.shape()[0],
+          handle.value(), fil_forest, preds.data(), data.data(), data.shape()[0],
           predict_proba);
     }
     catch (raft::cuda_error& err) {
       throw TritonException(
           TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
+    }
+    catch (std::bad_optional_access& err) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          "No RAFT handle created in GPU instance");
     }
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
     std::size_t output_size;
@@ -116,42 +122,7 @@ ModelInstanceState::predict(
         preds.data()[i * 2 + 1] = out_buffer[i];
       }
     } else {
-      //if (out_result_size != static_cast<std::size_t>(preds.size())) {
-      //  std::ostringstream oss;
-      //  oss << "Failed assumption: Treelite was expected to produce an output " 
-      //      << "that is as long as preds tensor: out_result_size = " << out_result_size
-      //      << " vs. preds.size() = " << preds.size();
-      //  throw TritonException(
-      //      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-      //      oss.str().c_str());
-      //}
       if (num_class == 1 && !predict_proba && model_state_->tl_params.output_class) {
-        //if (num_row != out_result_size) {
-        //  throw TritonException(
-        //      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-        //      "Assertion failed 4");
-        //}
-        //if (num_row != static_cast<std::size_t>(preds.size())) {
-        //  std::ostringstream oss;
-        //  oss << "Assertion failed 5: num_row = " << num_row << ", preds.size() = " << preds.size()
-        //      << ", out_result_size = " << out_result_size;
-        //  throw TritonException(
-        //      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-        //      oss.str().c_str());
-        //}
-        //if (preds.shape().size() != 1
-        //    || num_row != static_cast<std::size_t>(preds.shape()[0])) {
-        //  std::ostringstream oss;
-        //  oss << "Assertion failed 6: num_row = " << num_row << ", preds.size() = " << preds.size()
-        //      << ", preds.shape() = {";
-        //  for (auto e : preds.shape()) {
-        //    oss << e << ", ";
-        //  }
-        //  oss << "}";
-        //  throw TritonException(
-        //      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-        //      oss.str().c_str());
-        //}
         for (std::size_t i = 0; i < num_row; ++i) {
           preds.data()[i] = ((out_buffer[i] > model_state_->tl_params.threshold) ? 1.0f : 0.0f);
           if (preds.data()[i] != 1.0f && preds.data()[i] != 0.0f) {
@@ -184,11 +155,12 @@ ModelInstanceState::ModelInstanceState(
     const char* name, const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
       model_state_(model_state),
-      handle([&]() {
+      handle([&]() -> std::optional<raft::handle_t> {
         if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
-          return std::make_unique<raft::handle_t>();
+          // TODO(whicks) Does this actually generate the handle?
+          return std::make_optional<raft::handle_t>();
         } else {
-          return std::unique_ptr<raft::handle_t>(nullptr);
+          return std::nullopt;
         }
       }())
 {
@@ -197,7 +169,7 @@ ModelInstanceState::ModelInstanceState(
   if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using GPU for inference");
     ML::fil::from_treelite(
-        *handle, &fil_forest, model_state_->treelite_handle,
+        handle.value(), &fil_forest, model_state_->treelite_handle,
         &(model_state_->tl_params));
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
     LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU for inference");
