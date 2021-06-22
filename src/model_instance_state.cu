@@ -97,26 +97,7 @@ ModelInstanceState::predict(
           TreeliteGetLastError());
     }
 
-    if (out_result_size > num_row * output_size) {
-      std::ostringstream oss;
-      oss << "Assertion failed 1: out_result_size = " << out_result_size
-          << ", num_row = " << num_row << ", output_size = " << output_size;
-      throw TritonException(
-          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-          oss.str().c_str());
-    }
-
     if (num_class == 1 && predict_proba) {
-      if (out_result_size * 2 != static_cast<std::size_t>(preds.size())) {
-        throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Assertion failed 2");
-      }
-      if (num_row != static_cast<std::size_t>(preds.size())) {
-        throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Assertion failed 3");
-      }
       for (std::size_t i = 0; i < num_row; ++i) {
         preds.data()[i * 2] = 1.0f - out_buffer[i];
         preds.data()[i * 2 + 1] = out_buffer[i];
@@ -125,18 +106,8 @@ ModelInstanceState::predict(
       if (num_class == 1 && !predict_proba && model_state_->tl_params.output_class) {
         for (std::size_t i = 0; i < num_row; ++i) {
           preds.data()[i] = ((out_buffer[i] > model_state_->tl_params.threshold) ? 1.0f : 0.0f);
-          if (preds.data()[i] != 1.0f && preds.data()[i] != 0.0f) {
-            throw TritonException(TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-                "Assertion failed 7");
-          }
         }
       } else {
-        if (!predict_proba && model_state_->tl_params.output_class && num_class == 1) {
-          std::ostringstream oss;
-          throw TritonException(
-              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-              "Assertion failed 8");
-        }
         for (std::size_t i = 0; i < out_result_size; ++i) {
           preds.data()[i] = out_buffer[i];
         }
