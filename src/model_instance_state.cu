@@ -19,6 +19,7 @@
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
 #include <triton/core/tritonserver.h>
+#include <triton_fil/gtil_utils.cuh>
 #include <triton_fil/model_state.h>
 
 #include <memory>
@@ -69,51 +70,7 @@ ModelInstanceState::predict(
           "No RAFT handle created in GPU instance");
     }
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
-    std::size_t output_size;
-    int res = TreeliteGTILGetPredictOutputSize(model_state_->treelite_handle,
-                  data.shape()[0], &output_size);
-    if (res != 0) {
-      throw TritonException(
-          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-          TreeliteGetLastError());
-    }
-
-    std::size_t num_row = data.shape()[0];
-    std::vector<float> out_buffer(num_row * output_size);
-    std::size_t out_result_size;
-    std::size_t num_class = 1;
-    {
-      auto* model_ = static_cast<treelite::Model*>(model_state_->treelite_handle);
-      num_class = model_->task_param.num_class;
-      if (!predict_proba && model_state_->tl_params.output_class && num_class > 1) {
-        std::strcpy(model_->param.pred_transform, "max_index");
-      }
-    }
-    res = TreeliteGTILPredict(model_state_->treelite_handle, data.data(),
-                data.shape()[0], out_buffer.data(), 1, &out_result_size);
-    if (res != 0) {
-      throw TritonException(
-          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-          TreeliteGetLastError());
-    }
-
-    if (num_class == 1 && predict_proba) {
-      for (std::size_t i = 0; i < num_row; ++i) {
-        preds.data()[i * 2] = 1.0f - out_buffer[i];
-        preds.data()[i * 2 + 1] = out_buffer[i];
-      }
-    } else {
-      if (num_class == 1 && !predict_proba && model_state_->tl_params.output_class) {
-        for (std::size_t i = 0; i < num_row; ++i) {
-          preds.data()[i] = ((out_buffer[i] > model_state_->tl_params.threshold) ? 1.0f : 0.0f);
-        }
-      } else {
-        for (std::size_t i = 0; i < out_result_size; ++i) {
-          preds.data()[i] = out_buffer[i];
-        }
-      }
-    }
-
+    gtil_predict(*this, data, preds, predict_proba);
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
