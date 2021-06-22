@@ -39,46 +39,35 @@ gtil_predict(
     return *model_ptr;
   }();
 
+  std::size_t num_class = 1;
+  auto tl_model = static_cast<treelite::Model*>(model_state.treelite_handle);
+  num_class = tl_model->task_param.num_class;
+  if (!predict_proba && model_state.tl_params.output_class && num_class > 1) {
+    std::strcpy(tl_model->param.pred_transform, "max_index");
+  }
+
   std::size_t out_result_size;
-  int gtil_result = TreeliteGTILPredict(
-    model_state.treelite_handle,
-    data.data(),
-    data.shape()[0],
-    preds.data(),
-    1,
-    &out_result_size
-  );
+  int gtil_result = TreeliteGTILPredict(model_state.treelite_handle, data.data(),
+              data.shape()[0], preds.data(), 1, &out_result_size);
   if (gtil_result != 0) {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
         TreeliteGetLastError());
   }
 
-  auto* treelite_model =
-    static_cast<treelite::Model*>(model_state.treelite_handle);
-  size_t num_class = treelite_model->task_param.num_class;
-  if (!predict_proba && model_state.tl_params.output_class && num_class > 1) {
-    std::strcpy(treelite_model->param.pred_transform, "max_index");
-  }
-
   if (num_class == 1 && predict_proba) {
-    std::cout << "A\n";
     std::size_t i = preds.size();
     while (i > 0) {
       --i;
       preds.data()[i] = ((i % 2) == 1) ? preds.data()[i / 2] : 1.0f -
         preds.data()[i / 2];
     }
-  } else if (num_class == 1 && !predict_proba &&
-      model_state.tl_params.output_class) {
-    std::cout << "B\n";
+  } else if (num_class == 1 && !predict_proba && model_state.tl_params.output_class) {
     std::transform(preds.data(), preds.data() + preds.size(), preds.data(),
         [&](float raw_pred) {
           return (raw_pred > model_state.tl_params.threshold) ? 1.0f : 0.0f;
         }
     );
-  } else {
-    std::cout << "C\n";
   }
 }
 }}}  // namespace triton::backend::fil
