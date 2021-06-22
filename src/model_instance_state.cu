@@ -85,7 +85,6 @@ ModelInstanceState::ModelInstanceState(
       model_state_(model_state),
       handle([&]() -> std::optional<raft::handle_t> {
         if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
-          // TODO(whicks) Does this actually generate the handle?
           return std::make_optional<raft::handle_t>();
         } else {
           return std::nullopt;
