@@ -19,14 +19,14 @@
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
 #include <triton/core/tritonserver.h>
-#include <triton_fil/gtil_utils.cuh>
 #include <triton_fil/model_state.h>
+#include <triton_fil/gtil_utils.cuh>
 
+#include <treelite/c_api.h>
+#include <treelite/tree.h>
 #include <memory>
 #include <optional>
 #include <raft/handle.hpp>
-#include <treelite/c_api.h>
-#include <treelite/tree.h>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
 
@@ -57,8 +57,8 @@ ModelInstanceState::predict(
   if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
     try {
       ML::fil::predict(
-          handle.value(), fil_forest, preds.data(), data.data(), data.shape()[0],
-          predict_proba);
+          handle.value(), fil_forest, preds.data(), data.data(),
+          data.shape()[0], predict_proba);
     }
     catch (raft::cuda_error& err) {
       throw TritonException(
@@ -82,8 +82,7 @@ ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     const char* name, const int32_t device_id)
     : BackendModelInstance(model_state, triton_model_instance),
-      model_state_(model_state),
-      handle([&]() -> std::optional<raft::handle_t> {
+      model_state_(model_state), handle([&]() -> std::optional<raft::handle_t> {
         if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
           return std::make_optional<raft::handle_t>();
         } else {

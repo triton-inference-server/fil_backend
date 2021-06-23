@@ -297,9 +297,9 @@ get_raw_output_buffers(
         all_outputs[i], reinterpret_cast<void**>(&cur_buffer), byte_size,
         &memory_type, &device_id));
 
-      buffers.emplace_back(
-          reinterpret_cast<void*>(cur_buffer), static_cast<uint64_t>(byte_size),
-          memory_type, cur_memory_type_id);
+    buffers.emplace_back(
+        reinterpret_cast<void*>(cur_buffer), static_cast<uint64_t>(byte_size),
+        memory_type, cur_memory_type_id);
   }
   return buffers;
 }
@@ -357,8 +357,7 @@ std::vector<InputBatch<T>>
 get_input_batches(
     uint32_t input_index, std::vector<TRITONBACKEND_Request*>& requests,
     TRITONSERVER_memorytype_enum target_memory_type,
-    std::optional<raft::handle_t>& handle,
-    bool validate = false)
+    std::optional<raft::handle_t>& handle, bool validate = false)
 {
   cudaStream_t cuda_stream = (handle ? handle->get_stream() : 0);
 
@@ -387,15 +386,14 @@ get_input_batches(
 
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
-    std::vector<std::vector<int64_t>> batch_input_shapes(input_shapes.begin() +
-        raw_batch.second.first, input_shapes.begin() +
-        raw_batch.second.second);
+    std::vector<std::vector<int64_t>> batch_input_shapes(
+        input_shapes.begin() + raw_batch.second.first,
+        input_shapes.begin() + raw_batch.second.second);
     batches.emplace_back(
         TritonTensor<const T>(
             raw_batch.first, input_name, batch_shape, TritonDtype<T>::value,
             target_memory_type, cuda_stream),
-        std::move(raw_batch.second),
-        std::move(batch_input_shapes));
+        std::move(raw_batch.second), std::move(batch_input_shapes));
   }
 
   return batches;

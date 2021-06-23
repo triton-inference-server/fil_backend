@@ -205,8 +205,7 @@ TRITONBACKEND_ModelInstanceExecute(
         try {
           auto output_batch = get_output_batch<float>(
               static_cast<uint32_t>(0), batch_requests, responses,
-              target_memory, output_shapes,
-              instance_state->get_raft_handle());
+              target_memory, output_shapes, instance_state->get_raft_handle());
           instance_state->predict(
               batch.data, output_batch, model_state->predict_proba);
 

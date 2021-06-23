@@ -57,8 +57,8 @@ class TritonTensor {
  public:
   TritonTensor()
       : name_{}, shape_{}, dtype_{TRITONSERVER_TYPE_FP32}, size_bytes_{0},
-        target_memory_{TRITONSERVER_MEMORY_GPU}, is_owner_{false},
-        stream_{0}, buffer{nullptr}, final_buffers{}
+        target_memory_{TRITONSERVER_MEMORY_GPU}, is_owner_{false}, stream_{0},
+        buffer{nullptr}, final_buffers{}
   {
   }
 
@@ -68,12 +68,9 @@ class TritonTensor {
       const std::vector<int64_t>& shape, TRITONSERVER_DataType dtype,
       TRITONSERVER_MemoryType target_memory, cudaStream_t stream)
       : name_{name}, shape_{shape}, dtype_{dtype_},
-        size_bytes_{sizeof(T) * product(shape_)},
-        target_memory_{target_memory},
-        is_owner_{
-            buffers.size() > 1  // non-contiguous
-            || buffers[0].memory_type != target_memory
-        },
+        size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
+        is_owner_{buffers.size() > 1  // non-contiguous
+                  || buffers[0].memory_type != target_memory},
         stream_{stream}, buffer{[&] {
           // TODO (whicks): Consider explicitly managed host memory
           if (is_owner_) {
@@ -84,7 +81,8 @@ class TritonTensor {
               for (auto& buffer_ : buffers) {
                 try {
                   raft::copy(
-                      cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
+                      cur_head,
+                      reinterpret_cast<const std::byte*>(buffer_.data),
                       buffer_.size_bytes, stream_);
                 }
                 catch (const raft::cuda_error& err) {
@@ -101,17 +99,20 @@ class TritonTensor {
                 if (buffer_.memory_type == TRITONSERVER_MEMORY_GPU) {
                   try {
                     raft::copy(
-                        cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
+                        cur_head,
+                        reinterpret_cast<const std::byte*>(buffer_.data),
                         buffer_.size_bytes, stream_);
                   }
                   catch (const raft::cuda_error& err) {
                     throw TritonException(
-                        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                        TRITONSERVER_errorcode_enum::
+                            TRITONSERVER_ERROR_INTERNAL,
                         err.what());
                   }
                 } else {
                   std::memcpy(
-                      cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
+                      cur_head,
+                      reinterpret_cast<const std::byte*>(buffer_.data),
                       buffer_.size_bytes);
                 }
                 cur_head += buffer_.size_bytes;
@@ -134,22 +135,19 @@ class TritonTensor {
   TritonTensor(
       std::vector<RawOutputBuffer>&& buffers, const std::string& name,
       const std::vector<int64_t>& shape, const TRITONSERVER_DataType dtype,
-      TRITONSERVER_MemoryType target_memory, std::optional<raft::handle_t>& handle)
+      TRITONSERVER_MemoryType target_memory,
+      std::optional<raft::handle_t>& handle)
       : name_{name}, shape_{shape}, dtype_{dtype_},
-        size_bytes_{sizeof(T) * product(shape_)},
-        target_memory_{target_memory},
-        is_owner_{
-            buffers.size() > 1  // non-contiguous
-            || buffers[0].memory_type != target_memory
-        },
+        size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
+        is_owner_{buffers.size() > 1  // non-contiguous
+                  || buffers[0].memory_type != target_memory},
         stream_{(handle ? handle->get_stream() : 0)}, buffer{[&] {
           if (is_owner_) {
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
               return allocate_device_memory<non_const_T>(
                   size_bytes_ / sizeof(non_const_T));
             } else {
-              return static_cast<non_const_T*>(std::malloc(
-                  size_bytes_));
+              return static_cast<non_const_T*>(std::malloc(size_bytes_));
             }
           } else {
             return reinterpret_cast<non_const_T*>(buffers[0].data);
@@ -166,7 +164,7 @@ class TritonTensor {
       // originally allocated it non-const then cast to const for consistency
       // with Triton-provided buffers. Since this is happening in the
       // destructor, removing const at this point should be safe.
-      if (target_memory_ == TRITONSERVER_MEMORY_GPU)  {
+      if (target_memory_ == TRITONSERVER_MEMORY_GPU) {
         cudaFree(reinterpret_cast<void*>(const_cast<non_const_T*>(buffer)));
       } else {
         std::free(reinterpret_cast<void*>(const_cast<non_const_T*>(buffer)));
@@ -177,8 +175,7 @@ class TritonTensor {
   TritonTensor(const TritonTensor<T>& other)
       : name_{other.name_}, shape_{other.shape_}, dtype_{other.dtype_},
         target_memory_{other.target_memory_}, size_bytes_{other.size_bytes_},
-        is_owner_{true}, stream_{other.stream_},
-        buffer{[&] {
+        is_owner_{true}, stream_{other.stream_}, buffer{[&] {
           non_const_T* ptr_d;
           if (other.target_memory_ == TRITONSERVER_MEMORY_GPU) {
             ptr_d = allocate_device_memory<non_const_T>(other.size());
@@ -204,8 +201,8 @@ class TritonTensor {
   TritonTensor(TritonTensor<T>&& other) noexcept
       : name_{other.name_}, shape_{other.shape_}, dtype_{other.dtype_},
         target_memory_{other.target_memory_}, size_bytes_{other.size_bytes_},
-        is_owner_{other.is_owner_}, stream_{other.stream_}, buffer{other.buffer},
-        final_buffers{std::move(other.final_buffers)}
+        is_owner_{other.is_owner_}, stream_{other.stream_},
+        buffer{other.buffer}, final_buffers{std::move(other.final_buffers)}
   {
     other.is_owner_ = false;
     other.buffer = nullptr;
@@ -235,9 +232,9 @@ class TritonTensor {
         std::is_const<T>::value, const std::byte*, std::byte*>::type>(buffer);
     for (auto& out_buffer : final_buffers) {
       try {
-          raft::copy(
-              reinterpret_cast<std::byte*>(out_buffer.data), head,
-              out_buffer.size_bytes, stream_);
+        raft::copy(
+            reinterpret_cast<std::byte*>(out_buffer.data), head,
+            out_buffer.size_bytes, stream_);
       }
       catch (const raft::cuda_error& err) {
         throw TritonException(
