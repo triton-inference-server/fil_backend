@@ -62,8 +62,8 @@ gtil_predict(
   }
   std::size_t out_result_size;
   int gtil_result = TreeliteGTILPredict(
-      model_state.treelite_handle, data.data(), data.shape()[0], out_preds,
-      1, &out_result_size);
+      model_state.treelite_handle, data.data(), data.shape()[0], out_preds, 1,
+      &out_result_size);
   if (gtil_result != 0) {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,

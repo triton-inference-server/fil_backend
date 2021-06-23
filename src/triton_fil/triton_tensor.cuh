@@ -237,8 +237,8 @@ class TritonTensor {
           "Failed stream synchronization in TritonTensor sync");
     }
     for (auto& out_buffer : final_buffers) {
-      if (target_memory_ == TRITONSERVER_MEMORY_GPU
-          || out_buffer.memory_type == TRITONSERVER_MEMORY_GPU) {
+      if (target_memory_ == TRITONSERVER_MEMORY_GPU ||
+          out_buffer.memory_type == TRITONSERVER_MEMORY_GPU) {
         try {
           raft::copy(
               reinterpret_cast<std::byte*>(out_buffer.data), head,
@@ -250,7 +250,8 @@ class TritonTensor {
               err.what());
         }
       } else {
-        std::memcpy(reinterpret_cast<std::byte*>(out_buffer.data), head,
+        std::memcpy(
+            reinterpret_cast<std::byte*>(out_buffer.data), head,
             out_buffer.size_bytes);
       }
       head += out_buffer.size_bytes;

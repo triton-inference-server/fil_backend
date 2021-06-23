@@ -26,8 +26,8 @@
 #include <treelite/tree.h>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <raft/handle.hpp>
+#include <sstream>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
 
