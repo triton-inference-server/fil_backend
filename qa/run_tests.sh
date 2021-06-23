@@ -21,31 +21,32 @@ fi
 models=()
 
 echo 'Generating example models...'
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name xgboost \
-#   --depth 11 \
-#   --trees 2000 \
-#   --classes 3 \
-#   --features 500) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name xgboost_json \
-#   --format xgboost_json \
-#   --depth 7 \
-#   --trees 500 \
-#   --features 500 \
-#   --predict_proba) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name lightgbm \
-#   --format lightgbm \
-#   --type lightgbm \
-#   --depth 3 \
-#   --trees 2000) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name regression \
-#   --depth 25 \
-#   --features 400 \
-#   --trees 10 \
-#   --task regression) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost \
+  --depth 11 \
+  --trees 2000 \
+  --classes 3 \
+  --features 500) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_json \
+  --format xgboost_json \
+  --depth 7 \
+  --trees 500 \
+  --features 500 \
+  --predict_proba) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name lightgbm \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 3 \
+  --trees 2000) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name regression \
+  --depth 25 \
+  --features 400 \
+  --trees 10 \
+  --task regression) )
+
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost-cpu \
   --instance_kind cpu \
@@ -53,44 +54,44 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 2000 \
   --classes 3 \
   --features 500) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name xgboost_json-cpu \
-#   --instance_kind cpu \
-#   --format xgboost_json \
-#   --depth 7 \
-#   --trees 500 \
-#   --features 500 \
-#   --predict_proba) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name lightgbm-cpu \
-#   --instance_kind cpu \
-#   --format lightgbm \
-#   --type lightgbm \
-#   --depth 3 \
-#   --trees 2000) )
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name regression-cpu \
-#   --instance_kind cpu \
-#   --depth 25 \
-#   --features 400 \
-#   --trees 10 \
-#   --task regression) )
-# 
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name sklearn \
-#   --type sklearn \
-#   --depth 3 \
-#   --trees 10 \
-#   --features 500) )
-# "$script_dir/convert_sklearn" "$test_dir/model_repository/sklearn/1/model.pkl"
-# models+=( $(python ${test_dir}/generate_example_model.py \
-#   --name cuml \
-#   --type cuml \
-#   --depth 3 \
-#   --trees 10 \
-#   --features 500 \
-#   --task regression) )
-# "$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_json-cpu \
+  --instance_kind cpu \
+  --format xgboost_json \
+  --depth 7 \
+  --trees 500 \
+  --features 500 \
+  --predict_proba) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name lightgbm-cpu \
+  --instance_kind cpu \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 3 \
+  --trees 2000) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name regression-cpu \
+  --instance_kind cpu \
+  --depth 25 \
+  --features 400 \
+  --trees 10 \
+  --task regression) )
+
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name sklearn \
+  --type sklearn \
+  --depth 3 \
+  --trees 10 \
+  --features 500) )
+"$script_dir/convert_sklearn" "$test_dir/model_repository/sklearn/1/model.pkl"
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name cuml \
+  --type cuml \
+  --depth 3 \
+  --trees 10 \
+  --features 500 \
+  --task regression) )
+"$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
 
 echo 'Starting Triton server...'
 if [ $LOCAL -eq 1 ]
