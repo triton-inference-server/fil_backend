@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <optional>
 #include <cstring>
 
 #include <treelite/c_api.h>
@@ -43,22 +44,17 @@ gtil_predict(
   auto tl_model = static_cast<treelite::Model*>(model_state.treelite_handle);
   num_class = tl_model->task_param.num_class;
 
+  float* out_preds = preds.data();
   // Use a temporary buffer when outputing class outputs from a
   // multi-class classifier. In this case, preds will have length
   // num_row, whereas GTIL expects a buffer of length
   // (num_row * num_class). Thus, a temporary buffer is needed to
   // avoid out-of-bounds access.
-  bool use_temp_buffer = false;
-  std::vector<float> temp_buffer;
+  std::optional<std::vector<float>> temp_buffer = std::nullopt;
   if (!predict_proba && model_state.tl_params.output_class && num_class > 1) {
     std::strcpy(tl_model->param.pred_transform, "max_index");
-    use_temp_buffer = true;
-  }
-
-  float* out_preds = preds.data();
-  if (use_temp_buffer) {
-    temp_buffer.resize(data.shape()[0] * num_class);
-    out_preds = temp_buffer.data();
+    temp_buffer = std::vector<float>(data.shape()[0] * num_class);
+    out_preds = temp_buffer->data();
   }
   std::size_t out_result_size;
   int gtil_result = TreeliteGTILPredict(
@@ -69,7 +65,7 @@ gtil_predict(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
         TreeliteGetLastError());
   }
-  if (use_temp_buffer) {
+  if (temp_buffer) {
     std::copy(out_preds, out_preds + preds.size(), preds.data());
   }
 
