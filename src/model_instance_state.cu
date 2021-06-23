@@ -26,6 +26,7 @@
 #include <treelite/tree.h>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <raft/handle.hpp>
 #include <triton_fil/model_instance_state.cuh>
 #include <triton_fil/triton_tensor.cuh>
@@ -92,13 +93,19 @@ ModelInstanceState::ModelInstanceState(
 {
   model_state_->LoadModel(ArtifactFilename(), Kind(), DeviceId());
 
+  auto log_instance_kind = [](const char* kind, const char* name) {
+    std::ostringstream oss;
+    oss << "Using " << kind << " for predicting with model '" << name << "'";
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
+  };
+
   if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using GPU for inference");
+    log_instance_kind("GPU", name);
     ML::fil::from_treelite(
         handle.value(), &fil_forest, model_state_->treelite_handle,
         &(model_state_->tl_params));
   } else if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU) {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Using CPU for inference");
+    log_instance_kind("CPU", name);
   } else {
     throw TritonException(
         TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
