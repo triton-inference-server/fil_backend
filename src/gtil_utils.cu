@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 #include <algorithm>
-#include <optional>
 #include <cstring>
+#include <optional>
 
 #include <treelite/c_api.h>
 #include <treelite/tree.h>
