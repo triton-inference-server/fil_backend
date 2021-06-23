@@ -184,6 +184,12 @@ class TritonTensor {
   {
     auto head = reinterpret_cast<typename std::conditional<
         std::is_const<T>::value, const std::byte*, std::byte*>::type>(buffer);
+    auto cuda_res = cudaStreamSynchronize(stream_);
+    if (cuda_res != cudaSuccess) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          "Failed stream synchronization in TritonTensor sync");
+    }
     for (auto& out_buffer : final_buffers) {
       try {
         raft::copy(
