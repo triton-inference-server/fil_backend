@@ -231,15 +231,21 @@ class TritonTensor {
     auto head = reinterpret_cast<typename std::conditional<
         std::is_const<T>::value, const std::byte*, std::byte*>::type>(buffer);
     for (auto& out_buffer : final_buffers) {
-      try {
-        raft::copy(
-            reinterpret_cast<std::byte*>(out_buffer.data), head,
-            out_buffer.size_bytes, stream_);
-      }
-      catch (const raft::cuda_error& err) {
-        throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            err.what());
+      if (target_memory_ == TRITONSERVER_MEMORY_GPU
+          || out_buffer.memory_type == TRITONSERVER_MEMORY_GPU) {
+        try {
+          raft::copy(
+              reinterpret_cast<std::byte*>(out_buffer.data), head,
+              out_buffer.size_bytes, stream_);
+        }
+        catch (const raft::cuda_error& err) {
+          throw TritonException(
+              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+              err.what());
+        }
+      } else {
+        std::memcpy(reinterpret_cast<std::byte*>(out_buffer.data), head,
+            out_buffer.size_bytes);
       }
       head += out_buffer.size_bytes;
     }
