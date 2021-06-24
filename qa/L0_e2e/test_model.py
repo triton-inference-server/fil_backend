@@ -17,7 +17,6 @@ import os
 import pickle
 import threading
 import traceback
-from functools import partial
 from queue import Queue, Empty
 from time import perf_counter, time
 from uuid import uuid4
@@ -50,6 +49,20 @@ class TritonMessage:
             except Exception:  # Re-raise AttributeError
                 pass
             raise
+
+
+def get_random_seed():
+    """Provide random seed to allow for easer reproduction of testing failures
+
+    Note: Code taken directly from cuML testing infrastructure"""
+    current_random_seed = os.getenv('PYTEST_RANDOM_SEED')
+    if current_random_seed is not None and current_random_seed.isdigit():
+        random_seed = int(current_random_seed)
+    else:
+        random_seed = np.random.randint(0, 1e6)
+        os.environ['PYTEST_RANDOM_SEED'] = str(random_seed)
+    print("\nRandom seed value:", random_seed)
+    return random_seed
 
 
 def get_triton_client(
@@ -147,7 +160,9 @@ def set_up_triton_io(
         assert input_name in shared_memory_regions
         assert output_name in shared_memory_regions
 
-    return (triton_input, triton_output, output_handle, input_name, output_name)
+    return (
+        triton_input, triton_output, output_handle, input_name, output_name
+    )
 
 
 def get_result(response, output_handle):
@@ -173,14 +188,15 @@ def triton_predict(
     client = get_triton_client(protocol=protocol, host=host, port=port)
     start = perf_counter()
     try:
-        triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
-            client,
-            arr,
-            protocol=protocol,
-            shared_mem=shared_mem,
-            predict_proba=predict_proba,
-            num_classes=num_classes
-        )
+        triton_input, triton_output, handle, input_name, output_name = \
+            set_up_triton_io(
+                client,
+                arr,
+                protocol=protocol,
+                shared_mem=shared_mem,
+                predict_proba=predict_proba,
+                num_classes=num_classes
+            )
 
         result = client.infer(
             model_name,
@@ -229,6 +245,8 @@ def run_test(
         host='localhost',
         http_port=STANDARD_PORTS['http'],
         grpc_port=STANDARD_PORTS['grpc']):
+
+    np.random.seed(seed=get_random_seed())
 
     if batch_sizes is None:
         batch_sizes = []
