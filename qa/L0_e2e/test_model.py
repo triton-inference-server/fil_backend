@@ -17,7 +17,6 @@ import os
 import pickle
 import threading
 import traceback
-from functools import partial
 from queue import Queue, Empty
 from time import perf_counter, time
 from uuid import uuid4
@@ -147,7 +146,9 @@ def set_up_triton_io(
         assert input_name in shared_memory_regions
         assert output_name in shared_memory_regions
 
-    return (triton_input, triton_output, output_handle, input_name, output_name)
+    return (
+        triton_input, triton_output, output_handle, input_name, output_name
+    )
 
 
 def get_result(response, output_handle):
@@ -173,14 +174,15 @@ def triton_predict(
     client = get_triton_client(protocol=protocol, host=host, port=port)
     start = perf_counter()
     try:
-        triton_input, triton_output, handle, input_name, output_name = set_up_triton_io(
-            client,
-            arr,
-            protocol=protocol,
-            shared_mem=shared_mem,
-            predict_proba=predict_proba,
-            num_classes=num_classes
-        )
+        triton_input, triton_output, handle, input_name, output_name = \
+            set_up_triton_io(
+                client,
+                arr,
+                protocol=protocol,
+                shared_mem=shared_mem,
+                predict_proba=predict_proba,
+                num_classes=num_classes
+            )
 
         result = client.infer(
             model_name,

@@ -33,6 +33,7 @@ try:
 except ImportError:
     xgb = None
 
+
 def generate_classification_data(classes=2, rows=1000, cols=32):
     """Generate classification training set"""
     with cuml.using_output_type('numpy'):
@@ -229,6 +230,7 @@ def train_regressor(
 
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
+
 def generate_model(
         task='classification',
         model_type='xgboost',
@@ -277,6 +279,7 @@ def serialize_model(model, directory, output_format='xgboost'):
     raise RuntimeError(
         f'Unknown serialization format "{output_format}"'
     )
+
 
 def generate_config(
         model_name,
