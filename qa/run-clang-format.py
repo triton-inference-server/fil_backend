@@ -63,8 +63,9 @@ def parse_args():
         raise Exception("Failed to figure out clang-format version!")
     version = version.group(1)
     if version != EXPECTED_VERSION:
-        raise Exception("clang-format exe must be v%s found '%s'" % \
-                        (EXPECTED_VERSION, version))
+        raise Exception(
+            f"clang-format exe must be v{EXPECTED_VERSION} found '{version}'"
+        )
     if len(args.dirs) == 0:
         args.dirs = DEFAULT_DIRS
     return args
@@ -109,8 +110,11 @@ def run_clang_format(src, dst, exe, verbose):
         if verbose:
             print("%s passed" % os.path.basename(src))
     except subprocess.CalledProcessError:
-        print("%s failed! 'diff %s %s' will show formatting violations!" % \
-              (os.path.basename(src), src, dst))
+        print(
+            "{} failed! 'diff {} {}' will show formatting violations!".format(
+                os.path.basename(src), src, dst
+            )
+        )
         return False
     return True
 
@@ -133,8 +137,11 @@ def main():
         print(" 1. Look at formatting differences above and fix them manually")
         print(" 2. Or run the below command to bulk-fix all these at once")
         print("Bulk-fix command: ")
-        print("  python qa/run-clang-format.py %s -inplace" % \
-              " ".join(sys.argv[1:]))
+        print(
+            "  python qa/run-clang-format.py {} -inplace".format(
+                " ".join(sys.argv[1:])
+            )
+        )
         sys.exit(-1)
     return
 
