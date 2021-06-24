@@ -88,7 +88,11 @@ LOCAL=1 ./qa/run_tests.sh
 
 For reporting issues, it may be useful to run tests with the environment
 variable `SHOW_ENV` set to 1 as well. This will include additional details
-about your environment which may be important to debugging a problem.
+about your environment which may be important to debugging a problem:
+
+```bash
+LOCAL=1 SHOW_ENV=1 ./qa/run_tests.sh
+```
 
 ## Implementation Details
 
