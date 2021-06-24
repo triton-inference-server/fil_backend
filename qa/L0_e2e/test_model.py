@@ -52,6 +52,20 @@ class TritonMessage:
             raise
 
 
+def get_random_seed():
+    """Provide random seed to allow for easer reproduction of testing failures
+
+    Note: Code taken directly from cuML testing infrastructure"""
+    current_random_seed = os.getenv('PYTEST_RANDOM_SEED')
+    if current_random_seed is not None and current_random_seed.isdigit():
+        random_seed = int(current_random_seed)
+    else:
+        random_seed = np.random.randint(0, 1e6)
+        os.environ['PYTEST_RANDOM_SEED'] = str(random_seed)
+    print("\nRandom seed value:", random_seed)
+    return random_seed
+
+
 def get_triton_client(
         protocol="grpc",
         host='localhost',
@@ -229,6 +243,8 @@ def run_test(
         host='localhost',
         http_port=STANDARD_PORTS['http'],
         grpc_port=STANDARD_PORTS['grpc']):
+
+    np.random.seed(seed=get_random_seed())
 
     if batch_sizes is None:
         batch_sizes = []
