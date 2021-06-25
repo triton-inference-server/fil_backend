@@ -29,9 +29,12 @@
 namespace triton { namespace backend { namespace fil {
 
 template <typename Type>
-void memory_copy(Type* dst, const Type* src, std::size_t len,
-    cudaStream_t stream, TRITONSERVER_MemoryType dst_memory_type,
-    TRITONSERVER_MemoryType src_memory_type) {
+void
+memory_copy(
+    Type* dst, const Type* src, std::size_t len, cudaStream_t stream,
+    TRITONSERVER_MemoryType dst_memory_type,
+    TRITONSERVER_MemoryType src_memory_type)
+{
   if (dst_memory_type == TRITONSERVER_MEMORY_GPU ||
       src_memory_type == TRITONSERVER_MEMORY_GPU) {
     try {
@@ -39,8 +42,7 @@ void memory_copy(Type* dst, const Type* src, std::size_t len,
     }
     catch (const raft::cuda_error& err) {
       throw TritonException(
-          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-          err.what());
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL, err.what());
     }
   } else {
     std::memcpy(dst, src, len * sizeof(Type));
@@ -105,8 +107,7 @@ class TritonTensor {
             auto cur_head = ptr_d;
             for (auto& buffer_ : buffers) {
               memory_copy(
-                  cur_head,
-                  reinterpret_cast<const std::byte*>(buffer_.data),
+                  cur_head, reinterpret_cast<const std::byte*>(buffer_.data),
                   buffer_.size_bytes, stream_, target_memory,
                   buffer_.memory_type);
               cur_head += buffer_.size_bytes;
@@ -171,8 +172,9 @@ class TritonTensor {
             ptr_d = static_cast<non_const_T*>(
                 std::malloc(other.size() * sizeof(non_const_T)));
           }
-          memory_copy(ptr_d, other.buffer, other.size(), stream_,
-              other.target_memory_, other.target_memory_);
+          memory_copy(
+              ptr_d, other.buffer, other.size(), stream_, other.target_memory_,
+              other.target_memory_);
           return ptr_d;
         }()},
         final_buffers{other.final_buffers}
@@ -218,7 +220,8 @@ class TritonTensor {
           "Failed stream synchronization in TritonTensor sync");
     }
     for (auto& out_buffer : final_buffers) {
-      memory_copy(reinterpret_cast<std::byte*>(out_buffer.data), head,
+      memory_copy(
+          reinterpret_cast<std::byte*>(out_buffer.data), head,
           out_buffer.size_bytes, stream_, out_buffer.memory_type,
           target_memory_);
       head += out_buffer.size_bytes;
