@@ -30,7 +30,7 @@ gtil_predict(
     ModelInstanceState& instance_state, TritonTensor<const float>& data,
     TritonTensor<float>& preds, bool predict_proba)
 {
-  auto& model_state = [&]() -> ModelState& {
+  auto& model_state = [&instance_state]() -> ModelState& {
     auto model_ptr = instance_state.StateForModel();
     if (model_ptr == nullptr) {
       throw TritonException(
@@ -80,7 +80,7 @@ gtil_predict(
       num_class == 1 && !predict_proba && model_state.tl_params.output_class) {
     std::transform(
         preds.data(), preds.data() + preds.size(), preds.data(),
-        [&](float raw_pred) {
+        [&model_state](float raw_pred) {
           return (raw_pred > model_state.tl_params.threshold) ? 1.0f : 0.0f;
         });
   }
