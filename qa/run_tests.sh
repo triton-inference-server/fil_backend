@@ -34,6 +34,13 @@ then
   echo '------------------------ conda ------------------------'
   conda info
   conda list -q
+  if [ $LOCAL -eq 0 ]
+  then
+    echo ''
+    echo '--------------------- environment ---------------------'
+    env
+    echo ''
+  fi
   echo '-------------------------------------------------------'
 fi
 
