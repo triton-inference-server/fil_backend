@@ -28,6 +28,25 @@
 
 namespace triton { namespace backend { namespace fil {
 
+template <typename Type>
+void memory_copy(Type* dst, const Type* src, std::size_t len,
+    cudaStream_t stream, TRITONSERVER_MemoryType dst_memory_type,
+    TRITONSERVER_MemoryType src_memory_type) {
+  if (dst_memory_type == TRITONSERVER_MEMORY_GPU ||
+      src_memory_type == TRITONSERVER_MEMORY_GPU) {
+    try {
+      raft::copy(dst, src, len, stream);
+    }
+    catch (const raft::cuda_error& err) {
+      throw TritonException(
+          TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+          err.what());
+    }
+  } else {
+    std::memcpy(dst, src, len * sizeof(Type));
+  }
+}
+
 /**
  * @brief Representation of a tensor constructed from data provided by Triton
  * TritonTensors are either constructed from input buffers provided by Triton
@@ -76,50 +95,21 @@ class TritonTensor {
             std::byte* ptr_d = nullptr;
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
               ptr_d = allocate_device_memory<std::byte>(size_bytes_);
-              auto cur_head = ptr_d;
-              for (auto& buffer_ : buffers) {
-                try {
-                  raft::copy(
-                      cur_head,
-                      reinterpret_cast<const std::byte*>(buffer_.data),
-                      buffer_.size_bytes, stream_);
-                }
-                catch (const raft::cuda_error& err) {
-                  throw TritonException(
-                      TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-                      err.what());
-                }
-                cur_head += buffer_.size_bytes;
-              }
             } else if (target_memory == TRITONSERVER_MEMORY_CPU) {
-              ptr_d = reinterpret_cast<std::byte*>(std::malloc(size_bytes_));
-              auto cur_head = ptr_d;
-              for (auto& buffer_ : buffers) {
-                if (buffer_.memory_type == TRITONSERVER_MEMORY_GPU) {
-                  try {
-                    raft::copy(
-                        cur_head,
-                        reinterpret_cast<const std::byte*>(buffer_.data),
-                        buffer_.size_bytes, stream_);
-                  }
-                  catch (const raft::cuda_error& err) {
-                    throw TritonException(
-                        TRITONSERVER_errorcode_enum::
-                            TRITONSERVER_ERROR_INTERNAL,
-                        err.what());
-                  }
-                } else {
-                  std::memcpy(
-                      cur_head,
-                      reinterpret_cast<const std::byte*>(buffer_.data),
-                      buffer_.size_bytes);
-                }
-                cur_head += buffer_.size_bytes;
-              }
+              ptr_d = static_cast<std::byte*>(std::malloc(size_bytes_));
             } else {
               throw TritonException(
                   TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
                   "Unrecognized memory type");
+            }
+            auto cur_head = ptr_d;
+            for (auto& buffer_ : buffers) {
+              memory_copy(
+                  cur_head,
+                  reinterpret_cast<const std::byte*>(buffer_.data),
+                  buffer_.size_bytes, stream_, target_memory,
+                  buffer_.memory_type);
+              cur_head += buffer_.size_bytes;
             }
             return reinterpret_cast<T*>(ptr_d);
           } else {
@@ -177,19 +167,12 @@ class TritonTensor {
           non_const_T* ptr_d;
           if (other.target_memory_ == TRITONSERVER_MEMORY_GPU) {
             ptr_d = allocate_device_memory<non_const_T>(other.size());
-            try {
-              raft::copy(ptr_d, other.buffer, other.size(), stream_);
-            }
-            catch (const raft::cuda_error& err) {
-              throw TritonException(
-                  TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-                  err.what());
-            }
           } else {
             ptr_d = static_cast<non_const_T*>(
                 std::malloc(other.size() * sizeof(non_const_T)));
-            std::memcpy(ptr_d, other.buffer, other.size());
           }
+          memory_copy(ptr_d, other.buffer, other.size(), stream_,
+              other.target_memory_, other.target_memory_);
           return ptr_d;
         }()},
         final_buffers{other.final_buffers}
@@ -235,23 +218,9 @@ class TritonTensor {
           "Failed stream synchronization in TritonTensor sync");
     }
     for (auto& out_buffer : final_buffers) {
-      if (target_memory_ == TRITONSERVER_MEMORY_GPU ||
-          out_buffer.memory_type == TRITONSERVER_MEMORY_GPU) {
-        try {
-          raft::copy(
-              reinterpret_cast<std::byte*>(out_buffer.data), head,
-              out_buffer.size_bytes, stream_);
-        }
-        catch (const raft::cuda_error& err) {
-          throw TritonException(
-              TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-              err.what());
-        }
-      } else {
-        std::memcpy(
-            reinterpret_cast<std::byte*>(out_buffer.data), head,
-            out_buffer.size_bytes);
-      }
+      memory_copy(reinterpret_cast<std::byte*>(out_buffer.data), head,
+          out_buffer.size_bytes, stream_, out_buffer.memory_type,
+          target_memory_);
       head += out_buffer.size_bytes;
     }
   }
