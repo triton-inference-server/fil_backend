@@ -62,7 +62,6 @@ class TritonTensor {
   {
   }
 
-  template <typename U = T>
   TritonTensor(
       const std::vector<RawInputBuffer>& buffers, const std::string& name,
       const std::vector<int64_t>& shape, TRITONSERVER_DataType dtype,
@@ -131,7 +130,6 @@ class TritonTensor {
   {
   }
 
-  template <typename U = T>
   TritonTensor(
       std::vector<RawOutputBuffer>&& buffers, const std::string& name,
       const std::vector<int64_t>& shape, const TRITONSERVER_DataType dtype,
