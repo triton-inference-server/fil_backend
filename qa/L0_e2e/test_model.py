@@ -361,7 +361,8 @@ def run_test(
             predict_proba=predict_proba,
             num_classes=num_classes
         )
-        np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=3)
+        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
+                                       decimal=3)
 
     if 'cuda' in shared_mem:
         triton_result, _ = triton_predict(
@@ -375,7 +376,8 @@ def run_test(
             predict_proba=predict_proba,
             num_classes=num_classes
         )
-        np.testing.assert_almost_equal(triton_result, fil_result[0: 1], decimal=3)
+        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
+                                       decimal=3)
 
     # Perform multi-threaded tests
     def predict_networked(arr):
