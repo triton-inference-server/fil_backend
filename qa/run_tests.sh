@@ -20,7 +20,27 @@ else
   script_dir=/triton_fil/scripts
 fi
 
+model_repo="${test_dir}/model_repository"
+
 [ -d $log_dir ] || mkdir $log_dir
+
+convert_to_cpu() {
+  model_dir="${1%/}"
+  cpu_model_dir="${model_dir}-cpu"
+  cp -r "${model_dir}" "${cpu_model_dir}"
+
+  config_file="${cpu_model_dir}/config.pbtxt"
+
+  sed -i 's/KIND_GPU/KIND_CPU/g' "${config_file}"
+
+  name_line="$(grep '^name:' "${config_file}")"
+  name="${name_line%\"}"
+  name="${name#*\"}"
+  cpu_name="${name}-cpu"
+  sed -i "s/name:\ \"${name}\"/name:\ \"${cpu_name}\"/g" "${config_file}"
+
+  echo "${cpu_name}"
+}
 
 if [ $SHOW_ENV -eq 1 ]
 then
@@ -46,7 +66,7 @@ fi
 
 models=()
 
-echo 'Generating example models...'
+echo 'Generating gradient-boosted models...'
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost \
   --depth 11 \
@@ -73,36 +93,14 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 10 \
   --task regression) )
 
-models+=( $(python ${test_dir}/generate_example_model.py \
-  --name xgboost-cpu \
-  --instance_kind cpu \
-  --depth 11 \
-  --trees 2000 \
-  --classes 3 \
-  --features 500) )
-models+=( $(python ${test_dir}/generate_example_model.py \
-  --name xgboost_json-cpu \
-  --instance_kind cpu \
-  --format xgboost_json \
-  --depth 7 \
-  --trees 500 \
-  --features 500 \
-  --predict_proba) )
-models+=( $(python ${test_dir}/generate_example_model.py \
-  --name lightgbm-cpu \
-  --instance_kind cpu \
-  --format lightgbm \
-  --type lightgbm \
-  --depth 3 \
-  --trees 2000) )
-models+=( $(python ${test_dir}/generate_example_model.py \
-  --name regression-cpu \
-  --instance_kind cpu \
-  --depth 25 \
-  --features 400 \
-  --trees 10 \
-  --task regression) )
+echo 'Generating CPU-only gradient-boosted models...'
+cpu_models=()
+for i in ${!models[@]}
+do
+  cpu_models+=( "$(convert_to_cpu "${model_repository}/${models[$i]}")" )
+done
 
+echo 'Generating RF models...'
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name sklearn \
   --type sklearn \
@@ -131,7 +129,7 @@ then
 
   trap cleanup EXIT
 else
-  tritonserver --model-repository=${test_dir}/model_repository > /logs/server.log 2>&1 &
+  tritonserver --model-repository="${model_reposiitory}" > /logs/server.log 2>&1 &
 fi
 
 echo 'Testing example models...'
