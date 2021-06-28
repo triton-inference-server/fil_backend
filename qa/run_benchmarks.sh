@@ -38,7 +38,7 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --samples 2048 \
   --task classification) )
 models+=( $(python ${test_dir}/generate_example_model.py \
-  --name benchmark2 \
+  --name benchmark3 \
   --depth 24 \
   --trees 2048 \
   --features 512 \
