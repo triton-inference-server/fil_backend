@@ -3,6 +3,10 @@ set -e
 
 LOCAL=${LOCAL:-0}
 TRITON_IMAGE="${TRITON_IMAGE:-triton_fil}"
+if [ -z $SHOW_ENV ]
+then
+  [ $LOCAL -eq 1 ] && SHOW_ENV=0 || SHOW_ENV=1
+fi
 
 if [ $LOCAL -eq 1 ]
 then
@@ -17,6 +21,28 @@ else
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
+
+if [ $SHOW_ENV -eq 1 ]
+then
+  echo '-------------------------------------------------------'
+  echo '----------------- Environment details -----------------'
+  echo '-------------------------------------------------------'
+  echo ''
+  echo '---------------------- nvidia-smi ---------------------'
+  nvidia-smi
+  echo ''
+  echo '------------------------ conda ------------------------'
+  conda info
+  conda list -q
+  if [ $LOCAL -eq 0 ]
+  then
+    echo ''
+    echo '--------------------- environment ---------------------'
+    env
+    echo ''
+  fi
+  echo '-------------------------------------------------------'
+fi
 
 models=()
 
