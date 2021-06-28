@@ -3,6 +3,10 @@ set -e
 
 LOCAL=${LOCAL:-0}
 TRITON_IMAGE="${TRITON_IMAGE:-triton_fil}"
+if [ -z $SHOW_ENV ]
+then
+  [ $LOCAL -eq 1 ] && SHOW_ENV=0 || SHOW_ENV=1
+fi
 
 if [ $LOCAL -eq 1 ]
 then
@@ -17,6 +21,28 @@ else
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
+
+if [ $SHOW_ENV -eq 1 ]
+then
+  echo '-------------------------------------------------------'
+  echo '----------------- Environment details -----------------'
+  echo '-------------------------------------------------------'
+  echo ''
+  echo '---------------------- nvidia-smi ---------------------'
+  nvidia-smi
+  echo ''
+  echo '------------------------ conda ------------------------'
+  conda info
+  conda list -q
+  if [ $LOCAL -eq 0 ]
+  then
+    echo ''
+    echo '--------------------- environment ---------------------'
+    env
+    echo ''
+  fi
+  echo '-------------------------------------------------------'
+fi
 
 models=()
 
@@ -42,6 +68,36 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 2000) )
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name regression \
+  --depth 25 \
+  --features 400 \
+  --trees 10 \
+  --task regression) )
+
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost-cpu \
+  --instance_kind cpu \
+  --depth 11 \
+  --trees 2000 \
+  --classes 3 \
+  --features 500) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_json-cpu \
+  --instance_kind cpu \
+  --format xgboost_json \
+  --depth 7 \
+  --trees 500 \
+  --features 500 \
+  --predict_proba) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name lightgbm-cpu \
+  --instance_kind cpu \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 3 \
+  --trees 2000) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name regression-cpu \
+  --instance_kind cpu \
   --depth 25 \
   --features 400 \
   --trees 10 \

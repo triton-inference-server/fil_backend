@@ -349,31 +349,35 @@ def run_test(
         fil_result = fil_model.predict(total_batch)
 
     # Perform single-inference tests
-    triton_result, _ = triton_predict(
-        model_name,
-        total_batch[0: 1],
-        model_version=model_version,
-        protocol='http',
-        host=host,
-        port=http_port,
-        shared_mem=None,
-        predict_proba=predict_proba,
-        num_classes=num_classes
-    )
-    np.testing.assert_almost_equal(triton_result, fil_result[0: 1])
+    if None in shared_mem:
+        triton_result, _ = triton_predict(
+            model_name,
+            total_batch[0: 1],
+            model_version=model_version,
+            protocol='http',
+            host=host,
+            port=http_port,
+            shared_mem=None,
+            predict_proba=predict_proba,
+            num_classes=num_classes
+        )
+        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
+                                       decimal=3)
 
-    triton_result, _ = triton_predict(
-        model_name,
-        total_batch[0: 1],
-        model_version=model_version,
-        protocol='grpc',
-        host=host,
-        port=grpc_port,
-        shared_mem='cuda',
-        predict_proba=predict_proba,
-        num_classes=num_classes
-    )
-    np.testing.assert_almost_equal(triton_result, fil_result[0: 1])
+    if 'cuda' in shared_mem:
+        triton_result, _ = triton_predict(
+            model_name,
+            total_batch[0: 1],
+            model_version=model_version,
+            protocol='grpc',
+            host=host,
+            port=grpc_port,
+            shared_mem='cuda',
+            predict_proba=predict_proba,
+            num_classes=num_classes
+        )
+        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
+                                       decimal=3)
 
     # Perform multi-threaded tests
     def predict_networked(arr):
@@ -477,7 +481,7 @@ def run_test(
                 f'Prediction failed with error:\n\n{error_msg}'
             )
         np.testing.assert_almost_equal(
-            triton_result, fil_result[indices[0]: indices[1]]
+            triton_result, fil_result[indices[0]: indices[1]], decimal=3
         )
         request_latency += batch_latency
         row_latency += batch_latency / (indices[1] - indices[0])

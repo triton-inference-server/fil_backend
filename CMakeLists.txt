@@ -105,6 +105,7 @@ else()
     src/config.cc
     src/enum_conversions.cc
     src/exceptions.cc
+    src/gtil_utils.cu
     src/model_instance_state.cu
     src/model_state.cc
     src/triton_utils.cc
