@@ -120,6 +120,21 @@ get_server(TRITONBACKEND_Model& model)
   return server;
 }
 
+TRITONSERVER_MemoryType get_native_memory_for_instance(
+    TRITONSERVER_InstanceGroupKind kind) {
+  switch (kind) {
+   case TRITONSERVER_INSTANCEGROUPKIND_GPU:
+    return TRITONSERVER_MEMORY_GPU;
+   case TRITONSERVER_INSTANCEGROUPKIND_CPU:
+    return TRITONSERVER_MEMORY_CPU;
+   default:
+    throw TritonException(
+        TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INVALID_ARG,
+        "Instance kind must be set to either GPU or CPU");
+    return TRITONSERVER_MEMORY_CPU;
+  }
+}
+
 std::string
 get_model_instance_name(TRITONBACKEND_ModelInstance& instance)
 {

@@ -176,17 +176,15 @@ std::vector<
     std::pair<std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>>
 get_raw_input_batches(
     std::vector<TRITONBACKEND_Input*>& all_inputs,
-    TRITONSERVER_MemoryType& input_memory_type,
+    TRITONSERVER_MemoryType& target_memory_type,
     std::vector<uint32_t>& all_buffer_counts)
 {
   std::vector<std::pair<
       std::vector<RawInputBuffer>, std::pair<std::size_t, std::size_t>>>
       buffer_requests;
-  std::byte* next_ptr = nullptr;
-  std::optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t r = 0; r < all_inputs.size(); ++r) {
-    TRITONSERVER_MemoryType memory_type = input_memory_type;
+    TRITONSERVER_MemoryType memory_type = target_memory_type;
 
     for (uint32_t j = 0; j < all_buffer_counts[r]; ++j) {
       std::byte* cur_buffer;
@@ -196,26 +194,16 @@ get_raw_input_batches(
           all_inputs[r], j,
           const_cast<const void**>(reinterpret_cast<void**>(&cur_buffer)),
           &cur_byte_size, &memory_type, &cur_memory_type_id));
-      // Check if this buffer is contiguous with previous
-      if (cur_buffer == next_ptr && last_memory_type &&
-          *last_memory_type == memory_type &&
-          buffer_requests.back().first.back().device_id == cur_memory_type_id) {
-        buffer_requests.back().first.back().size_bytes += cur_byte_size;
-        buffer_requests.back().second.second = r + 1;
-      } else {
-        // If it's already in device memory, do not batch it with other
-        // requests
-        if ((j == 0 && memory_type == TRITONSERVER_MEMORY_GPU) ||
-            buffer_requests.empty()) {
-          buffer_requests.push_back({{}, {r, r}});
-        }
-        buffer_requests.back().first.emplace_back(
-            const_cast<const void*>(reinterpret_cast<void*>(cur_buffer)),
-            cur_byte_size, memory_type, cur_memory_type_id);
-        buffer_requests.back().second.second = r + 1;
-        last_memory_type = memory_type;
-        next_ptr = cur_buffer + cur_byte_size;
+      // If it's already in preferred memory, do not batch it with other
+      // requests
+      if ((j == 0 && memory_type == target_memory_type) ||
+          buffer_requests.empty()) {
+        buffer_requests.push_back({{}, {r, r}});
       }
+      buffer_requests.back().first.emplace_back(
+          const_cast<const void*>(reinterpret_cast<void*>(cur_buffer)),
+          cur_byte_size, memory_type, cur_memory_type_id);
+      buffer_requests.back().second.second = r + 1;
     }
   }
 
@@ -298,8 +286,6 @@ get_raw_output_buffers(
 {
   std::vector<RawOutputBuffer> buffers;
 
-  std::byte* next_ptr = nullptr;
-  std::optional<TRITONSERVER_MemoryType> last_memory_type;
 
   for (std::size_t i = 0; i < all_outputs.size(); ++i) {
     uint64_t byte_size =
@@ -311,17 +297,9 @@ get_raw_output_buffers(
         all_outputs[i], reinterpret_cast<void**>(&cur_buffer), byte_size,
         &memory_type, &device_id));
 
-    if (cur_buffer == next_ptr && last_memory_type &&
-        *last_memory_type == memory_type &&
-        buffers.back().device_id == cur_memory_type_id) {
-      buffers.back().size_bytes += byte_size;
-    } else {
-      buffers.emplace_back(
-          reinterpret_cast<void*>(cur_buffer), static_cast<uint64_t>(byte_size),
-          memory_type, cur_memory_type_id);
-      last_memory_type = memory_type;
-      next_ptr = cur_buffer + byte_size;
-    }
+    buffers.emplace_back(
+        reinterpret_cast<void*>(cur_buffer), static_cast<uint64_t>(byte_size),
+        memory_type, cur_memory_type_id);
   }
   return buffers;
 }
@@ -378,10 +356,11 @@ template <typename T>
 std::vector<InputBatch<T>>
 get_input_batches(
     uint32_t input_index, std::vector<TRITONBACKEND_Request*>& requests,
-    TRITONSERVER_memorytype_enum input_memory_type, raft::handle_t& handle,
-    bool validate = false)
+    TRITONSERVER_memorytype_enum target_memory_type,
+    std::optional<raft::handle_t>& handle, bool validate = false)
 {
-  cudaStream_t cuda_stream = handle.get_stream();
+  cudaStream_t cuda_stream = (handle ? handle->get_stream() : 0);
+
   // Name of input
   auto input_name = get_input_name(input_index, requests, validate);
   // Objects representing input for each request that can be queried to get
@@ -400,18 +379,21 @@ get_input_batches(
   // last indices of the corresponding requests are indicated by the second
   // element in each pair representing the batch.
   auto raw_batches =
-      get_raw_input_batches(backend_inputs, input_memory_type, buffer_counts);
+      get_raw_input_batches(backend_inputs, target_memory_type, buffer_counts);
 
   std::vector<InputBatch<T>> batches;
   batches.reserve(raw_batches.size());
 
   for (auto& raw_batch : raw_batches) {
     auto batch_shape = get_batch_shape(input_shapes, raw_batch.second);
+    std::vector<std::vector<int64_t>> batch_input_shapes(
+        input_shapes.begin() + raw_batch.second.first,
+        input_shapes.begin() + raw_batch.second.second);
     batches.emplace_back(
         TritonTensor<const T>(
             raw_batch.first, input_name, batch_shape, TritonDtype<T>::value,
-            cuda_stream),
-        std::move(raw_batch.second), std::move(input_shapes));
+            target_memory_type, cuda_stream),
+        std::move(raw_batch.second), std::move(batch_input_shapes));
   }
 
   return batches;
@@ -438,12 +420,11 @@ get_output_batch(
     std::vector<TRITONBACKEND_Response*>& responses,
     TRITONSERVER_MemoryType output_memory_type,
     const std::vector<std::vector<int64_t>>& tensor_shapes,
-    raft::handle_t& handle
+    std::optional<raft::handle_t>& handle
     // bool validate=false TODO
 )
 {
   bool validate = false;
-  cudaStream_t cuda_stream = handle.get_stream();
   // Name of output
   auto output_name = get_output_name(output_index, requests, validate);
   // Objects representing output for each request that can be queried to get
@@ -469,7 +450,7 @@ get_output_batch(
 
   return TritonTensor<T>(
       std::move(raw_buffers), output_name, total_output_shape,
-      TritonDtype<T>::value, handle);
+      TritonDtype<T>::value, output_memory_type, handle);
 }
 
 }}}  // namespace triton::backend::fil
