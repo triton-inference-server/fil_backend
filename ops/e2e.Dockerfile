@@ -133,7 +133,7 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && rm -rf /var/lib/apt/lists/*
 
 # Retrieve Triton server source
-ARG TRITON_VERSION=2.10.0
+ARG TRITON_VERSION=2.11.0
 RUN mkdir /src \
  && cd /src/ \
  && wget https://github.com/triton-inference-server/server/archive/refs/tags/v${TRITON_VERSION}.tar.gz \
