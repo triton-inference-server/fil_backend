@@ -1,4 +1,4 @@
-ARG TRITON_VERSION=21.04
+ARG TRITON_VERSION=21.06
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 
 FROM ${BASE_IMAGE} as base
@@ -49,7 +49,7 @@ RUN [ -d /opt/tritonserver/backends ] || mkdir -p /opt/tritonserver/backends
 RUN conda run --no-capture-output -n triton_dev \
    /triton_fil_backend/ops/build.sh \
  && cp -r /triton_fil_backend/build/install/backends/fil \
-   /opt/tritonserver/backends/fil \
+   /opt/tritonserver/backends \
  && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
  && conda run --no-capture-output -n triton_dev \
    /bin/bash /triton_fil_backend/ops/move_deps.sh \
