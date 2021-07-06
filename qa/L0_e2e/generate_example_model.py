@@ -291,7 +291,8 @@ def generate_config(
         predict_proba=False,
         task='classification',
         threshold=0.5,
-        batching_window=30000):
+        batching_window=30000,
+        max_batch_size=8192):
     """Return a string with the full Triton config.pbtxt for this model
     """
     if instance_kind == 'gpu':
@@ -312,7 +313,7 @@ def generate_config(
 
     return f"""name: "{model_name}"
 backend: "fil"
-max_batch_size: 8192
+max_batch_size: {max_batch_size}
 input [
  {{
     name: "input__0"
@@ -379,7 +380,8 @@ def build_model(
         model_name=None,
         classification_threshold=0.5,
         predict_proba=False,
-        batching_window=30000):
+        batching_window=30000,
+        max_batch_size=8192):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
 
@@ -447,7 +449,8 @@ def build_model(
         predict_proba=predict_proba,
         task=task,
         threshold=classification_threshold,
-        batching_window=batching_window
+        batching_window=batching_window,
+        max_batch_size=max_batch_size
     )
     config_path = os.path.join(config_dir, 'config.pbtxt')
 
@@ -541,6 +544,12 @@ def parse_args():
         help='window (in microseconds) for gathering batches',
         default=30000
     )
+    parser.add_argument(
+        '--max_batch_size',
+        type=int,
+        help='largest batch size allowed for this model',
+        default=8192
+    )
 
     return parser.parse_args()
 
@@ -562,5 +571,6 @@ if __name__ == '__main__':
         model_name=args.name,
         classification_threshold=args.threshold,
         predict_proba=args.predict_proba,
-        batching_window=args.batching_window
+        batching_window=args.batching_window,
+        max_batch_size=args.max_batch_size
     ))

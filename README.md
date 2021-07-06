@@ -51,9 +51,14 @@ pipelines.
 
 #### Pre-built container
 
-Pre-built Triton containers containing the FIL backend should eventually be
-available from NGC. In the meantime, you will need to build the container
-manually.
+Pre-built Triton containers are available from NGC and may be pulled down via
+
+```bash
+docker pull nvcr.io/nvidia/tritonserver:21.06.1-py3
+```
+
+Note that the FIL backend cannot be used in the `21.06` version of this
+container; the `21.06.1` patch release or later is required.
 
 #### Building locally
 
@@ -178,9 +183,7 @@ specific to FIL:
   general, FIL's efficient handling of even large forest models means that this
   value can be quite high (2^13 in the example), but this may need to be
   reduced for your particular hardware configuration if you find that you are
-  exhausting system resources (such as GPU or system RAM). (NOTE: Due to a
-  [current bug](https://github.com/wphicks/triton_fil_backend/issues/40), this
-  value should not be set to 16384 or higher.
+  exhausting system resources (such as GPU or system RAM).
 - `input`: This configuration block specifies information about the input
   arrays that will be provided to the FIL model. The `dims` field should be set
   to `[ NUMBER_OF_FEATURES ]`, but all other fields should be left as they
