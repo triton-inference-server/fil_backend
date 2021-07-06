@@ -183,9 +183,7 @@ specific to FIL:
   general, FIL's efficient handling of even large forest models means that this
   value can be quite high (2^13 in the example), but this may need to be
   reduced for your particular hardware configuration if you find that you are
-  exhausting system resources (such as GPU or system RAM). (NOTE: Due to a
-  [current bug](https://github.com/wphicks/triton_fil_backend/issues/40), this
-  value should not be set to 16384 or higher.
+  exhausting system resources (such as GPU or system RAM).
 - `input`: This configuration block specifies information about the input
   arrays that will be provided to the FIL model. The `dims` field should be set
   to `[ NUMBER_OF_FEATURES ]`, but all other fields should be left as they

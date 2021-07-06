@@ -118,6 +118,7 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --type cuml \
   --depth 3 \
   --trees 10 \
+  --max_batch_size 32768 \
   --features 500 \
   --task regression) )
 "$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
@@ -173,6 +174,9 @@ do
   if [ $i -eq 1 ]  # Test HTTP at most once because it is slower
   then
     python ${test_dir}/test_model.py --protocol http --name ${models[$i]}
+  elif [ ${models[$i]} = 'cuml' ]  # Test large inputs for just one model
+  then
+    python ${test_dir}/test_model.py --protocol grpc --name ${models[$i]} -b 32768
   else
     python ${test_dir}/test_model.py --protocol grpc --name ${models[$i]}
   fi
