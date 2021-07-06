@@ -60,10 +60,10 @@ FROM ${CUDA_IMAGE} AS base
 # NOTE: This file must be downloaded to the ops/stage directory by following
 # the directions at
 # https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html#downloading
-COPY ops/stage/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.0.3-ea-20210423_1-1_amd64.deb /tmp/tensorrt.deb
+COPY ops/stage/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.1.6-ga-20210626_1-1_amd64.deb /tmp/tensorrt.deb
 
 RUN dpkg -i /tmp/tensorrt.deb \
- && apt-key add /var/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.0.3-ea-20210423/7fa2af80.pub \
+ && apt-key add /var/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.1.6-ga-20210626/7fa2af80.pub \
  && apt-get update \
  && apt-get install -y \
     docker.io \
@@ -120,8 +120,12 @@ RUN apt-get update \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install CMake
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
+# Install CMake and DGCM
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin \
+ && mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
+ && apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub \
+ && add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" \
+ && wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
     | gpg --dearmor - \
     | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null \
  && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' \
@@ -129,6 +133,7 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && apt-get install -y --no-install-recommends \
     cmake-data=3.18.4-0kitware1ubuntu20.04.1 \
     cmake=3.18.4-0kitware1ubuntu20.04.1 \
+ && apt-get install -y datacenter-gpu-manager \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
