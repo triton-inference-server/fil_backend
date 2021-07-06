@@ -77,7 +77,8 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --depth 11 \
   --trees 2000 \
   --classes 3 \
-  --features 500) )
+  --features 500 \
+  --predict_proba) )
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost_json \
   --format xgboost_json \
