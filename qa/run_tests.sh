@@ -11,9 +11,9 @@ fi
 if [ $LOCAL -eq 1 ]
 then
   cd "$(git rev-parse --show-toplevel)"
-  log_dir=qa/logs
-  test_dir=qa/L0_e2e
-  script_dir=scripts
+  log_dir=$PWD/qa/logs
+  test_dir=$PWD/qa/L0_e2e
+  script_dir=$PWD/scripts
 else
   log_dir=/logs
   test_dir=/triton_fil/qa/L0_e2e
@@ -21,6 +21,31 @@ else
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
+
+model_repo="${test_dir}/model_repository"
+cpu_model_repo="${test_dir}/cpu_model_repository"
+
+[ -d $model_repo ] || mkdir $model_repo
+[ -d $cpu_model_repo ] || mkdir $cpu_model_repo
+
+convert_to_cpu() {
+  model_dir="${1}"
+  cpu_model_dir="${cpu_model_repo}/${model_dir}-cpu"
+  [ ! -d "$cpu_model_dir" ] || rm -r "$cpu_model_dir"
+  cp -r "${model_repo}/${model_dir}" "${cpu_model_dir}"
+
+  config_file="${cpu_model_dir}/config.pbtxt"
+
+  sed -i 's/KIND_GPU/KIND_CPU/g' "${config_file}"
+
+  name_line="$(grep '^name:' "${config_file}")"
+  name="${name_line%\"}"
+  name="${name#*\"}"
+  cpu_name="${name}-cpu"
+  sed -i "s/name:\ \"${name}\"/name:\ \"${cpu_name}\"/g" "${config_file}"
+
+  echo "${cpu_name}"
+}
 
 if [ $SHOW_ENV -eq 1 ]
 then
@@ -46,7 +71,7 @@ fi
 
 models=()
 
-echo 'Generating example models...'
+echo 'Generating gradient-boosted test models...'
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost \
   --depth 11 \
@@ -73,6 +98,14 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 10 \
   --task regression) )
 
+echo 'Generating CPU-only gradient-boosted models...'
+cpu_models=()
+for i in ${!models[@]}
+do
+  cpu_models+=( "$(convert_to_cpu "${models[$i]}")" )
+done
+
+echo 'Generating random forest test models...'
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name sklearn \
   --type sklearn \
@@ -90,22 +123,50 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --task regression) )
 "$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
 
-echo 'Starting Triton server...'
+function cleanup {
+  if [ ! -z $container ]
+  then
+    docker logs $container > $log_file 2>&1 || true
+    docker rm -f $container > /dev/null
+  fi
+  if [ ! -z $server_pid ]
+  then
+    count=0
+    while kill -0 $server_pid >/dev/null 2>&1
+    do
+      if [ $count -lt 20 ]
+      then
+        kill -15 $server_pid
+      else
+        kill -9 $server_pid
+      fi
+
+      if [ $count -gt 30 ]
+      then
+        echo 'ERROR: Server could not be shut down!'
+        kill -9 $server_pid
+        break
+      fi
+
+      ((count=count+1))
+      sleep 1
+    done
+  fi
+}
+
+trap cleanup EXIT
+
+echo 'Starting Triton server for GPU models...'
+log_file="$log_dir/gpu_tests.log"
 if [ $LOCAL -eq 1 ]
 then
-  container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v $PWD/qa/L0_e2e/model_repository/:/models ${TRITON_IMAGE} tritonserver --model-repository=/models)
-
-  function cleanup {
-    docker logs $container > $log_dir/local_container.log 2>&1
-    docker rm -f $container > /dev/null
-  }
-
-  trap cleanup EXIT
+  container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
 else
-  tritonserver --model-repository=${test_dir}/model_repository > /logs/server.log 2>&1 &
+  tritonserver --model-repository="${model_repo}" > /logs/server.log 2>&1 &
+  server_pid=$!
 fi
 
-echo 'Testing example models...'
+echo 'Testing GPU models...'
 for i in ${!models[@]}
 do
   echo "Starting tests of model ${models[$i]}..."
@@ -121,3 +182,40 @@ do
   fi
   echo "Model ${models[$i]} executed successfully"
 done
+
+echo 'Starting Triton server for CPU models...'
+cleanup
+log_file="$log_dir/cpu_tests.log"
+if [ $LOCAL -eq 1 ]
+then
+  container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$cpu_model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
+else
+  tritonserver --model-repository="${cpu_model_repo}" > /logs/server.log 2>&1 &
+  server_pid=$!
+fi
+
+echo 'Testing CPU models...'
+for i in ${!cpu_models[@]}
+do
+  echo "Starting tests of model ${cpu_models[$i]}..."
+  echo "Performance statistics for ${cpu_models[$i]}:"
+  python ${test_dir}/test_model.py --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+  echo "Model ${cpu_models[$i]} executed successfully"
+done
+
+echo 'Starting Triton server without GPU...'
+cleanup
+log_file="$log_dir/no_gpu_tests.log"
+if [ $LOCAL -eq 1 ]
+then
+  container=$(docker run -d -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$cpu_model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
+else
+  CUDA_VISIBLE_DEVICES="" tritonserver --model-repository="${cpu_model_repo}" > /logs/server.log 2>&1 &
+  server_pid=$!
+fi
+
+echo 'Testing CPU models without visible GPU...'
+echo "Starting tests of model ${cpu_models[0]} without visible GPU..."
+echo "Performance statistics for ${cpu_models[0]}:"
+python ${test_dir}/test_model.py --protocol grpc --name ${cpu_models[0]} --shared_mem None --repo "${cpu_model_repo}"
+echo "Model ${cpu_models[$i]} executed successfully"

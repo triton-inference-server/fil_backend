@@ -51,9 +51,14 @@ pipelines.
 
 #### Pre-built container
 
-Pre-built Triton containers containing the FIL backend should eventually be
-available from NGC. In the meantime, you will need to build the container
-manually.
+Pre-built Triton containers are available from NGC and may be pulled down via
+
+```bash
+docker pull nvcr.io/nvidia/tritonserver:21.06.1-py3
+```
+
+Note that the FIL backend cannot be used in the `21.06` version of this
+container; the `21.06.1` patch release or later is required.
 
 #### Building locally
 

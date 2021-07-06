@@ -27,8 +27,8 @@ option(TRITON_FIL_DOCKER_BUILD OFF)
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.04-py3" CACHE STRING "Build image for Dockerized builds")
-set(TRITON_BUILD_CONTAINER_VERSION "21.04" CACHE STRING "Triton version for Dockerized builds")
+set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.06-py3" CACHE STRING "Build image for Dockerized builds")
+set(TRITON_BUILD_CONTAINER_VERSION "21.06" CACHE STRING "Triton version for Dockerized builds")
 
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -40,7 +40,7 @@ endif()
 if(TRITON_FIL_DOCKER_BUILD)
   add_custom_command(
     OUTPUT fil/libtriton_fil.so fil/deps
-    COMMAND docker build -t triton_fil_builder --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION} --build-arg BASE_IMAGE=${TRITON_BUILD_CONTAINER} -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile ${CMAKE_CURRENT_LIST_DIR}
+    COMMAND docker build -t triton_fil_builder --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION} -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
     COMMAND docker create --name triton_fil_builder triton_fil_builder
     COMMAND rm -rf fil
@@ -105,6 +105,7 @@ else()
     src/config.cc
     src/enum_conversions.cc
     src/exceptions.cc
+    src/gtil_utils.cu
     src/model_instance_state.cu
     src/model_state.cc
     src/triton_utils.cc

@@ -3,6 +3,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 TRITON_VERSION="${TRITON_VERSION:-main}"
+PARALLEL="${PARALLEL:-$(nproc)}"
 
 CALVER_RE='^[0-9]+[.][0-9]+$'
 
@@ -24,7 +25,7 @@ cmake \
     -DTRITON_COMMON_REPO_TAG="${TRITON_VERSION}" \
     -DTRITON_CORE_REPO_TAG="${TRITON_VERSION}" \
     .. \
-  && make install
+  && make install -j${PARALLEL}
 status=$?
 popd > /dev/null 2>&1
 exit $status
