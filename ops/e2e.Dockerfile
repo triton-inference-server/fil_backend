@@ -142,18 +142,18 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && rm -rf /var/lib/apt/lists/*
 
 # Retrieve Triton server source
-ARG TRITON_VERSION=main
+ARG TRITON_BRANCH=main
 RUN mkdir /src \
  && cd /src/ \
- && git clone --depth 1 https://github.com/triton-inference-server/server.git -b $TRITON_VERSION server-${TRITON_VERSION} \
- && mkdir /src/server-${TRITON_VERSION}/build/output
+ && git clone --depth 1 https://github.com/triton-inference-server/server.git -b $TRITON_BRANCH server-${TRITON_BRANCH} \
+ && mkdir /src/server-${TRITON_BRANCH}/build/output
 
 RUN update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 9 \
  && update-alternatives --set cuda /usr/local/cuda-11.2
 
 # Build base Triton server
 ARG PARALLEL=4
-WORKDIR /src/server-${TRITON_VERSION}/build/output
+WORKDIR /src/server-${TRITON_BRANCH}/build/output
 RUN patch -ruN -d /usr/include/ < ../libdcgm/dcgm_api_export.patch
 RUN cmake .. \
  && make -j${PARALLEL} server \
@@ -199,8 +199,8 @@ FROM fil-base as fil-build-1
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
 ENV LIB_DIR=/opt/tritonserver/backends/fil/deps
 
-ARG TRITON_REPO_VERSION=main
-ENV TRITON_VERSION=$TRITON_REPO_VERSION
+ARG TRITON_BRANCH=main
+ENV TRITON_VERSION=$TRITON_BRANCH
 
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=$BUILD_TYPE
