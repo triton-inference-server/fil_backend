@@ -60,10 +60,10 @@ FROM ${CUDA_IMAGE} AS base
 # NOTE: This file must be downloaded to the ops/stage directory by following
 # the directions at
 # https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html#downloading
-COPY ops/stage/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.0.3-ea-20210423_1-1_amd64.deb /tmp/tensorrt.deb
+COPY ops/stage/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.1.6-ga-20210626_1-1_amd64.deb /tmp/tensorrt.deb
 
 RUN dpkg -i /tmp/tensorrt.deb \
- && apt-key add /var/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.0.3-ea-20210423/7fa2af80.pub \
+ && apt-key add /var/nv-tensorrt-repo-ubuntu2004-cuda11.3-trt8.0.1.6-ga-20210626/7fa2af80.pub \
  && apt-get update \
  && apt-get install -y \
     docker.io \
@@ -84,7 +84,17 @@ RUN dpkg -i /tmp/tensorrt.deb \
     python3-setuptools \
     software-properties-common \
     tensorrt \
+    wget \
  && rm /tmp/tensorrt.deb \
+ && apt clean \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin \
+ && mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
+ && apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub \
+ && add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" \
+ && apt-get update \
+ && apt-get install -y datacenter-gpu-manager \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
@@ -115,12 +125,11 @@ RUN apt-get update \
     rapidjson-dev \
     unzip \
     uuid-dev \
-    wget \
     zlib1g-dev \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install CMake
+# Install CMake and DGCM
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
     | gpg --dearmor - \
     | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null \
@@ -133,20 +142,19 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
  && rm -rf /var/lib/apt/lists/*
 
 # Retrieve Triton server source
-ARG TRITON_VERSION=2.11.0
+ARG TRITON_BRANCH=main
 RUN mkdir /src \
  && cd /src/ \
- && wget https://github.com/triton-inference-server/server/archive/refs/tags/v${TRITON_VERSION}.tar.gz \
- && tar -xzf v${TRITON_VERSION}.tar.gz \
- && rm v${TRITON_VERSION}.tar.gz \
- && mkdir /src/server-${TRITON_VERSION}/build/output
+ && git clone --depth 1 https://github.com/triton-inference-server/server.git -b $TRITON_BRANCH server-${TRITON_BRANCH} \
+ && mkdir /src/server-${TRITON_BRANCH}/build/output
 
 RUN update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 9 \
  && update-alternatives --set cuda /usr/local/cuda-11.2
 
 # Build base Triton server
 ARG PARALLEL=4
-WORKDIR /src/server-${TRITON_VERSION}/build/output
+WORKDIR /src/server-${TRITON_BRANCH}/build/output
+RUN patch -ruN -d /usr/include/ < ../libdcgm/dcgm_api_export.patch
 RUN cmake .. \
  && make -j${PARALLEL} server \
  && mkdir -p /opt/tritonserver/backends \
@@ -188,22 +196,35 @@ WORKDIR /triton_fil_backend
 FROM build as fil-build-0
 FROM fil-base as fil-build-1
 
-ARG TRITON_REPO_VERSION=main
-
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
-ENV LIB_DIR=/opt/lib/fil
-ENV TRITON_VERSION=$TRITON_REPO_VERSION
+ENV LIB_DIR=/opt/tritonserver/backends/fil/deps
+
+ARG TRITON_BRANCH=main
+ENV TRITON_VERSION=$TRITON_BRANCH
+
+ARG BUILD_TYPE=Release
+ENV BUILD_TYPE=$BUILD_TYPE
+
+RUN [ -d /opt/tritonserver/backends ] || mkdir -p /opt/tritonserver/backends
 
 # TODO: I am not sure why the lapack dependency is not picked up by ldd
 RUN conda run --no-capture-output -n triton_dev \
-    /bin/bash /triton_fil_backend/ops/build.sh \
-  && cp -r /triton_fil_backend/build/install/backends/fil \
-    /opt/tritonserver/backends/fil \
-  && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
-  && conda run --no-capture-output -n triton_dev \
-    /bin/bash /triton_fil_backend/ops/move_deps.sh \
-  && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 /opt/lib/fil \
-  && patchelf --set-rpath /opt/lib/fil "$FIL_LIB"
+   /triton_fil_backend/ops/build.sh \
+ && cp -r /triton_fil_backend/build/install/backends/fil \
+   /opt/tritonserver/backends \
+ && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
+ && conda run --no-capture-output -n triton_dev \
+   /bin/bash /triton_fil_backend/ops/move_deps.sh \
+ && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 "$LIB_DIR" \
+ && patchelf --set-rpath "$LIB_DIR" "$FIL_LIB"
+
+RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
+    then \
+      apt-get update \
+      && apt-get install -y gdb valgrind \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 FROM fil-build-${FIL} as fil-build
 
