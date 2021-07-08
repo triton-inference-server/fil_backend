@@ -14,5 +14,5 @@ then
   mkdir -p "${LIB_DIR}"
 fi
 
-deps_list=$(ldd "${FIL_LIB}" | grep "${CONDA_LIB_DIR}" | awk '{print $3}')
+deps_list=$(ldd "${FIL_LIB}" | grep "${CONDA_LIB_DIR}" | awk '{print $3}' | grep -v libcudart\.so)
 cp $deps_list "${LIB_DIR}"
