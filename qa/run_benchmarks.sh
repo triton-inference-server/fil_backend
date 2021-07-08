@@ -60,6 +60,8 @@ else
   tritonserver --model-repository=${test_dir}/model_repository > /logs/server.log 2>&1 &
 fi
 
+sleep 60
+
 echo 'Running benchmarks...'
 for i in ${!models[@]}
 do
