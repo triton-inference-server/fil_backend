@@ -68,7 +68,6 @@ RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
       && rm -rf /var/lib/apt/lists/*; \
     fi
 
-
 FROM ${BASE_IMAGE}
 
 # Remove existing FIL backend install
