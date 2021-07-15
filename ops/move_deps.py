@@ -9,6 +9,7 @@ from pathlib import Path
 MISSING_REGEX = re.compile(r'\n\t(.+)\ =>\ not\ found')
 FOUND_REGEX = re.compile(r'\n\t(.+)\ =>\ (.+)\ (\(0[xX][0-9a-fA-F]+\))')
 
+
 def ldd(path):
     """Get output of ldd for given file"""
     ldd_out = subprocess.run(
@@ -22,11 +23,13 @@ def get_missing_deps(ldd_output):
     for match in MISSING_REGEX.finditer(ldd_output):
         yield match.group(1)
 
+
 def path_contains(parent, child):
     """Check if first path contains the child path"""
     parent = os.path.abspath(parent)
     child = os.path.abspath(child)
-    return os.path.commonpath([parent]) == os.path.commonpath([parent, child])
+    return parent == os.path.commonpath([parent, child])
+
 
 def get_deps_map(ldd_output, required_dir=None):
     """Return dictionary mapping library names to paths"""
@@ -38,6 +41,17 @@ def get_deps_map(ldd_output, required_dir=None):
 
 
 def move_dependencies():
+    """Move FIL backend dependencies from conda build environment to install
+    directory
+
+    The FIL backend library is built within a a conda environment containing
+    all required shared libraries for deploying the backend. This function
+    analyzes ldd output to determine what libraries FIL links against in its
+    build environment as well as what libraries will be missing in the final
+    install location. It then moves missing libraries to the final install
+    location and repeats the analysis until it has satisfied as many missing
+    dependencies as possible.
+    """
     fil_lib = os.getenv('FIL_LIB', 'libtriton_fil.so')
     lib_dir = os.getenv('LIB_DIR', '/usr/lib')
 
