@@ -45,16 +45,20 @@ ENV BUILD_TYPE=$BUILD_TYPE
 
 RUN [ -d /opt/tritonserver/backends ] || mkdir -p /opt/tritonserver/backends
 
+# Remove potentially stale dependencies
+RUN if [ -d /opt/tritonserver/backends/fil ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/fil/*; \
+    fi
+
 # TODO: I am not sure why the lapack dependency is not picked up by ldd
 RUN conda run --no-capture-output -n triton_dev \
    /triton_fil_backend/ops/build.sh \
  && cp -r /triton_fil_backend/build/install/backends/fil \
    /opt/tritonserver/backends \
- && patchelf --set-rpath /root/miniconda3/envs/triton_dev/lib "$FIL_LIB" \
- && conda run --no-capture-output -n triton_dev \
-   /bin/bash /triton_fil_backend/ops/move_deps.sh \
- && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 "$LIB_DIR" \
- && patchelf --set-rpath "$LIB_DIR" "$FIL_LIB"
+&& conda run --no-capture-output -n triton_dev \
+  python3 /triton_fil_backend/ops/move_deps.py \
+ && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 "$LIB_DIR"
 
 RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
     then \
@@ -64,8 +68,13 @@ RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
       && rm -rf /var/lib/apt/lists/*; \
     fi
 
-
 FROM ${BASE_IMAGE}
+
+# Remove existing FIL backend install
+RUN if [ -d /opt/tritonserver/backends/fil ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/fil/*; \
+    fi
 
 COPY --from=build-stage \
   /opt/tritonserver/backends/fil \
