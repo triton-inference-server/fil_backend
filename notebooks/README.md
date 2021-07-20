@@ -10,15 +10,18 @@ This notebook is a reference for deploying a forest model trained using XGBoost 
 
 ## Run the Triton Inference Server container 
 
-To run this notebook, pull the Triton container as mentioned in the README of [Triton Inference Server FIL backend](https://github.com/triton-inference-server/fil_backend) Github repo. Before running the container, create a directory to store model and other artifacts called `/data` and then run the container with the following command:
+To run this notebook, pull the Triton container as mentioned in the README of [Triton Inference Server FIL backend](https://github.com/triton-inference-server/fil_backend) Github repo. Before running the container, clone the repository and then run the container:
 
 ```
+git clone https://github.com/triton-inference-server/fil_backend.git
+cd fil_backend/notebooks
+
 docker run \
   - it \
   --gpus=all \
   --rm \
   --net=host \
-  -v /data:/data \
+  -v $PWD:/data \
   nvcr.io/nvidia/tritonserver:<tag>    # Put the appropriate tag here
   
 ```
@@ -29,7 +32,8 @@ pip3 install jupyter notebook
 ```
 
 ## Starting Jupyter notebook
-Assuming the notebook is in `/data` folder,
-
-Start Jupyter notebook by running `jupyter notebook --allow-root --no-browser --port 7001`
-
+Change directory to `/data` folder and run the jupyter notebook:
+```
+cd /data
+jupyter notebook --allow-root --no-browser --port 7001
+```
