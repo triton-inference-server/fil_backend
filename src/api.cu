@@ -18,6 +18,8 @@
 #include <treelite/c_api.h>
 #include <raft/handle.hpp>
 
+#include <cstddef>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <thread>
@@ -163,6 +165,8 @@ TRITONBACKEND_ModelInstanceExecute(
     TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
     const uint32_t request_count)
 {
+  uint64_t all_start_time = std::chrono::steady_clock::now().time_since_epoch().count();
+  std::size_t total_inference_count = 0;
   std::vector<TRITONBACKEND_Response*> responses;
   try {
     auto instance_state = get_instance_state<ModelInstanceState>(*instance);
@@ -186,9 +190,12 @@ TRITONBACKEND_ModelInstanceExecute(
           static_cast<uint32_t>(0), requests, target_memory,
           instance_state->get_raft_handle());
       for (auto& batch : input_batches) {
+        uint64_t batch_start_time = std::chrono::steady_clock::now().time_since_epoch().count();
+
         std::vector<std::vector<int64_t>> output_shapes;
         output_shapes.reserve(batch.shapes.size());
         for (auto& input_shape : batch.shapes) {
+          total_inference_count += input_shape[0];
           std::vector<int64_t> output_shape{input_shape[0]};
           if (model_state->predict_proba) {
             output_shape.push_back(model_state->num_class());
@@ -206,19 +213,50 @@ TRITONBACKEND_ModelInstanceExecute(
           auto output_batch = get_output_batch<float>(
               static_cast<uint32_t>(0), batch_requests, responses,
               target_memory, output_shapes, instance_state->get_raft_handle());
+
+          uint64_t batch_compute_start_time = std::chrono::steady_clock::now().time_since_epoch().count();
           instance_state->predict(
               batch.data, output_batch, model_state->predict_proba);
+          uint64_t batch_compute_end_time = std::chrono::steady_clock::now().time_since_epoch().count();
 
           output_batch.sync();
           send_responses(responses);
           responses.clear();
           end_request = batch.extent.second;
+
+          try {
+            report_statistics(
+              *instance,
+              batch_requests,
+              true,
+              batch_start_time,
+              batch_compute_start_time,
+              batch_compute_end_time,
+              std::chrono::steady_clock::now().time_since_epoch().count()
+            );
+          } catch (TritonException& stat_err) {
+            // TODO: Log error
+          }
+
           release_requests(batch_requests);
         }
         catch (TritonException& request_err) {
           send_responses(responses, request_err.error());
           responses.clear();
           end_request = batch.extent.second;
+          try {
+            report_statistics(
+              *instance,
+              batch_requests,
+              false,
+              batch_start_time,
+              batch_start_time,
+              std::chrono::steady_clock::now().time_since_epoch().count(),
+              std::chrono::steady_clock::now().time_since_epoch().count()
+            );
+          } catch (TritonException& stat_err) {
+            // TODO: Log error
+          }
           release_requests(batch_requests);
         }
       }
@@ -233,8 +271,36 @@ TRITONBACKEND_ModelInstanceExecute(
       std::vector<TRITONBACKEND_Request*> requests(
           raw_requests + end_request, raw_requests + request_count);
       send_error_responses(requests, request_err.error());
+      uint64_t all_end_time = std::chrono::steady_clock::now().time_since_epoch().count();
+      try {
+        report_statistics(
+          *instance,
+          requests,
+          false,
+          all_start_time,
+          all_start_time,
+          all_end_time,
+          all_end_time
+        );
+      } catch (TritonException& stat_err) {
+        // TODO: Log error
+      }
       release_requests(requests);
       return request_err.error();
+    }
+
+    uint64_t all_end_time = std::chrono::steady_clock::now().time_since_epoch().count();
+    try {
+      report_statistics(
+        *instance,
+        total_inference_count,
+        all_start_time,
+        all_start_time,
+        all_end_time,
+        all_end_time
+      );
+    } catch (TritonException& stat_err) {
+      // TODO: Log error
     }
   }
   catch (TritonException& err) {

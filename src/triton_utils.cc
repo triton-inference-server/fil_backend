@@ -29,6 +29,7 @@
 #include <triton_fil/exceptions.h>
 #include <triton_fil/triton_utils.h>
 
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -208,6 +209,37 @@ release_requests(std::vector<TRITONBACKEND_Request*>& requests)
     LOG_IF_ERROR(
         TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
         "failed releasing request");
+  }
+}
+
+void
+report_statistics(
+    TRITONBACKEND_ModelInstance& instance,
+    std::vector<TRITONBACKEND_Request*>& requests, bool success,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time)
+{
+  for (auto request : requests) {
+    auto err = TRITONBACKEND_ModelInstanceReportStatistics(
+        &instance, request, success, start_time, compute_start_time,
+        compute_end_time, end_time);
+    if (err != nullptr) {
+      throw(TritonException(err));
+    }
+  }
+}
+
+void
+report_statistics(
+    TRITONBACKEND_ModelInstance& instance, std::size_t inference_count,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time)
+{
+  auto err = TRITONBACKEND_ModelInstanceReportBatchStatistics(
+      &instance, inference_count, start_time, compute_start_time,
+      compute_end_time, end_time);
+  if (err != nullptr) {
+    throw(TritonException(err));
   }
 }
 

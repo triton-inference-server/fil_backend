@@ -19,6 +19,7 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -134,4 +135,46 @@ void send_error_responses(
 /** Release requests */
 void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
 
+/** Report statistics for a group of requests
+ *
+ * @param instance The model instance which processed requests
+ * @param requests A vector of TRITONBACKEND_Request pointers which have been
+ * processed
+ * @param success Boolean indicating whether these requests were successfully
+ * processed
+ * @param start_time Timestamp at which processing of any kind first began on
+ * these requests
+ * @param compute_start_time Timestamp at which actual inference computations
+ * began on these requests
+ * @param compute_end_time Timestamp at which actual inference computations
+ * began on these requests
+ * @param end_time Timestamp at which last processing of any kind occurred on
+ * these requests
+ */
+void report_statistics(
+    TRITONBACKEND_ModelInstance& instance,
+    std::vector<TRITONBACKEND_Request*>& requests, bool success,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time);
+
+/** Report statistics for a Triton-defined batch of requests
+ *
+ * @param instance The model instance which processed requests
+ * @param requests A vector of TRITONBACKEND_Request pointers which have been
+ * processed
+ * @param success Boolean indicating whether these requests were successfully
+ * processed
+ * @param start_time Timestamp at which processing of any kind first began on
+ * these requests
+ * @param compute_start_time Timestamp at which actual inference computations
+ * began on these requests
+ * @param compute_end_time Timestamp at which actual inference computations
+ * began on these requests
+ * @param end_time Timestamp at which last processing of any kind occurred on
+ * these requests
+ */
+void report_statistics(
+    TRITONBACKEND_ModelInstance& instance, std::size_t inference_count,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time);
 }}}  // namespace triton::backend::fil
