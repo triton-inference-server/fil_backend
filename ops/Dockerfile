@@ -24,7 +24,8 @@ RUN conda env update -f /environment.yml \
     && rm /environment.yml \
     && conda clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
-    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
+    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete \
+    && rm /root/miniconda3/envs/triton_dev/lib/libstdc++.so*
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
@@ -56,8 +57,8 @@ RUN conda run --no-capture-output -n triton_dev \
    /triton_fil_backend/ops/build.sh \
  && cp -r /triton_fil_backend/build/install/backends/fil \
    /opt/tritonserver/backends \
-&& conda run --no-capture-output -n triton_dev \
-  python3 /triton_fil_backend/ops/move_deps.py \
+ && conda run --no-capture-output -n triton_dev \
+   python3 /triton_fil_backend/ops/move_deps.py \
  && cp /root/miniconda3/envs/triton_dev/lib/liblapack.so.3 "$LIB_DIR"
 
 RUN if [[ $BUILD_TYPE == 'Debug' ]]; \
