@@ -142,14 +142,14 @@ void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
  * processed
  * @param success Boolean indicating whether these requests were successfully
  * processed
- * @param start_time Timestamp at which processing of any kind first began on
- * these requests
- * @param compute_start_time Timestamp at which actual inference computations
- * began on these requests
- * @param compute_end_time Timestamp at which actual inference computations
- * began on these requests
- * @param end_time Timestamp at which last processing of any kind occurred on
- * these requests
+ * @param start_time Timestamp in nanoseconds since the epoch at which
+ * processing of any kind first began on these requests
+ * @param compute_start_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param compute_end_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param end_time Timestamp in nanoseconds since the epoch at which last
+ * processing of any kind occurred on these requests
  */
 void report_statistics(
     TRITONBACKEND_ModelInstance& instance,
@@ -164,14 +164,14 @@ void report_statistics(
  * processed
  * @param success Boolean indicating whether these requests were successfully
  * processed
- * @param start_time Timestamp at which processing of any kind first began on
- * these requests
- * @param compute_start_time Timestamp at which actual inference computations
- * began on these requests
- * @param compute_end_time Timestamp at which actual inference computations
- * began on these requests
- * @param end_time Timestamp at which last processing of any kind occurred on
- * these requests
+ * @param start_time Timestamp in nanoseconds since the epoch at which
+ * processing of any kind first began on these requests
+ * @param compute_start_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param compute_end_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param end_time Timestamp in nanoseconds since the epoch at which last
+ * processing of any kind occurred on these requests
  */
 void report_statistics(
     TRITONBACKEND_ModelInstance& instance, std::size_t inference_count,
