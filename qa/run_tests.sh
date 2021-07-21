@@ -183,6 +183,15 @@ do
   echo "Model ${models[$i]} executed successfully"
 done
 
+echo 'Testing statistics reporting...'
+if perf_analyzer -m "${models[0]}" | grep -q 'Inference count: [0-9]*[1-9][0-9]*'
+then
+  echo 'Statistics reported successfully.'
+else
+  echo 'Failure in statistics reporting!'
+  exit 1
+fi
+
 echo 'Starting Triton server for CPU models...'
 cleanup
 log_file="$log_dir/cpu_tests.log"
