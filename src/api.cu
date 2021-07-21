@@ -48,8 +48,9 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   try {
     std::string name = get_backend_name(*backend);
 
-    log_info(__FILE__, __LINE__, (std::string("TRITONBACKEND_Initialize: ") +
-          name).c_str());
+    log_info(
+        __FILE__, __LINE__,
+        (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
 
     if (!check_backend_version(*backend)) {
       return TRITONSERVER_ErrorNew(
@@ -72,10 +73,10 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
     uint64_t version = get_model_version(*model);
 
     log_info(
-      __FILE__,
-      __LINE__,
-      (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
-      std::to_string(version) + ")").c_str());
+        __FILE__, __LINE__,
+        (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
+         std::to_string(version) + ")")
+            .c_str());
 
     set_model_state(*model, ModelState::Create(*model));
   }
@@ -95,7 +96,8 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
       model_state->UnloadModel();
     }
 
-    log_info(__FILE__, __LINE__, "TRITONBACKEND_ModelFinalize: delete model state");
+    log_info(
+        __FILE__, __LINE__, "TRITONBACKEND_ModelFinalize: delete model state");
 
     delete model_state;
   }
@@ -114,10 +116,12 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
     int32_t device_id = get_device_id(*instance);
     TRITONSERVER_InstanceGroupKind kind = get_instance_kind(*instance);
 
-    log_info(__FILE__, __LINE__,
+    log_info(
+        __FILE__, __LINE__,
         (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
-        TRITONSERVER_InstanceGroupKindString(kind) + " device " +
-         std::to_string(device_id) + ")").c_str());
+         TRITONSERVER_InstanceGroupKindString(kind) + " device " +
+         std::to_string(device_id) + ")")
+            .c_str());
 
     ModelState* model_state = get_model_state<ModelState>(*instance);
 
@@ -142,7 +146,9 @@ TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
     if (instance_state != nullptr) {
       instance_state->UnloadFILModel();
 
-      log_info(__FILE__, __LINE__, "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
+      log_info(
+          __FILE__, __LINE__,
+          "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
 
       delete instance_state;
     }
