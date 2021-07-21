@@ -96,7 +96,7 @@ ModelInstanceState::ModelInstanceState(
   auto log_instance_kind = [](const char* kind, const char* name) {
     std::ostringstream oss;
     oss << "Using " << kind << " for predicting with model '" << name << "'";
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO, oss.str().c_str());
+    log_info(__FILE__, __LINE__, oss.str().c_str());
   };
 
   if (Kind() == TRITONSERVER_INSTANCEGROUPKIND_GPU) {

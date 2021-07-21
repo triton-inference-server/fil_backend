@@ -26,6 +26,30 @@
 
 namespace triton { namespace backend { namespace fil {
 
+// TODO: Update to accept std::string for all log functions
+
+/** Log message at indicated level */
+void log(
+    TRITONSERVER_LogLevel level, const char* filename, const int line,
+    const char* message);
+
+
+/** Log message at INFO level */
+void log_info(const char* filename, const int line, const char* message);
+
+
+/** Log message at WARN level */
+void log_warn(const char* filename, const int line, const char* message);
+
+
+/** Log message at ERROR level */
+void log_error(const char* filename, const int line, const char* message);
+
+
+/** Log message at VERBOSE level */
+void log_debug(const char* filename, const int line, const char* message);
+
+
 /** Get the name of the given backend */
 std::string get_backend_name(TRITONBACKEND_Backend& backend);
 

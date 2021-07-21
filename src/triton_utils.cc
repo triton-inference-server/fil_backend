@@ -35,6 +35,37 @@
 
 namespace triton { namespace backend { namespace fil {
 
+void
+log(TRITONSERVER_LogLevel level, const char* filename, const int line,
+    const char* message)
+{
+  triton_check(TRITONSERVER_LogMessage(level, filename, line, message));
+}
+
+void
+log_info(const char* filename, const int line, const char* message)
+{
+  log(TRITONSERVER_LOG_INFO, filename, line, message);
+}
+
+void
+log_warn(const char* filename, const int line, const char* message)
+{
+  log(TRITONSERVER_LOG_WARN, filename, line, message);
+}
+
+void
+log_error(const char* filename, const int line, const char* message)
+{
+  log(TRITONSERVER_LOG_ERROR, filename, line, message);
+}
+
+void
+log_debug(const char* filename, const int line, const char* message)
+{
+  log(TRITONSERVER_LOG_VERBOSE, filename, line, message);
+}
+
 std::string
 get_backend_name(TRITONBACKEND_Backend& backend)
 {
