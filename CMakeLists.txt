@@ -40,7 +40,7 @@ endif()
 if(TRITON_FIL_DOCKER_BUILD)
   add_custom_command(
     OUTPUT fil/libtriton_fil.so fil/deps
-    COMMAND docker build -t triton_fil_builder --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION} -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile ${CMAKE_CURRENT_LIST_DIR}
+    COMMAND docker build -t triton_fil_builder --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION} --build-arg BUILD_TYPE=${CMAKE_BUILD_TYPE} -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
     COMMAND docker create --name triton_fil_builder triton_fil_builder
     COMMAND rm -rf fil
