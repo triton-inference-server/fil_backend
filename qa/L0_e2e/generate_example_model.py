@@ -291,7 +291,7 @@ def generate_config(
         predict_proba=False,
         task='classification',
         threshold=0.5,
-        batching_window=30000,
+        batching_window=100,
         max_batch_size=8192):
     """Return a string with the full Triton config.pbtxt for this model
     """
@@ -361,7 +361,6 @@ parameters [
 ]
 
 dynamic_batching {{
-  preferred_batch_size: [1, 2, 4, 8, 16, 32, 64, 128, 1024, 2048, 4096, 8192]
   max_queue_delay_microseconds: {batching_window}
 }}"""
 
@@ -380,7 +379,7 @@ def build_model(
         model_name=None,
         classification_threshold=0.5,
         predict_proba=False,
-        batching_window=30000,
+        batching_window=100,
         max_batch_size=8192):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
@@ -542,7 +541,7 @@ def parse_args():
         '--batching_window',
         type=int,
         help='window (in microseconds) for gathering batches',
-        default=30000
+        default=100
     )
     parser.add_argument(
         '--max_batch_size',
