@@ -19,11 +19,36 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace triton { namespace backend { namespace fil {
+
+// TODO: Update to accept std::string for all log functions
+
+/** Log message at indicated level */
+void log(
+    TRITONSERVER_LogLevel level, const char* filename, const int line,
+    const char* message);
+
+
+/** Log message at INFO level */
+void log_info(const char* filename, const int line, const char* message);
+
+
+/** Log message at WARN level */
+void log_warn(const char* filename, const int line, const char* message);
+
+
+/** Log message at ERROR level */
+void log_error(const char* filename, const int line, const char* message);
+
+
+/** Log message at VERBOSE level */
+void log_debug(const char* filename, const int line, const char* message);
+
 
 /** Get the name of the given backend */
 std::string get_backend_name(TRITONBACKEND_Backend& backend);
@@ -134,4 +159,46 @@ void send_error_responses(
 /** Release requests */
 void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
 
+/** Report statistics for a group of requests
+ *
+ * @param instance The model instance which processed requests
+ * @param requests A vector of TRITONBACKEND_Request pointers which have been
+ * processed
+ * @param success Boolean indicating whether these requests were successfully
+ * processed
+ * @param start_time Timestamp in nanoseconds since the epoch at which
+ * processing of any kind first began on these requests
+ * @param compute_start_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param compute_end_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param end_time Timestamp in nanoseconds since the epoch at which last
+ * processing of any kind occurred on these requests
+ */
+void report_statistics(
+    TRITONBACKEND_ModelInstance& instance,
+    std::vector<TRITONBACKEND_Request*>& requests, bool success,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time);
+
+/** Report statistics for a Triton-defined batch of requests
+ *
+ * @param instance The model instance which processed requests
+ * @param requests A vector of TRITONBACKEND_Request pointers which have been
+ * processed
+ * @param success Boolean indicating whether these requests were successfully
+ * processed
+ * @param start_time Timestamp in nanoseconds since the epoch at which
+ * processing of any kind first began on these requests
+ * @param compute_start_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param compute_end_time Timestamp in nanoseconds since the epoch at which
+ * actual inference computations began on these requests
+ * @param end_time Timestamp in nanoseconds since the epoch at which last
+ * processing of any kind occurred on these requests
+ */
+void report_statistics(
+    TRITONBACKEND_ModelInstance& instance, std::size_t inference_count,
+    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
+    uint64_t end_time);
 }}}  // namespace triton::backend::fil
