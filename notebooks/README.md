@@ -31,8 +31,7 @@ docker run \
 
 Now open up another terminal and copy the notebook from host into the container as follows:
 ```
-export CONTAINERID=$(docker ps -aqf "name=triton_fil")
-docker cp notebooks/ $CONTAINERID:/
+docker cp notebooks/ triton_fil:/
 ```
 
 ## Starting Jupyter notebook
