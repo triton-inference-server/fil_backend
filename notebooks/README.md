@@ -12,7 +12,7 @@ This notebook is a reference for deploying a forest model trained using XGBoost 
 
 **Note:** Due to a bug in release 21.07, Triton's `model_analyzer` cannot be used with the FIL backend until 21.08 is finalized. **Until then, you will need to build locally rather than pulling a pre-built container.** In the meantime, please follow [the instructions](https://github.com/triton-inference-server/fil_backend#building-locally) in the top-level README to build a development version of the 21.08 release.
 
-To run this notebook, pull the Triton container or build the container locally as mentioned in the README of [Triton Inference Server FIL backend](https://github.com/triton-inference-server/fil_backend#pre-built-container) Github repo. Before running the container, clone the repository and then run the container:
+Before running the container, clone the repository and then run the container:
 
 ```
 git clone https://github.com/triton-inference-server/fil_backend.git
