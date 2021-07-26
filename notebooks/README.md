@@ -10,30 +10,39 @@ This notebook is a reference for deploying a forest model trained using XGBoost 
 
 ## Run the Triton Inference Server container 
 
-**Note:** Please build the container locally inorder to use `model_analyzer` until the 21.08 release.
+**Note:** Due to a bug in release 21.07, Triton's `model_analyzer` cannot be used with the FIL backend until 21.08 is finalized. **Until then, you will need to build locally rather than pulling a pre-built container.** In the meantime, please follow [the instructions](https://github.com/triton-inference-server/fil_backend#building-locally) in the top-level README to build a development version of the 21.08 release.
 
 To run this notebook, pull the Triton container or build the container locally as mentioned in the README of [Triton Inference Server FIL backend](https://github.com/triton-inference-server/fil_backend#pre-built-container) Github repo. Before running the container, clone the repository and then run the container:
 
 ```
 git clone https://github.com/triton-inference-server/fil_backend.git
-cd fil_backend/notebooks
+cd fil_backend
 
 docker run \
   -it \
   --gpus=all \
   --rm \
   --net=host \
-  -v $PWD:/notebook \                    
+  --name triton_fil
   nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
 ```
-**Note:** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, either make sure you have `sudo` access on host machine or copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.
 
-## Install Jupyter notebook inside the Triton container
+**Note:** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.
+
+Now open up another terminal and copy the notebook from host into the container as follows:
 ```
-pip3 install jupyter
+export CONTAINERID=$(docker ps -aqf "name=triton_fil")
+docker cp notebooks/ $CONTAINERID:/
 ```
 
 ## Starting Jupyter notebook
+In the previous terminal perform the following steps:
+
+### Install Jupyter notebook inside the Triton container
+```
+pip3 install jupyter
+```
+### Run Jupyter notebook inside the Triton container
 Change directory to `/notebook` folder and run the jupyter notebook:
 ```
 cd /notebook
