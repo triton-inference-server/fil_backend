@@ -10,7 +10,7 @@ This notebook is a reference for deploying a forest model trained using XGBoost 
 
 ## Run the Triton Inference Server container 
 
-** Note: ** Please build the container locally inorder to use `model_analyzer` until the 21.08 release.
+**Note:** Please build the container locally inorder to use `model_analyzer` until the 21.08 release.
 
 To run this notebook, pull the Triton container or build the container locally as mentioned in the README of [Triton Inference Server FIL backend](https://github.com/triton-inference-server/fil_backend#pre-built-container) Github repo. Before running the container, clone the repository and then run the container:
 
@@ -26,7 +26,7 @@ docker run \
   -v $PWD:/notebook \                    
   nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
 ```
-** Note: ** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, either make sure you have `sudo` access on host machine or copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.
+**Note:** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, either make sure you have `sudo` access on host machine or copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.
 
 ## Install Jupyter notebook inside the Triton container
 ```
