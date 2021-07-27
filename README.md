@@ -169,8 +169,7 @@ parameters [
 ]
 
 dynamic_batching {
-  preferred_batch_size: [1, 2, 4, 8, 16, 32, 64, 128, 1024, 8192]
-  max_queue_delay_microseconds: 30000
+  max_queue_delay_microseconds: 100
 }
 ```
 
@@ -230,10 +229,8 @@ specific to FIL:
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
   documentation](https://github.com/triton-inference-server/server/blob/master/docs/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/perf_analyzer.md) in order to optimize performance.
-  * `preferred_batch_size`: A list of preferred values for the number of
-    samples to process in a single batch.
   * `max_queue_delay_microseconds`: How long of a window in which requests can
-    be accumulated to form a batch of a preferred size.
+    be accumulated to form a batch.
 
 Note that the configuration is in protobuf format. If invalid protobuf is
 provided, the model will fail to load, and you will see an error line in the
