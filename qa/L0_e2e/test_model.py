@@ -35,6 +35,94 @@ STANDARD_PORTS = {
 }
 
 
+def arrays_close(
+        a,
+        b,
+        atol=None,
+        rtol=None,
+        total_atol=None,
+        total_rtol=None,
+        assert_close=False):
+    """
+    Compare numpy arrays for approximate equality
+
+    :param numpy.array a: The array to compare against a reference value
+    :param numpy.array b: The reference array to compare against
+    :param float atol: The maximum absolute difference allowed between an
+        element in a and an element in b before they are considered non-close.
+        If both atol and rtol are set to None, atol is assumed to be 0. If atol
+        is set to None and rtol is not None, no absolute threshold is used in
+        comparisons.
+    :param float rtol: The maximum relative difference allowed between an
+        element in a and an element in b before they are considered non-close.
+        If rtol is set to None, no relative threshold is used in comparisons.
+    :param int total_atol: The maximum number of elements allowed to be
+        non-close before the arrays are considered non-close.
+    :param float total_rtol: The maximum proportion of elements allowed to be
+        non-close before the arrays are considered non-close.
+    """
+
+    if np.any(a.shape != b.shape):
+        if assert_close:
+            raise AssertionError(
+                "Arrays have different shapes:\n{} vs. {}".format(
+                    a.shape, b.shape
+                )
+            )
+        return False
+
+    if a.size == 0 and b.size == 0:
+        return True
+
+    if atol is None and rtol is None:
+        atol = 0
+    if total_atol is None and total_rtol is None:
+        total_atol = 0
+
+    diff_mask = np.ones(a.shape, dtype='bool')
+
+    diff = np.abs(a-b)
+
+    if atol is not None:
+        diff_mask = np.logical_and(diff_mask, diff > atol)
+
+    if rtol is not None:
+        diff_mask = np.logical_and(diff_mask, diff > rtol * np.abs(b))
+
+    is_close = True
+
+    mismatch_count = np.sum(diff_mask)
+
+    if total_atol is not None and mismatch_count > total_atol:
+        is_close = False
+
+    mismatch_proportion = mismatch_count / a.size
+    if total_rtol is not None and mismatch_proportion > total_rtol:
+        is_close = False
+
+    if assert_close and not is_close:
+        total_tol_desc = []
+        if total_atol is not None:
+            total_tol_desc.append(str(int(total_atol)))
+        if total_rtol is not None:
+            total_tol_desc.append(
+                "{:.2f} %".format(total_rtol * 100)
+            )
+        total_tol_desc = " or ".join(total_tol_desc)
+
+        msg = """Arrays have more than {} mismatched elements.
+
+Mismatch in {} ({:.2f} %) elements
+ a: {}
+ b: {}
+
+ Mismatched indices: {}""".format(
+            total_tol_desc, mismatch_count, mismatch_proportion * 100, a, b,
+            np.transpose(np.nonzero(diff_mask)))
+        raise AssertionError(msg)
+    return is_close
+
+
 class TritonMessage:
     """Adapter to read output from both GRPC and HTTP responses"""
     def __init__(self, message):
@@ -352,7 +440,7 @@ def run_test(
     if None in shared_mem:
         triton_result, _ = triton_predict(
             model_name,
-            total_batch[0: 1],
+            total_batch[0: 5],
             model_version=model_version,
             protocol='http',
             host=host,
@@ -361,13 +449,18 @@ def run_test(
             predict_proba=predict_proba,
             num_classes=num_classes
         )
-        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
-                                       decimal=3)
+        arrays_close(
+            triton_result,
+            fil_result[0: 5],
+            atol=1.5e-3,
+            total_atol=2,
+            assert_close=True
+        )
 
     if 'cuda' in shared_mem:
         triton_result, _ = triton_predict(
             model_name,
-            total_batch[0: 1],
+            total_batch[0: 5],
             model_version=model_version,
             protocol='grpc',
             host=host,
@@ -376,8 +469,13 @@ def run_test(
             predict_proba=predict_proba,
             num_classes=num_classes
         )
-        np.testing.assert_almost_equal(triton_result, fil_result[0: 1],
-                                       decimal=3)
+        arrays_close(
+            triton_result,
+            fil_result[0: 5],
+            atol=1.5e-3,
+            total_atol=2,
+            assert_close=True
+        )
 
     # Perform multi-threaded tests
     def predict_networked(arr):
@@ -469,6 +567,8 @@ def run_test(
     throughput = len(batch_sizes) * total_rows / total
     per_sample = 1 / throughput
 
+    all_triton_results = np.zeros(fil_result.shape, dtype=fil_result.dtype)
+
     request_latency = 0
     row_latency = 0
     for indices, (triton_result, batch_latency) in results:
@@ -480,11 +580,17 @@ def run_test(
             raise RuntimeError(
                 f'Prediction failed with error:\n\n{error_msg}'
             )
-        np.testing.assert_almost_equal(
-            triton_result, fil_result[indices[0]: indices[1]], decimal=3
-        )
+        all_triton_results[indices[0]: indices[1]] = triton_result
         request_latency += batch_latency
         row_latency += batch_latency / (indices[1] - indices[0])
+
+    arrays_close(
+        all_triton_results,
+        fil_result,
+        atol=1.5e-3,
+        total_rtol=0.001,
+        assert_close=True
+    )
 
     request_latency /= len(results)
     row_latency /= len(results)
