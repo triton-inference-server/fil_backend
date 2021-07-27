@@ -27,8 +27,8 @@ option(TRITON_FIL_DOCKER_BUILD OFF)
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.06-py3" CACHE STRING "Build image for Dockerized builds")
-set(TRITON_BUILD_CONTAINER_VERSION "21.06" CACHE STRING "Triton version for Dockerized builds")
+set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.07-py3" CACHE STRING "Build image for Dockerized builds")
+set(TRITON_BUILD_CONTAINER_VERSION "21.07" CACHE STRING "Triton version for Dockerized builds")
 
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
