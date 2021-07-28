@@ -20,9 +20,7 @@
 
 #include <type_traits>
 
-namespace triton {
-namespace backend {
-namespace fil {
+namespace triton { namespace backend { namespace fil {
 
 template <typename T, typename F>
 T

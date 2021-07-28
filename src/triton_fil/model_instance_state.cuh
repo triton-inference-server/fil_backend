@@ -64,14 +64,13 @@ class ModelInstanceState : public BackendModelInstance {
       typename std::iterator_traits<Iter>::value_type,
       TRITONBACKEND_Request*>::value>
   report_statistics(
-      Iter requests_begin, Iter requests_end, bool success,
-      uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
-      uint64_t end_time){
+      Iter requests_begin, Iter requests_end, bool success, uint64_t start_time,
+      uint64_t compute_start_time, uint64_t compute_end_time, uint64_t end_time)
+  {
     try {
       triton::backend::fil::report_statistics(
-        *triton_model_instance_, requests_begin, requests_end, success,
-        start_time, compute_start_time, compute_end_time, end_time
-      );
+          *triton_model_instance_, requests_begin, requests_end, success,
+          start_time, compute_start_time, compute_end_time, end_time);
     }
     catch (TritonException& stat_err) {
       log_error(__FILE__, __LINE__, stat_err.what());
@@ -79,8 +78,9 @@ class ModelInstanceState : public BackendModelInstance {
   }
 
   void report_statistics(
-      std::size_t inference_count, uint64_t start_time, uint64_t
-      compute_start_time, uint64_t compute_end_time, uint64_t end_time);
+      std::size_t inference_count, uint64_t start_time,
+      uint64_t compute_start_time, uint64_t compute_end_time,
+      uint64_t end_time);
 
  private:
   ModelState* model_state_;

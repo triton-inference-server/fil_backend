@@ -184,7 +184,8 @@ TRITONBACKEND_ModelInstanceExecute(
     input_batches = get_input_batches<float>(
         static_cast<uint32_t>(0), requests, target_memory,
         instance_state->get_raft_handle());
-  } catch (TritonException& setup_err) {
+  }
+  catch (TritonException& setup_err) {
     return setup_err.error();
   }
 
@@ -196,10 +197,8 @@ TRITONBACKEND_ModelInstanceExecute(
    * since the epoch to the beginning and end of prediction respectively. If
    * std::optional is std::nullopt, prediction has failed and timing values
    * would have no meaning */
-  auto instance_predict = [&](
-      decltype(*input_batches.begin())& input_batch,
-      TritonTensor<float>& output_batch
-  ){
+  auto instance_predict = [&](decltype(*input_batches.begin())& input_batch,
+                              TritonTensor<float>& output_batch) {
     uint64_t start_time =
         std::chrono::steady_clock::now().time_since_epoch().count();
     instance_state->predict(
@@ -217,12 +216,11 @@ TRITONBACKEND_ModelInstanceExecute(
     std::vector<std::vector<int64_t>> output_shapes;
     output_shapes.reserve(batch.shapes.size());
     std::transform(
-      batch.shapes.begin(),
-      batch.shapes.end(),
-      std::back_inserter(output_shapes),
-      [&] (decltype(*batch.shapes.begin())& input_shape) { return
-      model_state->get_output_shape(input_shape);}
-    );
+        batch.shapes.begin(), batch.shapes.end(),
+        std::back_inserter(output_shapes),
+        [&](decltype(*batch.shapes.begin())& input_shape) {
+          return model_state->get_output_shape(input_shape);
+        });
     return output_shapes;
   };
 
@@ -233,28 +231,30 @@ TRITONBACKEND_ModelInstanceExecute(
    *
    * This lambda is guaranteed to send a response for each request in the batch
    */
-  auto respond_to_requests = [&](decltype(*input_batches.begin())& batch, decltype(requests.begin()) requests_begin,
-      decltype(requests.begin()) requests_end) {
-      auto responses = construct_responses(requests_begin, requests_end);
-      // TODO: Avoid constructing this vector; pass iterators instead
-      std::vector<std::remove_reference<decltype(*requests_begin)>::type>
+  auto respond_to_requests = [&](decltype(*input_batches.begin())& batch,
+                                 decltype(requests.begin()) requests_begin,
+                                 decltype(requests.begin()) requests_end) {
+    auto responses = construct_responses(requests_begin, requests_end);
+    // TODO: Avoid constructing this vector; pass iterators instead
+    std::vector<std::remove_reference<decltype(*requests_begin)>::type>
         batch_requests(requests_begin, requests_end);
-      std::optional<std::pair<uint64_t, uint64_t>> timings{std::nullopt};
+    std::optional<std::pair<uint64_t, uint64_t>> timings{std::nullopt};
 
-      try {
-        auto output_batch = get_output_batch<float>(
-            static_cast<uint32_t>(0), batch_requests, responses,
-            target_memory, get_output_shapes(batch), instance_state->get_raft_handle());
+    try {
+      auto output_batch = get_output_batch<float>(
+          static_cast<uint32_t>(0), batch_requests, responses, target_memory,
+          get_output_shapes(batch), instance_state->get_raft_handle());
 
-        timings = instance_predict(batch, output_batch);
+      timings = instance_predict(batch, output_batch);
 
-        send_responses(responses);
-      } catch (TritonException& predict_err) {
-        // Respond with error message on failure
-        send_responses(responses, predict_err.error());
-      }
+      send_responses(responses);
+    }
+    catch (TritonException& predict_err) {
+      // Respond with error message on failure
+      send_responses(responses, predict_err.error());
+    }
 
-      return timings;
+    return timings;
   };
 
   /* Perform all processing for a single batch, add the number of samples to
@@ -263,7 +263,8 @@ TRITONBACKEND_ModelInstanceExecute(
    * and releasing requests. This lambda is guaranteed to send some response
    * for each request, report statistics, and release all requests in the batch
    * regardless of other failures */
-  auto process_batch = [&](std::size_t processed_count, decltype(*input_batches.begin())& batch) {
+  auto process_batch = [&](std::size_t processed_count,
+                           decltype(*input_batches.begin())& batch) {
     uint64_t batch_start_time =
         std::chrono::steady_clock::now().time_since_epoch().count();
 
@@ -273,19 +274,23 @@ TRITONBACKEND_ModelInstanceExecute(
     decltype(get_output_shapes(batch)) output_shapes;
     try {
       output_shapes = get_output_shapes(batch);
-    } catch (TritonException& setup_err) {
+    }
+    catch (TritonException& setup_err) {
       // Always report statistics, send *some* response, and release
       // requests for this batch
       uint64_t now =
-        std::chrono::steady_clock::now().time_since_epoch().count();
+          std::chrono::steady_clock::now().time_since_epoch().count();
       instance_state->report_statistics(
-          batch_requests_begin, batch_requests_end, false, batch_start_time, now, now, now);
-      send_error_responses(batch_requests_begin, batch_requests_end, setup_err.error());
+          batch_requests_begin, batch_requests_end, false, batch_start_time,
+          now, now, now);
+      send_error_responses(
+          batch_requests_begin, batch_requests_end, setup_err.error());
       release_requests(batch_requests_begin, batch_requests_end);
       return processed_count;
     }
 
-    auto timings = respond_to_requests(batch, batch_requests_begin, batch_requests_end);
+    auto timings =
+        respond_to_requests(batch, batch_requests_begin, batch_requests_end);
 
     auto batch_compute_start_time = uint64_t{0};
     auto batch_compute_end_time = uint64_t{0};
@@ -294,16 +299,15 @@ TRITONBACKEND_ModelInstanceExecute(
       batch_compute_start_time = timings->first;
       batch_compute_end_time = timings->second;
       processed_count = std::accumulate(
-        output_shapes.begin(), output_shapes.end(), processed_count,
-        [](std::size_t sum, decltype(*output_shapes.begin())& shape) {
-          return sum + *shape.begin();
-        }
-      );
+          output_shapes.begin(), output_shapes.end(), processed_count,
+          [](std::size_t sum, decltype(*output_shapes.begin())& shape) {
+            return sum + *shape.begin();
+          });
     }
 
     instance_state->report_statistics(
-        batch_requests_begin, batch_requests_end, timings.has_value(), batch_start_time,
-        batch_compute_start_time, batch_compute_end_time,
+        batch_requests_begin, batch_requests_end, timings.has_value(),
+        batch_start_time, batch_compute_start_time, batch_compute_end_time,
         std::chrono::steady_clock::now().time_since_epoch().count());
 
     release_requests(batch_requests_begin, batch_requests_end);
@@ -313,15 +317,16 @@ TRITONBACKEND_ModelInstanceExecute(
 
   // END: Lambda definitions for processing individual batches
 
-  auto total_inference_count = std::accumulate(input_batches.begin(),
-      input_batches.end(), std::size_t{0}, process_batch);
+  auto total_inference_count = std::accumulate(
+      input_batches.begin(), input_batches.end(), std::size_t{0},
+      process_batch);
 
   uint64_t all_end_time =
       std::chrono::steady_clock::now().time_since_epoch().count();
 
   instance_state->report_statistics(
-    total_inference_count, all_start_time, all_start_time,
-    all_end_time, all_end_time);
+      total_inference_count, all_start_time, all_start_time, all_end_time,
+      all_end_time);
 
   return nullptr;  // success
 }

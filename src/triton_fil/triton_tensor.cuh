@@ -89,14 +89,13 @@ class TritonTensor {
       const std::vector<int64_t>& shape, TRITONSERVER_DataType dtype,
       TRITONSERVER_MemoryType target_memory, cudaStream_t stream)
       : name_{name}, shape_{shape}, dtype_{[&]() {
-        if (dtype != TritonDtype<non_const_T>::value) {
-          throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Unexpected data type for tensor"
-          );
-        }
-        return dtype;
-      }()},
+          if (dtype != TritonDtype<non_const_T>::value) {
+            throw TritonException(
+                TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                "Unexpected data type for tensor");
+          }
+          return dtype;
+        }()},
         size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
         is_owner_{buffers.size() > 1  // non-contiguous
                   || buffers[0].memory_type != target_memory},
@@ -136,14 +135,13 @@ class TritonTensor {
       TRITONSERVER_MemoryType target_memory,
       std::optional<raft::handle_t>& handle)
       : name_{name}, shape_{shape}, dtype_{[&]() {
-        if (dtype != TritonDtype<non_const_T>::value) {
-          throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Unexpected data type for tensor"
-          );
-        }
-        return dtype;
-      }()},
+          if (dtype != TritonDtype<non_const_T>::value) {
+            throw TritonException(
+                TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+                "Unexpected data type for tensor");
+          }
+          return dtype;
+        }()},
         size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
         is_owner_{buffers.size() > 1  // non-contiguous
                   || buffers[0].memory_type != target_memory},
