@@ -16,7 +16,7 @@ docker run \
   -v "${REPO_ROOT}:/triton_fil_backend" \
   -v triton-ccache:/root/.ccache \
   -v triton-build:/triton_fil_backend/build \
-  -v /home/whicks/proj_cuml_triton/server/docs/examples/model_repository:/models \
+  -v "${REPO_ROOT}/qa/L0_e2e/model_repository:/models" \
   triton_dev
 
 popd > /dev/null 2>&1
