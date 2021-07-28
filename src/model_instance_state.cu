@@ -21,9 +21,11 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/model_state.h>
 #include <triton_fil/gtil_utils.cuh>
+#include <triton_fil/triton_utils.h>
 
 #include <treelite/c_api.h>
 #include <treelite/tree.h>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <raft/handle.hpp>
@@ -121,4 +123,17 @@ ModelInstanceState::UnloadFILModel()
   }
 }
 
+void ModelInstanceState::report_statistics(
+    std::size_t inference_count, uint64_t start_time, uint64_t
+    compute_start_time, uint64_t compute_end_time, uint64_t end_time) {
+  try {
+    triton::backend::fil::report_statistics(
+      *triton_model_instance_, inference_count, start_time, compute_start_time,
+      compute_end_time, end_time
+    );
+  }
+  catch (TritonException& stat_err) {
+    log_error(__FILE__, __LINE__, stat_err.what());
+  }
+}
 }}}  // namespace triton::backend::fil

@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace triton { namespace backend { namespace fil {
 //
@@ -53,9 +54,10 @@ class ModelState : public BackendModel {
       const uint64_t version);
 
   size_t num_class();
+  std::vector<int64_t> get_output_shape(std::vector<int64_t> input_shape);
 
  private:
-  size_t num_class_;  // C++17: Use std::optional
+  size_t num_class_;
 };
 
 }}}  // namespace triton::backend::fil
