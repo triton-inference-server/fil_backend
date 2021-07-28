@@ -4,3 +4,4 @@ ops/stage
 qa/L0_e2e/model_repository
 qa/L0_e2e/cpu_model_repository
 qa/logs
+*.ipynb_checkpoints*

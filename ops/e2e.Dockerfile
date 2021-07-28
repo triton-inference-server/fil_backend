@@ -154,7 +154,6 @@ RUN update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 9 \
 # Build base Triton server
 ARG PARALLEL=4
 WORKDIR /src/server-${TRITON_BRANCH}/build/output
-RUN patch -ruN -d /usr/include/ < ../libdcgm/dcgm_api_export.patch
 RUN cmake .. \
  && make -j${PARALLEL} server \
  && mkdir -p /opt/tritonserver/backends \
