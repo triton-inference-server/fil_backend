@@ -33,6 +33,8 @@ COPY ./ /triton_fil_backend
 
 WORKDIR /triton_fil_backend
 
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_dev", "bash"]
+
 FROM base as build-stage
 
 ENV FIL_LIB=/opt/tritonserver/backends/fil/libtriton_fil.so
