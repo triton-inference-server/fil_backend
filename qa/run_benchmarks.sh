@@ -18,7 +18,30 @@ else
   script_dir=/triton_fil/scripts
 fi
 
+model_repo="${test_dir}/model_repository"
+cpu_model_repo="${model_repo}"
+
 [ -d $log_dir ] || mkdir $log_dir
+[ -d $model_repo ] || mkdir $model_repo
+
+convert_to_cpu() {
+  model_dir="${1}"
+  cpu_model_dir="${cpu_model_repo}/${model_dir}-cpu"
+  [ ! -d "$cpu_model_dir" ] || rm -r "$cpu_model_dir"
+  cp -r "${model_repo}/${model_dir}" "${cpu_model_dir}"
+
+  config_file="${cpu_model_dir}/config.pbtxt"
+
+  sed -i 's/KIND_GPU/KIND_CPU/g' "${config_file}"
+
+  name_line="$(grep '^name:' "${config_file}")"
+  name="${name_line%\"}"
+  name="${name#*\"}"
+  cpu_name="${name}-cpu"
+  sed -i "s/name:\ \"${name}\"/name:\ \"${cpu_name}\"/g" "${config_file}"
+
+  echo "${cpu_name}"
+}
 
 models=()
 
@@ -44,6 +67,11 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --features 512 \
   --samples 2048 \
   --task classification) )
+
+# for i in ${!models[@]}
+# do
+#   models+=( "$(convert_to_cpu "${models[$i]}")" )
+# done
 
 echo 'Starting Triton server...'
 if [ $LOCAL -eq 1 ]
