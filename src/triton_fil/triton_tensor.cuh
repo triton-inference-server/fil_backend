@@ -221,12 +221,17 @@ class TritonTensor {
             "Failed stream synchronization in TritonTensor sync");
       }
     }
+    auto tmp_buffer = std::make_unique<std::byte[]>(size_bytes_);
+    memory_copy(
+        tmp_buffer.get(), head, size_bytes_, stream_, TRITONSERVER_MEMORY_CPU,
+        target_memory_);
+    auto tmp_head = tmp_buffer.get();
     for (auto& out_buffer : final_buffers) {
       memory_copy(
-          reinterpret_cast<std::byte*>(out_buffer.data), head,
+          reinterpret_cast<std::byte*>(out_buffer.data), tmp_head,
           out_buffer.size_bytes, stream_, out_buffer.memory_type,
-          target_memory_);
-      head += out_buffer.size_bytes;
+          TRITONSERVER_MEMORY_CPU);
+      tmp_head += out_buffer.size_bytes;
     }
   }
 
