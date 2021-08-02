@@ -197,8 +197,7 @@ TRITONBACKEND_ModelInstanceExecute(
    * since the epoch to the beginning and end of prediction respectively. If
    * std::optional is std::nullopt, prediction has failed and timing values
    * would have no meaning */
-  auto instance_predict = [&](decltype(*input_batches.begin())& input_batch,
-                              TritonTensor<float>& output_batch) {
+  auto instance_predict = [&](auto& input_batch, auto& output_batch) {
     uint64_t start_time =
         std::chrono::steady_clock::now().time_since_epoch().count();
     instance_state->predict(
@@ -212,13 +211,12 @@ TRITONBACKEND_ModelInstanceExecute(
 
   /* Given a vector of input batches, return a vector of vectors representing
    * the output shape of each batch */
-  auto get_output_shapes = [&](decltype(*input_batches.begin())& batch) {
+  auto get_output_shapes = [&](auto& batch) {
     std::vector<std::vector<int64_t>> output_shapes;
     output_shapes.reserve(batch.shapes.size());
     std::transform(
         batch.shapes.begin(), batch.shapes.end(),
-        std::back_inserter(output_shapes),
-        [&](decltype(*batch.shapes.begin())& input_shape) {
+        std::back_inserter(output_shapes), [&](auto& input_shape) {
           return model_state->get_output_shape(input_shape);
         });
     return output_shapes;
@@ -263,8 +261,7 @@ TRITONBACKEND_ModelInstanceExecute(
    * and releasing requests. This lambda is guaranteed to send some response
    * for each request, report statistics, and release all requests in the batch
    * regardless of other failures */
-  auto process_batch = [&](std::size_t processed_count,
-                           decltype(*input_batches.begin())& batch) {
+  auto process_batch = [&](auto processed_count, auto& batch) {
     uint64_t batch_start_time =
         std::chrono::steady_clock::now().time_since_epoch().count();
 
@@ -300,9 +297,7 @@ TRITONBACKEND_ModelInstanceExecute(
       batch_compute_end_time = timings->second;
       processed_count = std::accumulate(
           output_shapes.begin(), output_shapes.end(), processed_count,
-          [](std::size_t sum, decltype(*output_shapes.begin())& shape) {
-            return sum + *shape.begin();
-          });
+          [](auto sum, auto& shape) { return sum + *shape.begin(); });
     }
 
     instance_state->report_statistics(
