@@ -22,6 +22,7 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/triton_utils.h>
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -53,11 +54,11 @@ class ModelState : public BackendModel {
       TRITONBACKEND_Model* triton_model, const char* name,
       const uint64_t version);
 
-  size_t num_class();
+  std::size_t num_class();
   std::vector<int64_t> get_output_shape(std::vector<int64_t> input_shape);
 
  private:
-  size_t num_class_;
+  std::size_t num_class_;
 };
 
 }}}  // namespace triton::backend::fil
