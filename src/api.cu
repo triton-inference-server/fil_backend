@@ -265,8 +265,8 @@ TRITONBACKEND_ModelInstanceExecute(
    * for each request, report statistics, and release all requests in the batch
    * regardless of other failures */
   auto process_batch = [&](auto processed_count, auto& batch) {
-    uint64_t batch_start_time =
-        std::chrono::steady_clock::now().time_since_epoch().count();
+    auto batch_start_time =
+        uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
 
     auto batch_requests_begin = requests.begin() + batch.extent.first;
     auto batch_requests_end = requests.begin() + batch.extent.second;
@@ -278,8 +278,8 @@ TRITONBACKEND_ModelInstanceExecute(
     catch (TritonException& setup_err) {
       // Always report statistics, send *some* response, and release
       // requests for this batch
-      uint64_t now =
-          std::chrono::steady_clock::now().time_since_epoch().count();
+      auto now =
+          uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
       instance_state->report_statistics(
           batch_requests_begin, batch_requests_end, false, batch_start_time,
           now, now, now);
@@ -319,8 +319,8 @@ TRITONBACKEND_ModelInstanceExecute(
       input_batches.begin(), input_batches.end(), std::size_t{0},
       process_batch);
 
-  uint64_t all_end_time =
-      std::chrono::steady_clock::now().time_since_epoch().count();
+  auto all_end_time =
+      uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
 
   instance_state->report_statistics(
       total_inference_count, all_start_time, all_start_time, all_end_time,
