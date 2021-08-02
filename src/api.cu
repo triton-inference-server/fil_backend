@@ -168,22 +168,26 @@ TRITONBACKEND_ModelInstanceExecute(
     TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
     const uint32_t request_count)
 {
-  uint64_t all_start_time =
-      std::chrono::steady_clock::now().time_since_epoch().count();
+  auto all_start_time =
+      uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
 
-  std::vector<TRITONBACKEND_Request*> requests(
+  auto requests = std::vector<TRITONBACKEND_Request*>(
       raw_requests, raw_requests + request_count);
 
   auto instance_state = get_instance_state<ModelInstanceState>(*instance);
   auto model_state = instance_state->StateForModel();
   auto target_memory = get_native_memory_for_instance(instance_state->Kind());
 
+  auto construct_input_batches = [&](){
+    return get_input_batches<float>(
+      uint32_t{0}, requests, target_memory,
+      instance_state->get_raft_handle());
+  };
+
   // Get all input data and bail out gracefully if this fails
-  std::vector<InputBatch<float>> input_batches;
+  decltype(construct_input_batches()) input_batches;
   try {
-    input_batches = get_input_batches<float>(
-        static_cast<uint32_t>(0), requests, target_memory,
-        instance_state->get_raft_handle());
+    input_batches = construct_input_batches();
   }
   catch (TritonException& setup_err) {
     return setup_err.error();
@@ -198,12 +202,12 @@ TRITONBACKEND_ModelInstanceExecute(
    * std::optional is std::nullopt, prediction has failed and timing values
    * would have no meaning */
   auto instance_predict = [&](auto& input_batch, auto& output_batch) {
-    uint64_t start_time =
-        std::chrono::steady_clock::now().time_since_epoch().count();
+    auto start_time =
+        uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
     instance_state->predict(
         input_batch.data, output_batch, model_state->predict_proba);
-    uint64_t end_time =
-        std::chrono::steady_clock::now().time_since_epoch().count();
+    auto end_time =
+        uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
     output_batch.sync();
     return std::pair<uint64_t, uint64_t>{start_time, end_time};
   };
@@ -229,14 +233,13 @@ TRITONBACKEND_ModelInstanceExecute(
    *
    * This lambda is guaranteed to send a response for each request in the batch
    */
-  auto respond_to_requests = [&](decltype(*input_batches.begin())& batch,
+  auto respond_to_requests = [&](auto& batch,
                                  decltype(requests.begin()) requests_begin,
                                  decltype(requests.begin()) requests_end) {
     auto responses = construct_responses(requests_begin, requests_end);
     // TODO: Avoid constructing this vector; pass iterators instead
-    std::vector<std::remove_reference<decltype(*requests_begin)>::type>
-        batch_requests(requests_begin, requests_end);
-    std::optional<std::pair<uint64_t, uint64_t>> timings{std::nullopt};
+    auto batch_requests = std::vector<std::remove_reference<decltype(*requests_begin)>::type>(requests_begin, requests_end);
+    auto timings = std::optional<std::pair<uint64_t, uint64_t>>{std::nullopt};
 
     try {
       auto output_batch = get_output_batch<float>(
