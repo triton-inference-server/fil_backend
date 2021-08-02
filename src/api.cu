@@ -209,7 +209,7 @@ TRITONBACKEND_ModelInstanceExecute(
     auto end_time =
         uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
     output_batch.sync();
-    return std::pair<uint64_t, uint64_t>{start_time, end_time};
+    return std::make_pair(start_time, end_time);
   };
 
 
