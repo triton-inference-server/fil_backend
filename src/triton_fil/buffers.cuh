@@ -15,7 +15,7 @@
  */
 
 #pragma once
-#include <raft/cudart_utils.h>
+#include <rmm/mr/device/per_device_resource.hpp>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
@@ -41,10 +41,10 @@ product(const std::vector<T>& array)
  */
 template <typename T>
 T*
-allocate_device_memory(size_t count)
+allocate_device_memory(size_t count, cudaStream_t stream)
 {
-  T* ptr_d;
-  raft::allocate(ptr_d, count);
+  T* ptr_d = static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
+    sizeof(T) * count, stream));
   return ptr_d;
 }
 
