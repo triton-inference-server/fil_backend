@@ -173,6 +173,9 @@ dynamic_batching {
 }
 ```
 
+**NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
+and output. Attempting to use any other type will result in an error.
+
 For a full description of the configuration schema, see the Triton [server
 docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).
 Here, we will simply summarize the most commonly-used options and those
