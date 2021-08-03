@@ -54,7 +54,7 @@ pipelines.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:21.06.1-py3
+docker pull nvcr.io/nvidia/tritonserver:21.07-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -172,6 +172,9 @@ dynamic_batching {
   max_queue_delay_microseconds: 100
 }
 ```
+
+**NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
+and output. Attempting to use any other type will result in an error.
 
 For a full description of the configuration schema, see the Triton [server
 docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).

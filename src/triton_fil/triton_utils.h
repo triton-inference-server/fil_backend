@@ -19,7 +19,10 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
 
+#include <algorithm>
+#include <cassert>
 #include <chrono>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -143,8 +146,27 @@ get_instance_state(TRITONBACKEND_ModelInstance& instance)
 }
 
 /** Construct empty response objects for given requests */
-std::vector<TRITONBACKEND_Response*> construct_responses(
-    std::vector<TRITONBACKEND_Request*>& requests);
+template <class Iter>
+typename std::enable_if_t<
+    std::is_same<
+        typename std::iterator_traits<Iter>::value_type,
+        TRITONBACKEND_Request*>::value,
+    std::vector<TRITONBACKEND_Response*>>
+construct_responses(Iter requests_begin, Iter requests_end)
+{
+  std::vector<TRITONBACKEND_Response*> responses;
+  auto requests_size = std::distance(requests_begin, requests_end);
+  assert(requests_size > 0);
+  responses.reserve(requests_size);
+  std::transform(
+      requests_begin, requests_end, std::back_inserter(responses),
+      [](TRITONBACKEND_Request* request) {
+        TRITONBACKEND_Response* response;
+        triton_check(TRITONBACKEND_ResponseNew(&response, request));
+        return response;
+      });
+  return responses;
+}
 
 /** Send responses */
 void send_responses(
@@ -153,17 +175,36 @@ void send_responses(
 
 /** Convenience method for sending error responses for a batch of requests
  * whose responses have not yet been constructed */
-void send_error_responses(
-    std::vector<TRITONBACKEND_Request*>& requests, TRITONSERVER_Error* err);
+template <class Iter>
+typename std::enable_if_t<std::is_same<
+    typename std::iterator_traits<Iter>::value_type,
+    TRITONBACKEND_Request*>::value>
+send_error_responses(
+    Iter requests_begin, Iter requests_end, TRITONSERVER_Error* err)
+{
+  auto responses = construct_responses(requests_begin, requests_end);
+  send_responses(responses, err);
+}
 
 /** Release requests */
-void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
+template <class Iter>
+typename std::enable_if_t<std::is_same<
+    typename std::iterator_traits<Iter>::value_type,
+    TRITONBACKEND_Request*>::value>
+release_requests(Iter begin, Iter end)
+{
+  std::for_each(begin, end, [](decltype(*begin) request) {
+    LOG_IF_ERROR(
+        TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
+        "failed releasing request");
+  });
+}
 
 /** Report statistics for a group of requests
  *
  * @param instance The model instance which processed requests
- * @param requests A vector of TRITONBACKEND_Request pointers which have been
- * processed
+ * @param requests_begin Iterator to first processed request
+ * @param requests_end Iterator one past last processed request
  * @param success Boolean indicating whether these requests were successfully
  * processed
  * @param start_time Timestamp in nanoseconds since the epoch at which
@@ -175,11 +216,25 @@ void release_requests(std::vector<TRITONBACKEND_Request*>& requests);
  * @param end_time Timestamp in nanoseconds since the epoch at which last
  * processing of any kind occurred on these requests
  */
-void report_statistics(
-    TRITONBACKEND_ModelInstance& instance,
-    std::vector<TRITONBACKEND_Request*>& requests, bool success,
-    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
-    uint64_t end_time);
+template <class Iter>
+typename std::enable_if_t<std::is_same<
+    typename std::iterator_traits<Iter>::value_type,
+    TRITONBACKEND_Request*>::value>
+report_statistics(
+    TRITONBACKEND_ModelInstance& instance, Iter requests_begin,
+    Iter requests_end, bool success, uint64_t start_time,
+    uint64_t compute_start_time, uint64_t compute_end_time, uint64_t end_time)
+{
+  std::for_each(
+      requests_begin, requests_end, [&](TRITONBACKEND_Request* request) {
+        auto err = TRITONBACKEND_ModelInstanceReportStatistics(
+            &instance, request, success, start_time, compute_start_time,
+            compute_end_time, end_time);
+        if (err != nullptr) {
+          throw(TritonException(err));
+        }
+      });
+}
 
 /** Report statistics for a Triton-defined batch of requests
  *

@@ -1,4 +1,4 @@
-ARG TRITON_VERSION=21.06
+ARG TRITON_VERSION=21.07
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 
 FROM ${BASE_IMAGE} as base
@@ -32,6 +32,8 @@ ENV PYTHONDONTWRITEBYTECODE=false
 COPY ./ /triton_fil_backend
 
 WORKDIR /triton_fil_backend
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_dev", "bash"]
 
 FROM base as build-stage
 

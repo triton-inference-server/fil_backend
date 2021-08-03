@@ -19,10 +19,12 @@
 #include <triton/backend/backend_model.h>
 #include <triton_fil/config.h>
 #include <triton_fil/model_state.h>
+#include <triton_fil/narrow.h>
 
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace triton { namespace backend { namespace fil {
 
@@ -143,6 +145,16 @@ ModelState::num_class()
         "Model not yet loaded");
   }
   return num_class_;
+}
+
+std::vector<int64_t>
+ModelState::get_output_shape(std::vector<int64_t> input_shape)
+{
+  if (predict_proba) {
+    return {input_shape[0], narrow<int64_t>(num_class())};
+  } else {
+    return {input_shape[0]};
+  }
 }
 
 }}}  // namespace triton::backend::fil
