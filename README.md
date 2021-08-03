@@ -258,7 +258,7 @@ docker run \
 #### Submitting inference requests
 General examples for submitting inference requests to a Triton server are
 available
-[here](https://github.com/triton-inference-server/server/blob/master/docs/client_examples.md).
+[here](https://github.com/triton-inference-server/client/#triton-client-libraries-and-examples).
 For convenience, we provide the following example code for using the Python
 client to submit inference requests to a FIL model deployed on a Triton server
 on the local machine:
