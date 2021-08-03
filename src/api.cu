@@ -233,14 +233,13 @@ TRITONBACKEND_ModelInstanceExecute(
    *
    * This lambda is guaranteed to send a response for each request in the batch
    */
-  auto respond_to_requests = [&](auto& batch,
-                                 auto requests_begin,
+  auto respond_to_requests = [&](auto& batch, auto requests_begin,
                                  auto requests_end) {
     auto responses = construct_responses(requests_begin, requests_end);
     // TODO: Avoid constructing this vector; pass iterators instead
-    auto batch_requests =
-        std::vector<typename std::remove_reference<decltype(*requests_begin)>::type>(
-            requests_begin, requests_end);
+    auto batch_requests = std::vector<
+        typename std::remove_reference<decltype(*requests_begin)>::type>(
+        requests_begin, requests_end);
     auto timings = std::optional<std::pair<uint64_t, uint64_t>>{std::nullopt};
 
     try {
