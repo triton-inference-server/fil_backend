@@ -178,10 +178,10 @@ TRITONBACKEND_ModelInstanceExecute(
   auto model_state = instance_state->StateForModel();
   auto target_memory = get_native_memory_for_instance(instance_state->Kind());
 
-  auto construct_input_batches = [&](){
+  auto construct_input_batches = [&]() {
     return get_input_batches<float>(
-      uint32_t{0}, requests, target_memory,
-      instance_state->get_raft_handle());
+        uint32_t{0}, requests, target_memory,
+        instance_state->get_raft_handle());
   };
 
   // Get all input data and bail out gracefully if this fails
@@ -238,7 +238,9 @@ TRITONBACKEND_ModelInstanceExecute(
                                  decltype(requests.begin()) requests_end) {
     auto responses = construct_responses(requests_begin, requests_end);
     // TODO: Avoid constructing this vector; pass iterators instead
-    auto batch_requests = std::vector<std::remove_reference<decltype(*requests_begin)>::type>(requests_begin, requests_end);
+    auto batch_requests =
+        std::vector<std::remove_reference<decltype(*requests_begin)>::type>(
+            requests_begin, requests_end);
     auto timings = std::optional<std::pair<uint64_t, uint64_t>>{std::nullopt};
 
     try {
