@@ -174,8 +174,8 @@ TRITONBACKEND_ModelInstanceExecute(
   auto requests = std::vector<TRITONBACKEND_Request*>(
       raw_requests, raw_requests + request_count);
 
-  auto instance_state = get_instance_state<ModelInstanceState>(*instance);
-  auto model_state = instance_state->StateForModel();
+  auto* instance_state = get_instance_state<ModelInstanceState>(*instance);
+  auto* model_state = instance_state->StateForModel();
   auto target_memory = get_native_memory_for_instance(instance_state->Kind());
 
   auto construct_input_batches = [&]() {
@@ -234,18 +234,18 @@ TRITONBACKEND_ModelInstanceExecute(
    * This lambda is guaranteed to send a response for each request in the batch
    */
   auto respond_to_requests = [&](auto& batch,
-                                 decltype(requests.begin()) requests_begin,
-                                 decltype(requests.begin()) requests_end) {
+                                 auto requests_begin,
+                                 auto requests_end) {
     auto responses = construct_responses(requests_begin, requests_end);
     // TODO: Avoid constructing this vector; pass iterators instead
     auto batch_requests =
-        std::vector<std::remove_reference<decltype(*requests_begin)>::type>(
+        std::vector<typename std::remove_reference<decltype(*requests_begin)>::type>(
             requests_begin, requests_end);
     auto timings = std::optional<std::pair<uint64_t, uint64_t>>{std::nullopt};
 
     try {
       auto output_batch = get_output_batch<float>(
-          static_cast<uint32_t>(0), batch_requests, responses, target_memory,
+          uint32_t{0}, batch_requests, responses, target_memory,
           get_output_shapes(batch), instance_state->get_raft_handle());
 
       timings = instance_predict(batch, output_batch);
