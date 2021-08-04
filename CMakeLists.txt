@@ -93,6 +93,7 @@ else()
   message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
 
   find_package(Treelite 1.3.0 REQUIRED)
+  find_package(RMM 21.06.00 REQUIRED)
 
   #
   # Shared library implementing the Triton Backend API
@@ -145,6 +146,7 @@ else()
     PUBLIC
       treelite::treelite
       ${CUML_LIBRARY}
+      rmm::rmm
     PRIVATE
       triton-backend-utils    # from repo-backend
       triton-core-serverstub  # from repo-core
