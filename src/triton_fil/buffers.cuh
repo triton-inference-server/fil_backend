@@ -43,7 +43,7 @@ template <typename T>
 T*
 allocate_device_memory(size_t count, cudaStream_t stream)
 {
-  T* ptr_d = static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
+  auto* ptr_d = static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
     sizeof(T) * count, stream));
   return ptr_d;
 }
