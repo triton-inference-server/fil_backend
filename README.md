@@ -173,6 +173,9 @@ dynamic_batching {
 }
 ```
 
+**NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
+and output. Attempting to use any other type will result in an error.
+
 For a full description of the configuration schema, see the Triton [server
 docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).
 Here, we will simply summarize the most commonly-used options and those
@@ -255,7 +258,7 @@ docker run \
 #### Submitting inference requests
 General examples for submitting inference requests to a Triton server are
 available
-[here](https://github.com/triton-inference-server/server/blob/master/docs/client_examples.md).
+[here](https://github.com/triton-inference-server/client/#triton-client-libraries-and-examples).
 For convenience, we provide the following example code for using the Python
 client to submit inference requests to a FIL model deployed on a Triton server
 on the local machine:

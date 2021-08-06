@@ -31,6 +31,7 @@
 
 #include <chrono>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace triton { namespace backend { namespace fil {
@@ -199,64 +200,23 @@ get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
   return model;
 }
 
-std::vector<TRITONBACKEND_Response*>
-construct_responses(std::vector<TRITONBACKEND_Request*>& requests)
-{
-  std::vector<TRITONBACKEND_Response*> responses;
-  responses.reserve(requests.size());
-
-  for (auto& request : requests) {
-    TRITONBACKEND_Response* response;
-    triton_check(TRITONBACKEND_ResponseNew(&response, request));
-    responses.push_back(response);
-  }
-  return responses;
-}
-
 void
 send_responses(
     std::vector<TRITONBACKEND_Response*>& responses, TRITONSERVER_Error* err)
 {
   for (auto& response : responses) {
+    decltype(err) err_copy;
+    if (err != nullptr) {
+      err_copy = TRITONSERVER_ErrorNew(
+          TRITONSERVER_ErrorCode(err), TRITONSERVER_ErrorMessage(err));
+    } else {
+      err_copy = err;
+    }
+
     LOG_IF_ERROR(
         TRITONBACKEND_ResponseSend(
-            response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err),
+            response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err_copy),
         "failed sending response");
-  }
-}
-
-void
-send_error_responses(
-    std::vector<TRITONBACKEND_Request*>& requests, TRITONSERVER_Error* err)
-{
-  auto responses = construct_responses(requests);
-  send_responses(responses, err);
-}
-
-void
-release_requests(std::vector<TRITONBACKEND_Request*>& requests)
-{
-  for (auto& request : requests) {
-    LOG_IF_ERROR(
-        TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL),
-        "failed releasing request");
-  }
-}
-
-void
-report_statistics(
-    TRITONBACKEND_ModelInstance& instance,
-    std::vector<TRITONBACKEND_Request*>& requests, bool success,
-    uint64_t start_time, uint64_t compute_start_time, uint64_t compute_end_time,
-    uint64_t end_time)
-{
-  for (auto request : requests) {
-    auto err = TRITONBACKEND_ModelInstanceReportStatistics(
-        &instance, request, success, start_time, compute_start_time,
-        compute_end_time, end_time);
-    if (err != nullptr) {
-      throw(TritonException(err));
-    }
   }
 }
 
