@@ -90,9 +90,8 @@ class TritonTensor {
       TRITONSERVER_MemoryType target_memory, cudaStream_t stream)
       : name_{name}, shape_{shape}, dtype_{dtype_},
         size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
-        is_owner_{
-            buffers.size() > 1  // non-contiguous
-            || buffers[0].memory_type != target_memory},
+        is_owner_{buffers.size() > 1  // non-contiguous
+                  || buffers[0].memory_type != target_memory},
         stream_{stream}, buffer{[&] {
           // TODO (whicks): Consider explicitly managed host memory
           if (is_owner_) {
@@ -130,9 +129,8 @@ class TritonTensor {
       std::optional<raft::handle_t>& handle)
       : name_{name}, shape_{shape}, dtype_{dtype_},
         size_bytes_{sizeof(T) * product(shape_)}, target_memory_{target_memory},
-        is_owner_{
-            buffers.size() > 1  // non-contiguous
-            || buffers[0].memory_type != target_memory},
+        is_owner_{buffers.size() > 1  // non-contiguous
+                  || buffers[0].memory_type != target_memory},
         stream_{(handle ? handle->get_stream() : 0)}, buffer{[&] {
           if (is_owner_) {
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
