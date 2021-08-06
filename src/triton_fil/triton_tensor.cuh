@@ -20,6 +20,7 @@
 #include <triton/core/tritonserver.h>
 #include <triton_fil/dtype.h>
 #include <triton_fil/exceptions.h>
+
 #include <cstddef>
 #include <cstdlib>
 #include <string>
@@ -104,7 +105,7 @@ class TritonTensor {
           if (is_owner_) {
             std::byte* ptr_d = nullptr;
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
-              ptr_d = allocate_device_memory<std::byte>(size_bytes_);
+              ptr_d = allocate_device_memory<std::byte>(size_bytes_, stream_);
             } else if (target_memory == TRITONSERVER_MEMORY_CPU) {
               ptr_d = static_cast<std::byte*>(std::malloc(size_bytes_));
             } else {
@@ -148,8 +149,7 @@ class TritonTensor {
         stream_{(handle ? handle->get_stream() : 0)}, buffer{[&] {
           if (is_owner_) {
             if (target_memory == TRITONSERVER_MEMORY_GPU) {
-              return allocate_device_memory<non_const_T>(
-                  size_bytes_ / sizeof(non_const_T));
+              return allocate_device_memory<non_const_T>(size_bytes_, stream_);
             } else {
               return static_cast<non_const_T*>(std::malloc(size_bytes_));
             }
@@ -182,7 +182,7 @@ class TritonTensor {
         is_owner_{true}, stream_{other.stream_}, buffer{[&] {
           non_const_T* ptr_d;
           if (other.target_memory_ == TRITONSERVER_MEMORY_GPU) {
-            ptr_d = allocate_device_memory<non_const_T>(other.size());
+            ptr_d = allocate_device_memory<non_const_T>(other.size(), stream_);
           } else {
             ptr_d = static_cast<non_const_T*>(
                 std::malloc(other.size() * sizeof(non_const_T)));
