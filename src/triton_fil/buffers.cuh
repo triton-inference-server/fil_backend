@@ -15,11 +15,12 @@
  */
 
 #pragma once
-#include <rmm/mr/device/per_device_resource.hpp>
 #include <triton/backend/backend_common.h>
 #include <triton/core/tritonserver.h>
 #include <triton_fil/exceptions.h>
+
 #include <numeric>
+#include <rmm/mr/device/per_device_resource.hpp>
 #include <string>
 #include <vector>
 
@@ -43,8 +44,9 @@ template <typename T>
 T*
 allocate_device_memory(size_t count, cudaStream_t stream)
 {
-  auto* ptr_d = static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
-    sizeof(T) * count, stream));
+  auto* ptr_d =
+      static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
+          sizeof(T) * count, stream));
   return ptr_d;
 }
 
