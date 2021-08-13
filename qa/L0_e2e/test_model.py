@@ -17,6 +17,7 @@ import os
 import pickle
 import threading
 import traceback
+import warnings
 from queue import Queue, Empty
 from time import perf_counter, time
 from uuid import uuid4
@@ -329,6 +330,7 @@ def run_test(
         shared_mem=(None, 'cuda'),
         concurrency=8,
         timeout=60,
+        server_grace=120,
         retries=3,
         host='localhost',
         http_port=STANDARD_PORTS['http'],
@@ -366,16 +368,15 @@ def run_test(
         port=grpc_port
     )
 
-    # Wait up to 180 seconds for server startup
-    server_startup = 180
+    # Wait for server startup
     server_wait_start = time()
-    while time() - server_wait_start < server_startup:
+    while time() - server_wait_start < server_grace:
         try:
             if client.is_server_ready():
                 break
         except triton_utils.InferenceServerException:
             pass
-    if time() - server_wait_start > server_startup:
+    if time() - server_wait_start > server_grace:
         warnings.warn("Server may not be ready!")
 
     client.unregister_cuda_shared_memory()
@@ -696,6 +697,12 @@ def parse_args():
         help='time in seconds to wait for processing of all samples',
     )
     parser.add_argument(
+        '--server_grace',
+        type=int,
+        default=120,
+        help='time in seconds to wait for server to come online',
+    )
+    parser.add_argument(
         '--retries',
         type=int,
         default=3,
@@ -724,5 +731,6 @@ if __name__ == '__main__':
         shared_mem=shared_mem,
         concurrency=args.concurrency,
         timeout=args.timeout,
+        server_grace=args.server_grace,
         retries=args.retries
     )
