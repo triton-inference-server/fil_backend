@@ -366,16 +366,17 @@ def run_test(
         port=grpc_port
     )
 
-    # Wait up to 60 seconds for server startup
+    # Wait up to 180 seconds for server startup
+    server_startup = 180
     server_wait_start = time()
-    while time() - server_wait_start < 60:
+    while time() - server_wait_start < server_startup:
         try:
             if client.is_server_ready():
                 break
         except triton_utils.InferenceServerException:
             pass
-    if time() - server_wait_start > 60:
-        print("WARNING: Server may not be ready!")
+    if time() - server_wait_start > server_startup:
+        warnings.warn("Server may not be ready!")
 
     client.unregister_cuda_shared_memory()
     client.unregister_system_shared_memory()
