@@ -374,6 +374,8 @@ def run_test(
                 break
         except triton_utils.InferenceServerException:
             pass
+    if time() - server_wait_start > 60:
+        print("WARNING: Server may not be ready!")
 
     client.unregister_cuda_shared_memory()
     client.unregister_system_shared_memory()
