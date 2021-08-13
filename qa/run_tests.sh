@@ -166,6 +166,8 @@ else
   server_pid=$!
 fi
 
+sleep 60
+
 echo 'Testing GPU models...'
 for i in ${!models[@]}
 do
@@ -202,6 +204,8 @@ else
   tritonserver --model-repository="${cpu_model_repo}" > /logs/server.log 2>&1 &
   server_pid=$!
 fi
+
+sleep 60
 
 echo 'Testing CPU models...'
 for i in ${!cpu_models[@]}
