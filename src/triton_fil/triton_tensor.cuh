@@ -74,6 +74,16 @@ class TritonTensor {
   std::vector<RawOutputBuffer> final_buffers;  //!< Where data should be copied
                                                //!< back to on "sync" calls if
                                                //!< needed
+  void sync_stream() {
+    if (target_memory_ == TRITONSERVER_MEMORY_GPU) {
+      auto cuda_res = cudaStreamSynchronize(stream_);
+      if (cuda_res != cudaSuccess) {
+        throw TritonException(
+            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
+            "Failed stream synchronization in TritonTensor sync");
+      }
+    }
+  }
 
 
  public:
@@ -228,14 +238,7 @@ class TritonTensor {
   {
     auto head = reinterpret_cast<typename std::conditional<
         std::is_const<T>::value, const std::byte*, std::byte*>::type>(buffer);
-    if (target_memory_ == TRITONSERVER_MEMORY_GPU) {
-      auto cuda_res = cudaStreamSynchronize(stream_);
-      if (cuda_res != cudaSuccess) {
-        throw TritonException(
-            TRITONSERVER_errorcode_enum::TRITONSERVER_ERROR_INTERNAL,
-            "Failed stream synchronization in TritonTensor sync");
-      }
-    }
+    sync_stream();
     for (auto& out_buffer : final_buffers) {
       memory_copy(
           reinterpret_cast<std::byte*>(out_buffer.data), head,
@@ -243,6 +246,7 @@ class TritonTensor {
           target_memory_);
       head += out_buffer.size_bytes;
     }
+    sync_stream();
   }
 
   /**
