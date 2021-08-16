@@ -74,7 +74,8 @@ class TritonTensor {
   std::vector<RawOutputBuffer> final_buffers;  //!< Where data should be copied
                                                //!< back to on "sync" calls if
                                                //!< needed
-  void sync_stream() {
+  void sync_stream()
+  {
     if (target_memory_ == TRITONSERVER_MEMORY_GPU) {
       auto cuda_res = cudaStreamSynchronize(stream_);
       if (cuda_res != cudaSuccess) {
