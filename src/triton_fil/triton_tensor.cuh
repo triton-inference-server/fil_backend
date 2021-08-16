@@ -283,7 +283,7 @@ class TritonTensor {
    */
   void set_stream(cudaStream_t new_stream)
   {
-    cudaStreamSynchronize(stream_);
+    sync_stream();
     stream_ = new_stream;
   }
 };
