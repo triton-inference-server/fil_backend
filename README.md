@@ -252,10 +252,10 @@ on a machine without a GPU. This is controlled on a per-model basis via the
 submit inference requests using CUDA IPC via Triton's [CUDA shared memory
 mode](https://github.com/triton-inference-server/server/blob/main/docs/protocol/extension_shared_memory.md).
 While it is possible to submit requests in this manner to a model running on
-the CPU, an intermittent bug in versions 21.08 and earlier can occasionally
-cause incorrect results to be returned in this situation. It is **strongly**
-recommended that Triton's CUDA shared memory mode **not** be used to submit
-requests to CPU-only models.
+the CPU, an intermittent bug in versions 21.07 and earlier can occasionally
+cause incorrect results to be returned in this situation. It is recommended
+that Triton's CUDA shared memory mode **not** be used to submit requests to
+CPU-only models.
 
 #### Starting the server
 To run the server with the configured model, execute the following command:
