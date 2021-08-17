@@ -198,7 +198,8 @@ specific to FIL:
   set to "true" and you are using a classification model, the `dims` field
   should be set to `[ NUMBER_OF_CLASSES ]`. Otherwise, this can simply be `[ 1 ]`,
   indicating that the model returns a single class ID for each sample.
-
+- `instance_group`: This setting determines whether inference will take place
+  on the GPU (`KIND_GPU`) or CPU (`KIND_CPU`)
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.
@@ -239,6 +240,22 @@ Note that the configuration is in protobuf format. If invalid protobuf is
 provided, the model will fail to load, and you will see an error line in the
 server log containing `Error parsing text-format inference.ModelConfig:`
 followed by the line and column number where the parsing error occurred.
+
+#### CPU-only Execution
+While most users will want to take advantage of the higher throughput and lower
+latency that can be achieved through inference on a GPU, it is possible to
+configure a model to perform inference on the CPU for e.g. testing a deployment
+on a machine without a GPU. This is controlled on a per-model basis via the
+`instance_group` configuration option described above.
+
+**WARNING:** Triton allows clients running on the same machine as the server to
+submit inference requests using CUDA IPC via Triton's [CUDA shared memory
+mode](https://github.com/triton-inference-server/server/blob/main/docs/protocol/extension_shared_memory.md).
+While it is possible to submit requests in this manner to a model running on
+the CPU, an intermittent bug in versions 21.07 and earlier can occasionally
+cause incorrect results to be returned in this situation. It is recommended
+that Triton's CUDA shared memory mode **not** be used to submit requests to
+CPU-only models.
 
 #### Starting the server
 To run the server with the configured model, execute the following command:
