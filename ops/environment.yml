@@ -6,5 +6,5 @@ channels:
 dependencies:
   - cmake
   - cudatoolkit=11
-  - libcuml=21.06
+  - libcuml=21.08
   - rapidjson

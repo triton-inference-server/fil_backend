@@ -82,7 +82,13 @@ else()
     GIT_TAG ${TRITON_BACKEND_REPO_TAG}
     GIT_SHALLOW ON
   )
-  FetchContent_MakeAvailable(repo-common repo-core repo-backend)
+  FetchContent_Declare(
+    thrust
+    GIT_REPOSITORY https://github.com/thrust/thrust.git
+    GIT_TAG 1.12.0
+    GIT_SHALLOW ON
+  )
+  FetchContent_MakeAvailable(repo-common repo-core repo-backend thrust)
 
   find_path(RAFT_DIR "raft"
       HINTS
@@ -92,8 +98,8 @@ else()
 
   message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
 
-  find_package(Treelite 1.3.0 REQUIRED)
-  find_package(RMM 21.06.00 REQUIRED)
+  find_package(Treelite 2.0.0 REQUIRED)
+  find_package(RMM 21.08.00 REQUIRED)
 
   #
   # Shared library implementing the Triton Backend API

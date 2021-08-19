@@ -6,7 +6,7 @@ channels:
 dependencies:
   - clang-tools=8.0.1
   - cudatoolkit=11.0
-  - cuml=21.06
+  - cuml=21.08
   - flake8
   - lightgbm
   - pip

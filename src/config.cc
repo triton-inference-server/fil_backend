@@ -42,6 +42,8 @@ tl_params_from_config(triton::common::TritonJson::Value& config)
   }
   out_params.blocks_per_sm =
       retrieve_param<int>(config, "blocks_per_sm", std::optional<int>(0));
+  out_params.threads_per_tree =
+      retrieve_param<int>(config, "threads_per_tree", std::optional<int>(1));
 
   return out_params;
 };
