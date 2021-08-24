@@ -165,6 +165,10 @@ parameters [
   {
     key: "blocks_per_sm"
     value: { string_value: "0" }
+  },
+  {
+    key: "threads_per_tree"
+    value: { string_value: "1" }
   }
 ]
 
@@ -229,6 +233,12 @@ specific to FIL:
     maximizing throughput is essential. Please see the [cuML
     documentation](https://docs.rapids.ai/api/cuml/stable/api.html?highlight=algo_t#cuml.ForestInference.load_from_treelite_model)
     for a more thorough explanation of this parameter and how it may be used.
+  * `threads_per_tree`: Determines number of threads used to use for inference
+    on a single tree. Increasing this above 1 can improve memory bandwidth near
+    the tree root but use more shared memory. In general, network latency will
+    significantly overshadow any speedup from tweaking this setting, but it is
+    provided for cases where maximizing throughput is essential.  for a more
+    thorough explanation of this parameter and how it may be used.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
