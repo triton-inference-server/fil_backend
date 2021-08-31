@@ -14,10 +14,18 @@ then
   log_dir=$PWD/qa/logs
   test_dir=$PWD/qa/L0_e2e
   script_dir=$PWD/scripts
+  if [ -z $SERVER_GRACE ]
+  then
+    SERVER_GRACE=60
+  fi
 else
   log_dir=/logs
   test_dir=/triton_fil/qa/L0_e2e
   script_dir=/triton_fil/scripts
+  if [ -z $SERVER_GRACE ]
+  then
+    SERVER_GRACE=180
+  fi
 fi
 
 [ -d $log_dir ] || mkdir $log_dir
@@ -173,12 +181,12 @@ do
   echo "Performance statistics for ${models[$i]}:"
   if [ $i -eq 1 ]  # Test HTTP at most once because it is slower
   then
-    python ${test_dir}/test_model.py --protocol http --name ${models[$i]}
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol http --name ${models[$i]}
   elif [ ${models[$i]} = 'cuml' ]  # Test large inputs for just one model
   then
-    python ${test_dir}/test_model.py --protocol grpc --name ${models[$i]} -b 32768
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]} -b 32768
   else
-    python ${test_dir}/test_model.py --protocol grpc --name ${models[$i]}
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]}
   fi
   echo "Model ${models[$i]} executed successfully"
 done
@@ -208,7 +216,7 @@ for i in ${!cpu_models[@]}
 do
   echo "Starting tests of model ${cpu_models[$i]}..."
   echo "Performance statistics for ${cpu_models[$i]}:"
-  python ${test_dir}/test_model.py --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+  python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
   echo "Model ${cpu_models[$i]} executed successfully"
 done
 
@@ -226,5 +234,5 @@ fi
 echo 'Testing CPU models without visible GPU...'
 echo "Starting tests of model ${cpu_models[0]} without visible GPU..."
 echo "Performance statistics for ${cpu_models[0]}:"
-python ${test_dir}/test_model.py --protocol grpc --name ${cpu_models[0]} --shared_mem None --repo "${cpu_model_repo}"
+python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[0]} --shared_mem None --repo "${cpu_model_repo}"
 echo "Model ${cpu_models[$i]} executed successfully"
