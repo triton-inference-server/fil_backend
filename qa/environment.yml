@@ -5,7 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - clang-tools=8.0.1
-  - cudatoolkit=11.0
+  - cudatoolkit=11.4
   - cuml=21.08
   - flake8
   - lightgbm
