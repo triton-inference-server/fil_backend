@@ -22,10 +22,9 @@ RUN conda install mamba -n base -c conda-forge
 COPY ./qa/environment.yml /environment.yml
 
 RUN cat /environment.yml \
-    && conda create -n triton_test \
-    && mamba install -n triton_test python=3.8 pip \
+    && mamba env create -n triton_test -f /environment.yml \
     && conda run -n triton_test pip install nvidia-pyindex \
-    && mamba env update -f /environment.yml \
+    && conda run -n triton_test pip install tritonclient[all] \
     && rm /environment.yml \
     && mamba clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
