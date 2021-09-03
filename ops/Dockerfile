@@ -20,7 +20,8 @@ RUN wget \
 
 COPY ./ops/environment.yml /environment.yml
 
-RUN conda env update -f /environment.yml \
+RUN cat /environment.yml \
+    && conda env update -f /environment.yml \
     && rm /environment.yml \
     && conda clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
