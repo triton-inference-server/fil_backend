@@ -170,7 +170,7 @@ if [ $LOCAL -eq 1 ]
 then
   container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
 else
-  tritonserver --model-repository="${model_repo}"
+  tritonserver --model-repository="${model_repo}" &
   server_pid=$!
 fi
 
@@ -207,7 +207,7 @@ if [ $LOCAL -eq 1 ]
 then
   container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$cpu_model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
 else
-  tritonserver --model-repository="${cpu_model_repo}"
+  tritonserver --model-repository="${cpu_model_repo}" &
   server_pid=$!
 fi
 
@@ -227,7 +227,7 @@ if [ $LOCAL -eq 1 ]
 then
   container=$(docker run -d -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$cpu_model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
 else
-  CUDA_VISIBLE_DEVICES="" tritonserver --model-repository="${cpu_model_repo}"
+  CUDA_VISIBLE_DEVICES="" tritonserver --model-repository="${cpu_model_repo}" &
   server_pid=$!
 fi
 
