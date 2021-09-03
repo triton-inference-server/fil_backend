@@ -21,7 +21,8 @@ RUN conda install mamba -n base -c conda-forge
 
 COPY ./qa/environment.yml /environment.yml
 
-RUN conda create -n triton_test \
+RUN cat /environment.yml \
+    && conda create -n triton_test \
     && mamba install -n triton_test python=3.8 pip \
     && conda run -n triton_test pip install nvidia-pyindex \
     && mamba env update -f /environment.yml \
