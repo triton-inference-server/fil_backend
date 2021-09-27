@@ -15,11 +15,4 @@
  */
 
 #pragma once
-#include <triton_fil/model_instance_state.cuh>
-#include <triton_fil/triton_tensor.cuh>
-
-namespace triton { namespace backend { namespace fil {
-void gtil_predict(
-    ModelInstanceState& instance_state, TritonTensor<const float>& data,
-    TritonTensor<float>& preds, bool predict_proba);
-}}}  // namespace triton::backend::fil
+#define NAMESPACE fil

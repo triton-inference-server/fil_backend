@@ -1,4 +1,5 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+#=============================================================================
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,30 +12,99 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+#=============================================================================
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
-project(tritonfilbackend LANGUAGES C CXX CUDA)
-
-#
-# Options
-#
-option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
-option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
-option(TRITON_FIL_DOCKER_BUILD OFF)
-
-set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
-set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
-set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.08-py3" CACHE STRING "Build image for Dockerized builds")
-set(TRITON_BUILD_CONTAINER_VERSION "21.08" CACHE STRING "Triton version for Dockerized builds")
+##############################################################################
+# - Target names -------------------------------------------------------------
+set(BACKEND_NAME "fil")
+set(BACKEND_TARGET "triton_${BACKEND_NAME}")
 
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+##############################################################################
+# - Prepare rapids-cmake -----------------------------------------------------
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
+    ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
+include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
+include(rapids-cmake)
+include(rapids-cpm)
+include(rapids-cuda)
+include(rapids-export)
+include(rapids-find)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
+
+project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
+
+##############################################################################
+# - build type ---------------------------------------------------------------
+
+# Set a default build type if none was specified
+rapids_cmake_build_type(Release)
+
+# this is needed for clang-tidy runs
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+##############################################################################
+# - User Options  ------------------------------------------------------------
+
+option(BUILD_BACKEND_TESTS "Build rapids_triton_linear unit-tests" ON)
+option(CUDA_ENABLE_KERNEL_INFO "Enable kernel resource usage info" OFF)
+option(CUDA_ENABLE_LINE_INFO "Enable lineinfo in nvcc" OFF)
+option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
+option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
+option(NVTX "Enable nvtx markers" OFF)
+set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
+
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling nvtx markers: ${NVTX}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
+
+# Set RMM logging level
+set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
+set_property(CACHE RMM_LOGGING_LEVEL PROPERTY STRINGS "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
+
+##############################################################################
+# - Conda environment detection ----------------------------------------------
+
+if(DETECT_CONDA_ENV)
+  rapids_cmake_support_conda_env( conda_env MODIFY_PREFIX_PATH )
+  if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND DEFINED ENV{CONDA_PREFIX})
+      message(STATUS "CUML: No CMAKE_INSTALL_PREFIX argument detected, setting to: $ENV{CONDA_PREFIX}")
+      set(CMAKE_INSTALL_PREFIX "$ENV{CONDA_PREFIX}")
+  endif()
+endif()
+
+##############################################################################
+# - compiler options ---------------------------------------------------------
+
+# * find CUDAToolkit package
+# * determine GPU architectures
+# * enable the CMake CUDA language
+# * set other CUDA compilation flags
+rapids_find_package(CUDAToolkit REQUIRED
+    BUILD_EXPORT_SET cuml-exports
+    INSTALL_EXPORT_SET cuml-exports
+    )
+include(cmake/modules/ConfigureCUDA.cmake)
+
+##############################################################################
+# - Requirements -------------------------------------------------------------
+
+# add third party dependencies using CPM
+rapids_cpm_init()
+
+include(cmake/thirdparty/get_treelite.cmake)
+include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_cuml.cmake)
+include(cmake/thirdparty/get_rapids-triton.cmake)
+
+if(BUILD_TESTS)
+  include(cmake/thirdparty/get_gtest.cmake)
 endif()
 
 if(TRITON_FIL_DOCKER_BUILD)
@@ -59,161 +129,59 @@ if(TRITON_FIL_DOCKER_BUILD)
   )
 
 else()
-  #
-  # Dependencies
-  #
-  include(FetchContent)
 
-  FetchContent_Declare(
-    repo-common
-    GIT_REPOSITORY https://github.com/triton-inference-server/common.git
-    GIT_TAG ${TRITON_COMMON_REPO_TAG}
-    GIT_SHALLOW ON
-  )
-  FetchContent_Declare(
-    repo-core
-    GIT_REPOSITORY https://github.com/triton-inference-server/core.git
-    GIT_TAG ${TRITON_CORE_REPO_TAG}
-    GIT_SHALLOW ON
-  )
-  FetchContent_Declare(
-    repo-backend
-    GIT_REPOSITORY https://github.com/triton-inference-server/backend.git
-    GIT_TAG ${TRITON_BACKEND_REPO_TAG}
-    GIT_SHALLOW ON
-  )
-  FetchContent_Declare(
-    thrust
-    GIT_REPOSITORY https://github.com/thrust/thrust.git
-    GIT_TAG 1.12.0
-    GIT_SHALLOW ON
-  )
-  FetchContent_MakeAvailable(repo-common repo-core repo-backend thrust)
-
-  find_path(RAFT_DIR "raft"
-      HINTS
-      "$ENV{RAFT_PATH}/cpp/include"
-      "$ENV{CONDA_PREFIX}/include/cuml"
-      "$ENV{CONDA_PREFIX}/include")
-
-  message(STATUS "RAFT: RAFT_DIR set to ${RAFT_DIR}")
-
-  find_package(Treelite 2.0.0 REQUIRED)
-  find_package(RMM 21.08.00 REQUIRED)
-
-  #
-  # Shared library implementing the Triton Backend API
-  #
-  configure_file(src/libtriton_fil.ldscript libtriton_fil.ldscript COPYONLY)
-
+  ##############################################################################
+  # - install targets-----------------------------------------------------------
+  
   add_library(
-    triton-fil-backend SHARED
-    src/api.cu
-    src/config.cc
-    src/enum_conversions.cc
-    src/exceptions.cc
-    src/gtil_utils.cu
-    src/model_instance_state.cu
-    src/model_state.cc
-    src/triton_utils.cc
+    ${BACKEND_TARGET} SHARED
+    src/api.cc
   )
-
-  add_library(
-    TritonFilBackend::triton-fil-backend ALIAS triton-fil-backend
+  
+  set_target_properties(${BACKEND_TARGET}
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             CUDA_STANDARD                       17
+             CUDA_STANDARD_REQUIRED              ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
   )
-
-  target_include_directories(
-    triton-fil-backend
-    PRIVATE
-      ${CMAKE_CURRENT_SOURCE_DIR}/src
-      ${RAFT_DIR}
+  
+  target_compile_options(${BACKEND_TARGET}
+    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
+    "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
   )
-
-  target_compile_features(triton-fil-backend PRIVATE cxx_std_17)
-
-  target_compile_options(
-    triton-fil-backend PRIVATE
-    -Wall
-    -Wextra
-    -Wno-unused-parameter
-    -Wno-unused-variable
-    -Wno-type-limits
-    "$<$<COMPILE_LANGUAGE:CUDA>:-Werror=all-warnings>"
-    "$<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>"
+  
+  target_include_directories(${BACKEND_TARGET}
+    PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include>"
+             "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
-
-  find_library(CUML_LIBRARY
-    NAMES cuml++
-    HINTS "$ENV{CONDA_PREFIX}/lib"
+  
+  target_link_libraries(${BACKEND_TARGET}
+  PRIVATE
+    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
+    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+    raft::raft
+    cuml++
+    rapids_triton::rapids_triton
+    triton-core-serverstub
+    triton-backend-utils
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
   )
-
-  target_link_libraries(
-    triton-fil-backend
-    PUBLIC
-      treelite::treelite
-      ${CUML_LIBRARY}
-      rmm::rmm
-    PRIVATE
-      triton-backend-utils    # from repo-backend
-      triton-core-serverstub  # from repo-core
-  )
-
-  set_target_properties(
-    triton-fil-backend PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    OUTPUT_NAME triton_fil
-    LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_fil.ldscript
-    LINK_FLAGS "-Wl,--version-script libtriton_fil.ldscript"
-  )
-
-
-  #
-  # Install
-  #
-  include(GNUInstallDirs)
-  set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonFilBackend)
-
+  
   install(
-    TARGETS
-      triton-fil-backend
-    EXPORT
-      triton-fil-backend-targets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/fil
+    TARGETS ${BACKEND_TARGET}
+    LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
-
-  install(
-    EXPORT
-      triton-fil-backend-targets
-    FILE
-    TritonFilBackendTargets.cmake
-    NAMESPACE
-    TritonFilBackend::
-    DESTINATION
-      ${INSTALL_CONFIGDIR}
-  )
-
-  include(CMakePackageConfigHelpers)
-  configure_package_config_file(
-    ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonFilBackendConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
-  )
-
-  install(
-    FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendConfig.cmake
-    DESTINATION ${INSTALL_CONFIGDIR}
-  )
-
-  #
-  # Export from build tree
-  #
-  export(
-    EXPORT triton-fil-backend-targets
-    FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonFilBackendTargets.cmake
-    NAMESPACE TritonFilBackend::
-  )
-
-  export(PACKAGE TritonFilBackend)
+  
+  ##############################################################################
+  # - build test executable ----------------------------------------------------
+  
+  # TODO (wphicks)
+  # if(BUILD_TESTS)
+  #   include(test/CMakeLists.txt)
+  # endif()
 endif() # TRITON_FIL_DOCKER_BUILD
