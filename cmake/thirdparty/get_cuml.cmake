@@ -28,9 +28,6 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            OPTIONS
-              "BUILD_TESTS OFF"
-              "CUML_CPP_ALGORITHMS FIL"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using CUML located in ${cuml_SOURCE_DIR}")

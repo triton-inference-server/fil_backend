@@ -140,6 +140,7 @@ else()
   
   set_target_properties(${BACKEND_TARGET}
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             INSTALL_RPATH                       "\$ORIGIN"
              # set target compile options
              CXX_STANDARD                        17
              CXX_STANDARD_REQUIRED               ON
@@ -173,7 +174,7 @@ else()
   )
   
   install(
-    TARGETS ${BACKEND_TARGET}
+    TARGETS ${BACKEND_TARGET} cuml++
     LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
   
