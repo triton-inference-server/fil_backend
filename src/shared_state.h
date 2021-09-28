@@ -29,11 +29,13 @@ namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-auto constexpr DEFAULT_TRANSFER_THRESHOLD = std::size_t{32};
+auto constexpr DEFAULT_TRANSFER_THRESHOLD = std::size_t{2};
 
 struct RapidsSharedState : rapids::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-      : rapids::SharedModelState{std::move(config)} {}
+      : rapids::SharedModelState{std::move(config), true}
+  {
+  }
 
   void load()
   {
