@@ -100,6 +100,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     if (output_buffer.mem_type() != output.mem_type()) {
       rapids::copy(output.buffer(), output_buffer);
     }
+
+    output.finalize();
   }
 
  private:
