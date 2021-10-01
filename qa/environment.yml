@@ -15,4 +15,4 @@ dependencies:
   - scikit-learn
   - pip:
       - nvidia-pyindex
-      - tritonclient[all]
+      - tritonclient[all]==2.12.0
