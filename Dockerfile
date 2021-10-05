@@ -54,7 +54,7 @@ ENV BUILD_TESTS=$BUILD_TESTS
 ARG BUILD_EXAMPLE
 ENV BUILD_EXAMPLE=$BUILD_EXAMPLE
 
-RUN mkdir /rapids_triton/build
+RUN mkdir /rapids_triton/build /rapids_triton/install
 
 WORKDIR /rapids_triton/build
 
@@ -85,6 +85,7 @@ RUN CALVER_RE='^[0-9]+[.][0-9]+$';\
     -DBUILD_CUML_BENCH=OFF \
     -DBUILD_CUML_PRIMS_BENCH=OFF \
     -DCUML_CPP_ALGORITHMS=FIL \
+    -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
     ..;
 
 RUN ninja install
