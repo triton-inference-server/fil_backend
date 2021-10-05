@@ -68,7 +68,6 @@ tl_get_num_classes(void* handle)
         rapids::Error::Unknown,
         "Treelite could not determine number of classes in model");
   }
-  result = std::max<std::size_t>(result, 2);
 
   return result;
 }
