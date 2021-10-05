@@ -75,13 +75,6 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
           input_buffer = rapids::Buffer<float const>(
               input_buffer, rapids::DeviceMemory, get_device_id());
         }
-      } else {
-        // If model is not loaded on device and data comes in on device, always
-        // copy input to host
-        if (input.mem_type() == rapids::DeviceMemory) {
-          input_buffer = rapids::Buffer<float const>(
-              input_buffer, rapids::HostMemory, get_device_id());
-        }
       }
 
       // Are input data and output data in different places?
