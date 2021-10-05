@@ -216,7 +216,9 @@ for i in ${!cpu_models[@]}
 do
   echo "Starting tests of model ${cpu_models[$i]}..."
   echo "Performance statistics for ${cpu_models[$i]}:"
-  python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+  # TODO(wphicks): Currently NOT testing with shared_mem as a workaround for
+  # upstream Triton bug. This should be re-enabled once this bug is resolved
+  python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}" --shared_mem None
   echo "Model ${cpu_models[$i]} executed successfully"
 done
 
