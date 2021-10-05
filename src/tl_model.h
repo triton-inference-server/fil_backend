@@ -72,12 +72,12 @@ struct TreeliteModel {
     // temporary buffer
     if (!predict_proba && tl_params_->output_class && num_classes_ > 1) {
       gtil_output_size = samples * num_classes_;
+      std::strcpy(handle_model->param.pred_transform, "max_index");
     }
 
     // If expected GTIL size is not the same as the size of `output`, create
     // a temporary buffer of the correct size
     if (gtil_output_size != output.size()) {
-      std::strcpy(handle_model->param.pred_transform, "max_index");
       output_buffer =
           rapids::Buffer<float>{gtil_output_size, rapids::HostMemory};
     }
