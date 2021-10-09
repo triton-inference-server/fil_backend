@@ -47,7 +47,6 @@ struct ForestModel<rapids::DeviceMemory> {
           return result;
         }()}
   {
-    raft_handle_.set_stream(stream);
   }
 
   ForestModel(ForestModel const& other) = default;
