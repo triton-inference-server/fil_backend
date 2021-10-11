@@ -151,7 +151,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
-        gpu_model.emplace(get_stream(), tl_model);
+        gpu_model.emplace(get_device_id(), get_stream(), tl_model);
       }
     }
     cpu_model = ForestModel<rapids::HostMemory>(tl_model);

@@ -38,8 +38,12 @@ struct ForestModel {
 
 template <>
 struct ForestModel<rapids::DeviceMemory> {
-  ForestModel(cudaStream_t stream, std::shared_ptr<TreeliteModel> tl_model)
-      : raft_handle_{}, tl_model_{tl_model}, fil_forest_{[this]() {
+  using device_id_t = int;
+  ForestModel(
+      device_id_t device_id, cudaStream_t stream,
+      std::shared_ptr<TreeliteModel> tl_model)
+      : device_id_{device_id}, raft_handle_{}, tl_model_{tl_model},
+        fil_forest_{[this]() {
           auto result = ML::fil::forest_t{};
           ML::fil::from_treelite(
               raft_handle_, &result, tl_model_->handle(),
@@ -47,6 +51,8 @@ struct ForestModel<rapids::DeviceMemory> {
           return result;
         }()}
   {
+    rapids::cuda_check(cudaSetDevice(device_id_));
+    raft_handle_.set_stream(stream);
   }
 
   ForestModel(ForestModel const& other) = default;
@@ -60,6 +66,7 @@ struct ForestModel<rapids::DeviceMemory> {
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
+    rapids::cuda_check(cudaSetDevice(device_id_));
     ML::fil::predict(
         raft_handle_, fil_forest_, output.data(), input.data(), samples,
         predict_proba);
@@ -69,6 +76,7 @@ struct ForestModel<rapids::DeviceMemory> {
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
   ML::fil::forest_t fil_forest_;
+  device_id_t device_id_;
 };
 
 template <>
