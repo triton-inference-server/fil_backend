@@ -292,7 +292,8 @@ def generate_config(
         task='classification',
         threshold=0.5,
         batching_window=100,
-        max_batch_size=8192):
+        max_batch_size=8192,
+        storage_type="AUTO"):
     """Return a string with the full Triton config.pbtxt for this model
     """
     if instance_kind == 'gpu':
@@ -352,7 +353,7 @@ parameters [
   }},
   {{
     key: "storage_type"
-    value: {{ string_value: "AUTO" }}
+    value: {{ string_value: "{storage_type}" }}
   }},
   {{
     key: "blocks_per_sm"
@@ -380,7 +381,8 @@ def build_model(
         classification_threshold=0.5,
         predict_proba=False,
         batching_window=100,
-        max_batch_size=8192):
+        max_batch_size=8192,
+        storage_type="AUTO"):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
 
@@ -449,7 +451,8 @@ def build_model(
         task=task,
         threshold=classification_threshold,
         batching_window=batching_window,
-        max_batch_size=max_batch_size
+        max_batch_size=max_batch_size,
+        storage_type=storage_type
     )
     config_path = os.path.join(config_dir, 'config.pbtxt')
 
@@ -549,6 +552,12 @@ def parse_args():
         help='largest batch size allowed for this model',
         default=8192
     )
+    parser.add_argument(
+        '--storage_type',
+        choices=['AUTO', 'DENSE', 'SPARSE', 'SPARSE8'],
+        help='storage type used to load this model in FIL',
+        default='AUTO'
+    )
 
     return parser.parse_args()
 
@@ -571,5 +580,6 @@ if __name__ == '__main__':
         classification_threshold=args.threshold,
         predict_proba=args.predict_proba,
         batching_window=args.batching_window,
-        max_batch_size=args.max_batch_size
+        max_batch_size=args.max_batch_size,
+        storage_type=args.storage_type
     ))
