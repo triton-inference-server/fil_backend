@@ -54,7 +54,7 @@ pipelines.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:21.08-py3
+docker pull nvcr.io/nvidia/tritonserver:21.10-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -169,6 +169,10 @@ parameters [
   {
     key: "threads_per_tree"
     value: { string_value: "1" }
+  },
+  {
+    key: "transfer_threshold"
+    value: { string_value: "0" }
   }
 ]
 
@@ -239,6 +243,15 @@ specific to FIL:
     significantly overshadow any speedup from tweaking this setting, but it is
     provided for cases where maximizing throughput is essential.  for a more
     thorough explanation of this parameter and how it may be used.
+  * `transfer_threshold`: If the number of samples in a batch exceeds this
+    value and the model is deployed on the GPU, then GPU inference will be
+    used. Otherwise, CPU inference will be used for batches received in host
+    memory with a number of samples less than or equal to this threshold.  For
+    most models and systems, the default transfer threshold of 0 (meaning that
+    data is always transferred to the GPU for processing) will provide optimal
+    latency and throughput, but for models with many features on systems where
+    host-to-device transfers may be a bottleneck and most requests will contain
+    small batches, adjusting this parameter may be useful.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
@@ -263,9 +276,9 @@ submit inference requests using CUDA IPC via Triton's [CUDA shared memory
 mode](https://github.com/triton-inference-server/server/blob/main/docs/protocol/extension_shared_memory.md).
 While it is possible to submit requests in this manner to a model running on
 the CPU, an intermittent bug in versions 21.07 and earlier can occasionally
-cause incorrect results to be returned in this situation. It is recommended
-that Triton's CUDA shared memory mode **not** be used to submit requests to
-CPU-only models.
+cause incorrect results to be returned in this situation. It is generally
+recommended that Triton's CUDA shared memory mode **not** be used to submit
+requests to CPU-only models for FIL backend versions before 21.11.
 
 #### Starting the server
 To run the server with the configured model, execute the following command:
