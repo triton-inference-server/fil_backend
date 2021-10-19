@@ -133,9 +133,15 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     // Cache location (GPU/host) preference for incoming input data
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
-        // If we're deployed on-device, we'll take the incoming data however it
-        // comes and copy if we determine it's necessary based on batch size
-        preferred_mem_type_ = std::nullopt;
+        if (shared_state->transfer_threshold() == 0) {
+          // If the transfer threshold is 0, we always want input on device
+          preferred_mem_type_ = rapids::DeviceMemory;
+        } else {
+          // If the transfer threshold is non-zero, we'll take the input
+          // however it comes and then transfer it to device if it exceeds the
+          // given threshold
+          preferred_mem_type_ = std::nullopt;
+        }
       } else {
         // If we're deployed on-host, we want data in host memory
         preferred_mem_type_ = rapids::HostMemory;
