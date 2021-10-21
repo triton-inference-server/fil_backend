@@ -18,14 +18,14 @@ RUN wget \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh 
 
-COPY ./conda/environments/rapids_triton_dev_cuda11.4.yml /environment.yml
+COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
     && conda clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
     && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete \
-    && rm /root/miniconda3/envs/triton_dev/lib/libstdc++.so*
+    && (rm /root/miniconda3/envs/triton_dev/lib/libstdc++.so* || true)
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
