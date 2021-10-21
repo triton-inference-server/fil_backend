@@ -71,10 +71,9 @@ docker build -t triton_fil -f ops/Dockerfile .
 
 #### Customized builds (ADVANCED)
 
-For those with special build needs (including using a custom base container),
-you may find our documentation on [customized end-to-end
-builds](https://github.com/wphicks/triton_fil_backend/blob/fea-e2e_build/ops/E2E.md)
-useful.
+**This build option has been removed in Triton 21.11 but may be re-introduced
+at a later date. Please file an issue if you have need for greater build
+customization than is provided by standard build options.**
 
 ### Running the server
 
