@@ -175,9 +175,6 @@ else
   server_pid=$!
 fi
 
-# TODO(wphicks): Currently NOT testing with shared_mem as a workaround for
-# upstream Triton bug. This should be re-enabled once this bug is resolved
-
 echo 'Testing GPU models...'
 for i in ${!models[@]}
 do
@@ -185,12 +182,12 @@ do
   echo "Performance statistics for ${models[$i]}:"
   if [ $i -eq 1 ]  # Test HTTP at most once because it is slower
   then
-    python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol http --name ${models[$i]}
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol http --name ${models[$i]}
   elif [ ${models[$i]} = 'cuml' ]  # Test large inputs for just one model
   then
-    python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]} -b 32768
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]} -b 32768
   else
-    python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]}
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]}
   fi
   echo "Model ${models[$i]} executed successfully"
 done
@@ -220,7 +217,7 @@ for i in ${!cpu_models[@]}
 do
   echo "Starting tests of model ${cpu_models[$i]}..."
   echo "Performance statistics for ${cpu_models[$i]}:"
-  python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+  python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
   echo "Model ${cpu_models[$i]} executed successfully"
 done
 
