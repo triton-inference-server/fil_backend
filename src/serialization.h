@@ -21,9 +21,7 @@
 #include <sstream>
 #include <string>
 
-namespace triton {
-namespace backend {
-namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE {
 
 enum struct SerializationFormat { xgboost, xgboost_json, lightgbm, treelite };
 

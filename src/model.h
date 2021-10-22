@@ -31,20 +31,20 @@
 #include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
 #include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
 
-namespace triton {
-namespace backend {
-namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE {
 
 struct RapidsModel : rapids::Model<RapidsSharedState> {
-  RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
-              rapids::device_id_t device_id, cudaStream_t default_stream,
-              rapids::DeploymentType deployment_type,
-              std::string const& filepath)
-      : rapids::Model<RapidsSharedState>(shared_state, device_id,
-                                         default_stream, deployment_type,
-                                         filepath) {}
+  RapidsModel(
+      std::shared_ptr<RapidsSharedState> shared_state,
+      rapids::device_id_t device_id, cudaStream_t default_stream,
+      rapids::DeploymentType deployment_type, std::string const& filepath)
+      : rapids::Model<RapidsSharedState>(
+            shared_state, device_id, default_stream, deployment_type, filepath)
+  {
+  }
 
-  void predict(rapids::Batch& batch) const {
+  void predict(rapids::Batch& batch) const
+  {
     /* Get I/O Tensors */
     auto input = get_input<float>(batch, "input__0");
     auto output = get_output<float>(batch, "output__0");
@@ -176,6 +176,4 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
 };
 
-}  // namespace NAMESPACE
-}  // namespace backend
-}  // namespace triton
+}}}  // namespace triton::backend::NAMESPACE

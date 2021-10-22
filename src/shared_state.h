@@ -25,9 +25,7 @@
 #include <memory>
 #include <rapids_triton/model/shared_state.hpp>
 
-namespace triton {
-namespace backend {
-namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE {
 
 auto constexpr DEFAULT_TRANSFER_THRESHOLD = std::size_t{};
 
@@ -73,6 +71,4 @@ struct RapidsSharedState : rapids::SharedModelState {
       std::make_shared<ML::fil::treelite_params_t>();
 };
 
-}  // namespace NAMESPACE
-}  // namespace backend
-}  // namespace triton
+}}}  // namespace triton::backend::NAMESPACE
