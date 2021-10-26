@@ -49,7 +49,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 ##############################################################################
 # - User Options  ------------------------------------------------------------
 
-option(BUILD_BACKEND_TESTS "Build rapids_triton_linear unit-tests" ON)
+option(BUILD_BACKEND_TESTS "Build RAPIDS_TRITON_BACKEND unit-tests" ON)
 option(CUDA_ENABLE_KERNEL_INFO "Enable kernel resource usage info" OFF)
 option(CUDA_ENABLE_LINE_INFO "Enable lineinfo in nvcc" OFF)
 option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
@@ -74,7 +74,7 @@ message(VERBOSE "RAPIDS_TRITON_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL
 if(DETECT_CONDA_ENV)
   rapids_cmake_support_conda_env( conda_env MODIFY_PREFIX_PATH )
   if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND DEFINED ENV{CONDA_PREFIX})
-      message(STATUS "CUML: No CMAKE_INSTALL_PREFIX argument detected, setting to: $ENV{CONDA_PREFIX}")
+      message(STATUS "RAPIDS_TRITON_BACKEND: No CMAKE_INSTALL_PREFIX argument detected, setting to: $ENV{CONDA_PREFIX}")
       set(CMAKE_INSTALL_PREFIX "$ENV{CONDA_PREFIX}")
   endif()
 endif()
@@ -87,8 +87,8 @@ endif()
 # * enable the CMake CUDA language
 # * set other CUDA compilation flags
 rapids_find_package(CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET cuml-exports
-    INSTALL_EXPORT_SET cuml-exports
+    BUILD_EXPORT_SET rapids_triton-exports
+    INSTALL_EXPORT_SET rapids_triton-exports
     )
 include(cmake/modules/ConfigureCUDA.cmake)
 

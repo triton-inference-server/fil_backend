@@ -22,8 +22,8 @@ function(find_and_configure_rapids_triton)
 
     rapids_cpm_find(rapids_triton ${PKG_VERSION}
       GLOBAL_TARGETS      rapids_triton::rapids_triton
-      BUILD_EXPORT_SET    rapids_triton_linear-exports
-      INSTALL_EXPORT_SET  rapids_triton_linear-exports
+      BUILD_EXPORT_SET    rapids_triton-exports
+      INSTALL_EXPORT_SET  rapids_triton-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/${PKG_FORK}/rapids-triton.git
             GIT_TAG        ${PKG_PINNED_TAG}
@@ -33,7 +33,7 @@ function(find_and_configure_rapids_triton)
               "BUILD_EXAMPLE OFF"
     )
 
-  message(VERBOSE "RAPIDS_TRITON_LINEAR: Using RAPIDS-Triton located in ${rapids_triton_SOURCE_DIR}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: Using RAPIDS-Triton located in ${rapids_triton_SOURCE_DIR}")
 
 endfunction()
 
