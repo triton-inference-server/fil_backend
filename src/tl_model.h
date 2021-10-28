@@ -58,7 +58,7 @@ struct TreeliteModel {
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    auto handle_model = static_cast<treelite::Model*>(handle_);
+    auto* handle_model = static_cast<treelite::Model*>(handle_);
 
     // Create non-owning Buffer to same memory as `output`
     auto output_buffer =

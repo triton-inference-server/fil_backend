@@ -108,19 +108,21 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   auto model_file()
   {
     auto path = std::filesystem::path(get_filepath());
-    switch (get_shared_state()->model_format()) {
-      case SerializationFormat::xgboost:
-        path /= "xgboost.model";
-        break;
-      case SerializationFormat::xgboost_json:
-        path /= "xgboost.json";
-        break;
-      case SerializationFormat::lightgbm:
-        path /= "model.txt";
-        break;
-      case SerializationFormat::treelite:
-        path /= "checkpoint.tl";
-        break;
+    if (std::filesystem::is_directory(path)) {
+      switch (get_shared_state()->model_format()) {
+        case SerializationFormat::xgboost:
+          path /= "xgboost.model";
+          break;
+        case SerializationFormat::xgboost_json:
+          path /= "xgboost.json";
+          break;
+        case SerializationFormat::lightgbm:
+          path /= "model.txt";
+          break;
+        case SerializationFormat::treelite:
+          path /= "checkpoint.tl";
+          break;
+      }
     }
     return path;
   }
