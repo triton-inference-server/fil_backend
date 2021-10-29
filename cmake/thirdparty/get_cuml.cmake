@@ -39,5 +39,5 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    21.10
                         FORK       rapidsai
-                        PINNED_TAG branch-21.10
+                        PINNED_TAG hotfix-21.10-pr-4315
                         )
