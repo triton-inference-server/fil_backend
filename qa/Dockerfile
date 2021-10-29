@@ -21,10 +21,7 @@ RUN conda install mamba -n base -c conda-forge
 
 COPY ./qa/environment.yml /environment.yml
 
-RUN conda create -n triton_test \
-    && mamba install -n triton_test python=3.8 pip \
-    && conda run -n triton_test pip install nvidia-pyindex \
-    && mamba env update -f /environment.yml \
+RUN mamba env create -f /environment.yml \
     && rm /environment.yml \
     && mamba clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \

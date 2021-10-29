@@ -88,11 +88,27 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --features 500 \
   --storage_type SPARSE) )
 models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_cat \
+  --depth 11 \
+  --trees 2000 \
+  --classes 3 \
+  --features 500 \
+  --cat_features 49 \
+  --storage_type SPARSE) )
+models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost_json \
   --format xgboost_json \
   --depth 7 \
   --trees 500 \
   --features 500 \
+  --predict_proba) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name xgboost_cat_json \
+  --format xgboost_json \
+  --depth 7 \
+  --trees 500 \
+  --features 500 \
+  --cat_features 49 \
   --predict_proba) )
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name lightgbm \
@@ -102,11 +118,26 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --depth 3 \
   --trees 2000) )
 models+=( $(python ${test_dir}/generate_example_model.py \
+  --name lightgbm_non_cat \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 3 \
+  --trees 2000) )
+models+=( $(python ${test_dir}/generate_example_model.py \
   --name regression \
   --format lightgbm \
   --type lightgbm \
   --depth 25 \
   --features 400 \
+  --trees 10 \
+  --task regression) )
+models+=( $(python ${test_dir}/generate_example_model.py \
+  --name regression_cat \
+  --format lightgbm \
+  --type lightgbm \
+  --depth 25 \
+  --features 400 \
+  --cat_features 49 \
   --trees 10 \
   --task regression) )
 
@@ -192,6 +223,7 @@ do
   else
     python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]}
   fi
+  perf_analyzer -m "${models[$i]}"
   echo "Model ${models[$i]} executed successfully"
 done
 
@@ -221,6 +253,7 @@ do
   echo "Starting tests of model ${cpu_models[$i]}..."
   echo "Performance statistics for ${cpu_models[$i]}:"
   python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+  perf_analyzer -m "${cpu_models[$i]}"
   echo "Model ${cpu_models[$i]} executed successfully"
 done
 
@@ -239,4 +272,40 @@ echo 'Testing CPU models without visible GPU...'
 echo "Starting tests of model ${cpu_models[0]} without visible GPU..."
 echo "Performance statistics for ${cpu_models[0]}:"
 python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[0]} --repo "${cpu_model_repo}"
-echo "Model ${cpu_models[$i]} executed successfully"
+perf_analyzer -m "${cpu_models[0]}"
+echo "Model ${cpu_models[0]} executed successfully"
+
+echo 'Starting Triton server for endless loop...'
+cleanup
+cp -r $cpu_model_repo/* $model_repo/
+log_file="$log_dir/endless_tests.log"
+if [ $LOCAL -eq 1 ]
+then
+  container=$(docker run -d --gpus=all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v "$model_repo:/models" ${TRITON_IMAGE} tritonserver --model-repository=/models)
+else
+  tritonserver --model-repository="${model_repo}" > /logs/server.log 2>&1 &
+  server_pid=$!
+fi
+
+echo 'Testing GPU models (endless)...'
+while true
+do
+  for i in ${!models[@]}
+  do
+    echo "Starting tests of model ${models[$i]}..."
+    echo "Performance statistics for ${models[$i]}:"
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${models[$i]}
+    perf_analyzer -m "${models[$i]}"
+    echo "Endless: Model ${models[$i]} executed successfully"
+  done
+
+  echo 'Testing CPU models (endless)...'
+  for i in ${!cpu_models[@]}
+  do
+    echo "Starting tests of model ${cpu_models[$i]}..."
+    echo "Performance statistics for ${cpu_models[$i]}:"
+    python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[$i]} --repo "${cpu_model_repo}"
+    perf_analyzer -m "${cpu_models[$i]}"
+    echo "Endless: Model ${cpu_models[$i]} executed successfully"
+  done
+done

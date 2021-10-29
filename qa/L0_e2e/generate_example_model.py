@@ -74,7 +74,8 @@ def train_xgboost_classifier(data, labels, depth=25, trees=100):
         'max_depth': depth,
         'n_estimators': trees,
         'use_label_encoder': False,
-        'predictor': 'gpu_predictor'
+        'predictor': 'gpu_predictor',
+        'enable_categorical': True
     }
     model = xgb.XGBClassifier(**training_params)
 
@@ -176,7 +177,8 @@ def train_xgboost_regressor(data, targets, depth=25, trees=100):
         'tree_method': 'gpu_hist',
         'max_depth': depth,
         'n_estimators': trees,
-        'predictor': 'gpu_predictor'
+        'predictor': 'gpu_predictor',
+        'enable_categorical': True
     }
     model = xgb.XGBRegressor(**training_params)
 
