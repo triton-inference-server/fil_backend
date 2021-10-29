@@ -11,7 +11,7 @@ dependencies:
   - lightgbm
   - pip
   - python=3.8
-  - rapidsai::py-xgboost
   - scikit-learn
   - pip:
       - tritonclient[all]
+      - xgboost>=1.5
