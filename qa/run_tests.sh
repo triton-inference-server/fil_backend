@@ -308,4 +308,6 @@ do
     perf_analyzer -m "${cpu_models[$i]}"
     echo "Endless: Model ${cpu_models[$i]} executed successfully"
   done
+  date
+  nvidia-smi
 done
