@@ -85,7 +85,8 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --depth 11 \
   --trees 2000 \
   --classes 3 \
-  --features 500) )
+  --features 500 \
+  --storage_type SPARSE) )
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost_json \
   --format xgboost_json \
@@ -234,5 +235,5 @@ fi
 echo 'Testing CPU models without visible GPU...'
 echo "Starting tests of model ${cpu_models[0]} without visible GPU..."
 echo "Performance statistics for ${cpu_models[0]}:"
-python ${test_dir}/test_model.py --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[0]} --shared_mem None --repo "${cpu_model_repo}"
+python ${test_dir}/test_model.py --shared_mem None --server_grace $SERVER_GRACE --protocol grpc --name ${cpu_models[0]} --repo "${cpu_model_repo}"
 echo "Model ${cpu_models[$i]} executed successfully"
