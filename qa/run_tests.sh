@@ -98,10 +98,13 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --name lightgbm \
   --format lightgbm \
   --type lightgbm \
+  --cat_features 3 \
   --depth 3 \
   --trees 2000) )
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name regression \
+  --format lightgbm \
+  --type lightgbm \
   --depth 25 \
   --features 400 \
   --trees 10 \

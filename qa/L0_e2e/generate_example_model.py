@@ -34,9 +34,14 @@ except ImportError:
     xgb = None
 
 
-def generate_classification_data(classes=2, rows=1000, cols=32):
+def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
     """Generate classification training set"""
-    with cuml.using_output_type('numpy'):
+    if cat_cols > 0:
+        output_type = 'cudf'
+    else:
+        output_type = 'numpy'
+
+    with cuml.using_output_type(output_type):
         data, labels = cuml.datasets.make_classification(
             n_samples=rows,
             n_features=cols,
@@ -44,6 +49,17 @@ def generate_classification_data(classes=2, rows=1000, cols=32):
             n_classes=classes,
             random_state=0
         )
+
+    if cat_cols > 0:
+        selected_cols = data.sample(n=min(cat_cols, cols), axis='columns')
+        negatives = (selected_cols < 0)
+        positives = (selected_cols >= 0)
+        selected_cols = selected_cols.astype('object')
+        selected_cols[negatives] = 'negative'
+        selected_cols[positives] = 'positive'
+        data[selected_cols.columns] = selected_cols.astype('category')
+        data = data.to_pandas()
+        labels = labels.to_pandas()
     return data, labels
 
 
@@ -238,11 +254,17 @@ def generate_model(
         trees=100,
         classes=2,
         samples=1000,
-        features=32):
+        features=32,
+        cat_features=0):
     """Generate a model with the given properties"""
+    if cat_features != 0 and model_type != 'lightgbm':
+        raise NotImplementedError(
+            'Categorical feature generation has not yet been implemented for'
+            ' non-LightGBM models'
+        )
     if task == 'classification':
         data, labels = generate_classification_data(
-            classes=classes, rows=samples, cols=features
+            classes=classes, rows=samples, cols=features, cat_cols=cat_features
         )
         return train_classifier(
             data, labels, model_type=model_type, depth=depth, trees=trees,
@@ -376,6 +398,7 @@ def build_model(
         classes=2,
         samples=1000,
         features=32,
+        cat_features=0,
         model_repo=os.path.dirname(__file__),
         model_name=None,
         classification_threshold=0.5,
@@ -436,7 +459,8 @@ def build_model(
         trees=trees,
         classes=classes,
         samples=samples,
-        features=features
+        features=features,
+        cat_features=cat_features
     )
 
     serialize_model(model, model_dir, output_format=output_format)
@@ -514,6 +538,12 @@ def parse_args():
         default=32
     )
     parser.add_argument(
+        '--cat_features',
+        type=int,
+        help='number of categorical features (must be <= features)',
+        default=0
+    )
+    parser.add_argument(
         '--samples',
         type=int,
         help='number of training samples',
@@ -575,6 +605,7 @@ if __name__ == '__main__':
         classes=args.classes,
         samples=args.samples,
         features=args.features,
+        cat_features=args.cat_features,
         model_repo=args.repo,
         model_name=args.name,
         classification_threshold=args.threshold,

@@ -319,7 +319,7 @@ grpc_client = triton_grpc.InferenceServerClient(
     verbose = False
 )
 
-# Generate dummy data to classify
+# Generate example data to classify
 features = 1_000
 samples = 8_192
 data = numpy.random.rand(samples, features).astype('float32')
@@ -364,6 +364,21 @@ result_grpc = request_grpc.as_numpy('output__0')
 # Check that we got the same result with both GRPC and HTTP
 numpy.testing.assert_almost_equal(result_http, result_grpc)
 ```
+
+##### Categorical Feature Support
+As of version 21.11, the FIL backend includes support for models with
+categorical features (e.g. some [LightGBM
+models](https://lightgbm.readthedocs.io/en/latest/Advanced-Topics.html#categorical-feature-support)).
+These models can be deployed just like any other model, but it is worth
+remembering that (as with any other inference pipeline which includes
+categorical features), care must be taken to ensure that the categorical
+encoding used during inference matches that used during training. If the data
+passed through at inference time does not contain all of the categories used
+during training, there is no way to reconstruct the correct mapping of
+features, so some record must be made of the complete set of categories used
+during training. With that record, categorical columns can be appropriately
+converted to float32 columns, and the data can be sent to the server as shown
+in the above client example.
 
 ## Modifications and Code Contributions
 For full implementation details as well as information on modifying the FIL
