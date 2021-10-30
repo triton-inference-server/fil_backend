@@ -259,6 +259,11 @@ def generate_model(
         features=32,
         cat_features=0):
     """Generate a model with the given properties"""
+    if cat_features != 0 and model_type != 'lightgbm':
+        raise NotImplementedError(
+            'Categorical feature generation has not yet been implemented for'
+            ' non-LightGBM models'
+        )
     if task == 'classification':
         data, labels = generate_classification_data(
             classes=classes, rows=samples, cols=features, cat_cols=cat_features
