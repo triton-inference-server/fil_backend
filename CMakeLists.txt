@@ -14,10 +14,31 @@
 # limitations under the License.
 #=============================================================================
 
+option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
+option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
+option(TRITON_FIL_DOCKER_BUILD OFF)
+
+set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
+set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
+set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
+
 if(TRITON_FIL_DOCKER_BUILD)
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:21.10-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "21.10" CACHE STRING "Triton version for Dockerized builds")
+
   add_custom_command(
     OUTPUT fil/libtriton_fil.so fil/libcuml++.so
-    COMMAND docker build -t triton_fil_builder --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION} --build-arg BUILD_TYPE=${CMAKE_BUILD_TYPE} -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile ${CMAKE_CURRENT_LIST_DIR}
+    COMMAND docker build -t
+      triton_fil_builder
+      --build-arg BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION}
+      --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}
+      --build-arg TRITON_ENABLE_STATS=${TRITON_ENABLE_GPU}
+      --build-arg TRITON_COMMON_REPO_TAG=${TRITON_COMMON_REPO_TAG}
+      --build-arg TRITON_CORE_REPO_TAG=${TRITON_CORE_REPO_TAG}
+      --build-arg TRITON_BACKEND_REPO_TAG=${TRITON_BACKEND_REPO_TAG}
+      -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile
+      ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
     COMMAND docker create --name triton_fil_builder triton_fil_builder
     COMMAND rm -rf fil
