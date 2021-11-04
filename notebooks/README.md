@@ -1,50 +1,38 @@
-# Trtion FIL backend with XGBoost
+<!--
+# Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#  * Neither the name of NVIDIA CORPORATION nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
 
-This notebook is a reference for deploying a forest model trained using XGBoost library in Triton Inference Server with Forest Inference Library (FIL) backend. The notebook explains how one can deploy XGBoost model in Triton, check deployment status and send inference requests, set concurrent model execution and dynamic batching and find the best deployment configuration using Model Analyzer.
+# FIL Backend Examples
 
-## Requirements
-* Nvidia GPU (Pascal+ Recommended GPUs: T4, V100 or A100)
-* [Latest NVIDIA driver](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html)
-* [Docker](https://docs.docker.com/get-docker/)
-* [The NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)
+This directory contains example notebooks which illustrate typical workflows
+and use-cases for the Triton FIL backend. Additional examples will be added to
+this directory over time.
 
-## Run the Triton Inference Server container 
-
-**Note:** Due to a bug in release 21.07, Triton's `model_analyzer` cannot be used with the FIL backend. If you wish to use the model analyzer, please use release 21.08 or later.
-
-Before running the container, clone the repository and then run the container:
-
-```
-git clone https://github.com/triton-inference-server/fil_backend.git
-cd fil_backend
-
-docker run \
-  -it \
-  --gpus=all \
-  --rm \
-  --net=host \
-  --name triton_fil
-  nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
-```
-
-**Note:** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.
-
-Now open up another terminal and copy the notebook from host into the container as follows:
-```
-docker cp notebooks/ triton_fil:/
-```
-
-## Starting Jupyter notebook
-In the previous terminal perform the following steps:
-
-### Install Jupyter notebook inside the Triton container
-```
-pip3 install jupyter
-```
-### Run Jupyter notebook inside the Triton container
-Change directory to `/notebook` folder and run the jupyter notebook:
-```
-cd /notebook
-jupyter notebook --allow-root --no-browser --port 7001
-```
-
+**Note**: For those looking for the example notebook which was initially
+included at the top-level of this directory, it has been moved to the
+[simple-xgboost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost)
+directory.
