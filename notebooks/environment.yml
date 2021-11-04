@@ -1,0 +1,22 @@
+---
+name: triton_fil_notebooks
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai
+dependencies:
+  - cudatoolkit=11.4
+  - cudf=21.10
+  - cuml=21.10
+  - cupy
+  - jupyter
+  - kaggle
+  - matplotlib
+  - numpy
+  - pandas
+  - pip
+  - python=3.8
+  - scikit-learn
+  - pip:
+      - tritonclient[all]
+      - xgboost>=1.5
