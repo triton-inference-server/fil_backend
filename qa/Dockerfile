@@ -31,6 +31,7 @@ RUN conda create -n triton_test \
     && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
 
 ENV PYTHONDONTWRITEBYTECODE=false
+ENV UCX_HANDLE_ERRORS=none
 
 RUN mkdir /logs
 
