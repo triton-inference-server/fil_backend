@@ -87,6 +87,7 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --classes 3 \
   --features 500 \
   --storage_type SPARSE) )
+echo "A"
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name xgboost_json \
   --format xgboost_json \
@@ -94,6 +95,7 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --trees 500 \
   --features 500 \
   --predict_proba) )
+echo "B"
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name lightgbm \
   --format lightgbm \
@@ -101,6 +103,7 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --cat_features 3 \
   --depth 3 \
   --trees 2000) )
+echo "C"
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name regression \
   --format lightgbm \
@@ -109,12 +112,14 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --features 400 \
   --trees 10 \
   --task regression) )
+echo "D"
 
 echo 'Generating CPU-only gradient-boosted models...'
 cpu_models=()
 for i in ${!models[@]}
 do
   cpu_models+=( "$(convert_to_cpu "${models[$i]}")" )
+  echo "E: $i"
 done
 
 echo 'Generating random forest test models...'
@@ -124,7 +129,9 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --depth 3 \
   --trees 10 \
   --features 500) )
+echo "F"
 "$script_dir/convert_sklearn" "$test_dir/model_repository/sklearn/1/model.pkl"
+echo "G"
 models+=( $(python ${test_dir}/generate_example_model.py \
   --name cuml \
   --type cuml \
@@ -133,7 +140,9 @@ models+=( $(python ${test_dir}/generate_example_model.py \
   --max_batch_size 32768 \
   --features 500 \
   --task regression) )
+echo "H"
 "$script_dir/convert_cuml.py" "$test_dir/model_repository/cuml/1/model.pkl"
+echo "I"
 
 function cleanup {
   if [ ! -z $container ]

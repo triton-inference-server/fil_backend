@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import argparse
+import functools
 import os
 import pickle
+import sys
 import threading
 import traceback
 import warnings
@@ -36,6 +38,15 @@ STANDARD_PORTS = {
 }
 
 
+def print_name(func):
+    @functools.wraps(func)
+    def decorated(*args, **kwargs):
+        print(func.__name__, file=sys.stderr)
+        return func(*args, **kwargs)
+    return decorated
+
+
+@print_name
 def arrays_close(
         a,
         b,
@@ -140,6 +151,7 @@ class TritonMessage:
             raise
 
 
+@print_name
 def get_random_seed():
     """Provide random seed to allow for easer reproduction of testing failures
 
@@ -154,6 +166,7 @@ def get_random_seed():
     return random_seed
 
 
+@print_name
 def get_triton_client(
         protocol="grpc",
         host='localhost',
@@ -182,6 +195,7 @@ def get_triton_client(
     return client
 
 
+@print_name
 def set_up_triton_io(
         client, arr, protocol='grpc', shared_mem=None, predict_proba=False,
         num_classes=1):
@@ -254,6 +268,7 @@ def set_up_triton_io(
     )
 
 
+@print_name
 def get_result(response, output_handle):
     """Convert Triton response to NumPy array"""
     if output_handle is None:
@@ -267,6 +282,7 @@ def get_result(response, output_handle):
         )
 
 
+@print_name
 def triton_predict(
         model_name, arr, model_version='1', protocol='grpc', host='localhost',
         port=None, shared_mem=None, predict_proba=False, num_classes=1,
@@ -320,6 +336,7 @@ def triton_predict(
     return output, elapsed
 
 
+@print_name
 def run_test(
         model_repo=None,
         model_name='xgboost_classification_xgboost',
@@ -619,6 +636,7 @@ def run_test(
     print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 
+@print_name
 def parse_args():
     """Parse CLI arguments for model testing"""
     parser = argparse.ArgumentParser()

@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import argparse
+import functools
 import os
 import pickle
+import sys
 
 import cuml
 from cuml.ensemble import RandomForestClassifier as cuRFC
@@ -34,6 +36,15 @@ except ImportError:
     xgb = None
 
 
+def print_name(func):
+    @functools.wraps(func)
+    def decorated(*args, **kwargs):
+        print(func.__name__, file=sys.stderr)
+        return func(*args, **kwargs)
+    return decorated
+
+
+@print_name
 def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
     """Generate classification training set"""
     if cat_cols > 0:
@@ -63,6 +74,7 @@ def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
     return data, labels
 
 
+@print_name
 def train_xgboost_classifier(data, labels, depth=25, trees=100):
     """Train XGBoost classification model"""
     if xgb is None:
@@ -81,6 +93,7 @@ def train_xgboost_classifier(data, labels, depth=25, trees=100):
     return model.fit(data, labels)
 
 
+@print_name
 def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     """Train LightGBM classification model"""
     if lgb is None:
@@ -107,6 +120,7 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     return model
 
 
+@print_name
 def train_sklearn_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
     if skRFC is None:
@@ -118,6 +132,7 @@ def train_sklearn_classifier(data, labels, depth=25, trees=100):
     return model.fit(data, labels)
 
 
+@print_name
 def train_cuml_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
     model = cuRFC(
@@ -127,6 +142,7 @@ def train_cuml_classifier(data, labels, depth=25, trees=100):
     return model.fit(data, labels)
 
 
+@print_name
 def train_classifier(
         data,
         labels,
@@ -155,6 +171,7 @@ def train_classifier(
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
 
+@print_name
 def generate_regression_data(rows=1000, cols=32):
     with cuml.using_output_type('numpy'):
         data, labels = cuml.datasets.make_regression(
@@ -165,6 +182,7 @@ def generate_regression_data(rows=1000, cols=32):
     return data, labels
 
 
+@print_name
 def train_xgboost_regressor(data, targets, depth=25, trees=100):
     """Train XGBoost regression model"""
 
@@ -183,6 +201,7 @@ def train_xgboost_regressor(data, targets, depth=25, trees=100):
     return model.fit(data, targets)
 
 
+@print_name
 def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     """Train LightGBM regression model"""
     if lgb is None:
@@ -200,6 +219,7 @@ def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     return model
 
 
+@print_name
 def train_sklearn_regressor(data, targets, depth=25, trees=100):
     """Train SKLearn regression model"""
     if skRFR is None:
@@ -211,6 +231,7 @@ def train_sklearn_regressor(data, targets, depth=25, trees=100):
     return model.fit(data, targets)
 
 
+@print_name
 def train_cuml_regressor(data, targets, depth=25, trees=100):
     """Train cuML regression model"""
     model = cuRFR(
@@ -220,6 +241,7 @@ def train_cuml_regressor(data, targets, depth=25, trees=100):
     return model.fit(data, targets)
 
 
+@print_name
 def train_regressor(
         data,
         targets,
@@ -247,6 +269,7 @@ def train_regressor(
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
 
+@print_name
 def generate_model(
         task='classification',
         model_type='xgboost',
@@ -280,6 +303,7 @@ def generate_model(
     raise RuntimeError('Unknown model task "{}"'.format(task))
 
 
+@print_name
 def serialize_model(model, directory, output_format='xgboost'):
     if output_format == 'xgboost':
         model_path = os.path.join(directory, 'xgboost.model')
@@ -303,6 +327,7 @@ def serialize_model(model, directory, output_format='xgboost'):
     )
 
 
+@print_name
 def generate_config(
         model_name,
         *,
@@ -388,6 +413,7 @@ dynamic_batching {{
 }}"""
 
 
+@print_name
 def build_model(
         task='classification',
         model_type='xgboost',
@@ -486,6 +512,7 @@ def build_model(
     return model_name
 
 
+@print_name
 def parse_args():
     """Parse CLI arguments for model creation"""
     parser = argparse.ArgumentParser()
