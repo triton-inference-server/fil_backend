@@ -5,8 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - aws-sdk-cpp<1.9
-  - clang-tools=8.0.1
-  - cudatoolkit=11.0
+  - cudatoolkit=11.4
   - cuml=21.10
   - flake8
   - lightgbm
