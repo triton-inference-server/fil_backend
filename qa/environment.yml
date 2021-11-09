@@ -10,6 +10,7 @@ dependencies:
   - cuml=21.10
   - flake8
   - lightgbm
+  - matplotlib
   - pip
   - python=3.8
   - rapidsai::py-xgboost
