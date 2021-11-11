@@ -21,6 +21,7 @@
 #include <tl_utils.h>
 #include <treelite/c_api.h>
 #include <treelite/tree.h>
+#include <xgboost/c_api.h>
 
 #include <cstring>
 #include <filesystem>
@@ -37,6 +38,8 @@ struct TreeliteModel {
       : handle_{load_tl_handle(model_file, format)},
         num_classes_{tl_get_num_classes(handle_)}, tl_config_{tl_config}
   {
+    xgb_check(XGBoosterCreate(nullptr, 0, booster_));
+    xgb_check(XGBoosterLoadModel(booster_, model_file.c_str()));
   }
   TreeliteModel(TreeliteModel const& other) = default;
   TreeliteModel& operator=(TreeliteModel const& other) = default;
@@ -119,6 +122,7 @@ struct TreeliteModel {
   void* handle_;
   std::size_t num_classes_;
   std::shared_ptr<treelite_config> tl_config_;
+  BoosterHandle booster_;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

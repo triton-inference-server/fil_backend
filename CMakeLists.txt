@@ -159,6 +159,9 @@ else()
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
+  set(CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
+  find_package(xgboost REQUIRED)
+
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)
   endif()
@@ -213,6 +216,7 @@ else()
       raft::raft
       cuml++
       rapids_triton::rapids_triton
+      xgboost::xgboost
       triton-core-serverstub
       triton-backend-utils
       "${TRITONSERVER_LIB}"
@@ -224,6 +228,7 @@ else()
       $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
       $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
       rapids_triton::rapids_triton
+      xgboost::xgboost
       triton-core-serverstub
       triton-backend-utils
       "${TRITONSERVER_LIB}"

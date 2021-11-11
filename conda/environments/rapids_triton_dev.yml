@@ -7,3 +7,4 @@ dependencies:
   - cmake>=3.21
   - ninja
   - rapidjson
+  - xgboost
