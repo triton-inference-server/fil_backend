@@ -18,24 +18,16 @@
 
 #include <names.h>
 
-#include <cstddef>
-#include <rapids_triton/memory/buffer.hpp>
-#include <rapids_triton/memory/types.hpp>
+#include <string>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-/* This struct defines a unified prediction interface to both FIL and GTIL.
- * Template specializations are provided based on the type of memory the model
- * is expected to process */
-template <rapids::MemoryType M>
-struct ForestModel {
-  void predict(
-      rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t samples, bool predict_proba) const
-  {
-    throw TritonException(
-        Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
-  }
+struct treelite_config {
+  std::string algo;
+  std::string storage_type;
+  float threshold;
+  int blocks_per_sm;
+  int threads_per_tree;
 };
+
 }}}  // namespace triton::backend::NAMESPACE

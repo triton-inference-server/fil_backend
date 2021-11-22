@@ -16,26 +16,32 @@
 
 #pragma once
 
+#include <forest_model.h>
 #include <names.h>
+#include <tl_model.h>
 
 #include <cstddef>
+#include <memory>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-/* This struct defines a unified prediction interface to both FIL and GTIL.
- * Template specializations are provided based on the type of memory the model
- * is expected to process */
-template <rapids::MemoryType M>
-struct ForestModel {
+template <>
+struct ForestModel<rapids::HostMemory> {
+  ForestModel() = default;
+  ForestModel(std::shared_ptr<TreeliteModel> tl_model) : tl_model_{tl_model} {}
+
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    throw TritonException(
-        Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+    tl_model_->predict(output, input, samples, predict_proba);
   }
+
+
+ private:
+  std::shared_ptr<TreeliteModel> tl_model_;
 };
+
 }}}  // namespace triton::backend::NAMESPACE

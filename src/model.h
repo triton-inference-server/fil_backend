@@ -16,7 +16,15 @@
 
 #pragma once
 
+#ifdef TRITON_ENABLE_GPU
+#include <cuda_runtime_api.h>
+#include <gpu_forest_model.h>
+#else
 #include <forest_model.h>
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
+
+#include <cpu_forest_model.h>
 #include <names.h>
 #include <shared_state.h>
 #include <tl_model.h>
@@ -155,7 +163,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     // Load model via Treelite
     auto tl_model = std::make_shared<TreeliteModel>(
         model_file(), shared_state->model_format(),
-        shared_state->treelite_params());
+        shared_state->treelite_config());
 
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
