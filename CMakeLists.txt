@@ -105,7 +105,7 @@ else()
     rapids_cuda_init_architectures(RAPIDS_TRITON)
   endif()
 
-  project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
+  project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
 
   ##############################################################################
   # - build type ---------------------------------------------------------------
@@ -152,8 +152,8 @@ else()
   include(cmake/thirdparty/get_treelite.cmake)
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_raft.cmake)
+    include(cmake/thirdparty/get_cuml.cmake)
   endif()
-  include(cmake/thirdparty/get_cuml.cmake)
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
@@ -169,7 +169,7 @@ else()
   )
 
   IF(TRITON_ENABLE_GPU)
-    set_target_properties(test_rapids_triton
+    set_target_properties(${BACKEND_TARGET}
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                # set target compile options
                CXX_STANDARD                        17
@@ -180,7 +180,7 @@ else()
                INTERFACE_POSITION_INDEPENDENT_CODE ON
     )
   else()
-    set_target_properties(test_rapids_triton
+    set_target_properties(${BACKEND_TARGET}
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                # set target compile options
                CXX_STANDARD                        17
@@ -200,23 +200,43 @@ else()
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
   
-  target_link_libraries(${BACKEND_TARGET}
-  PRIVATE
-    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
-    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
-    rapids_triton::rapids_triton
-    triton-core-serverstub
-    triton-backend-utils
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
+  if(TRITON_ENABLE_GPU)
+    target_link_libraries(${BACKEND_TARGET}
+    PRIVATE
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      raft::raft
+      cuml++
+      rapids_triton::rapids_triton
+      triton-core-serverstub
+      triton-backend-utils
+      "${TRITONSERVER_LIB}"
+      $<TARGET_NAME_IF_EXISTS:conda_env>
+    )
+  else()
+    target_link_libraries(${BACKEND_TARGET}
+    PRIVATE
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      rapids_triton::rapids_triton
+      triton-core-serverstub
+      triton-backend-utils
+      "${TRITONSERVER_LIB}"
+      $<TARGET_NAME_IF_EXISTS:conda_env>
+    )
+  endif()
   
-  install(
-    TARGETS ${BACKEND_TARGET} $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
-    LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
-  )
+  if(TRITON_ENABLE_GPU)
+    install(
+      TARGETS ${BACKEND_TARGET} cuml++
+      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+    )
+  else()
+    install(
+      TARGETS ${BACKEND_TARGET}
+      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+    )
+  endif()
   
   ##############################################################################
   # - build test executable ----------------------------------------------------

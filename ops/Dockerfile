@@ -1,5 +1,13 @@
+###########################################################################################
+# Arguments for controlling build details
+###########################################################################################
+# Version of Triton to use
 ARG TRITON_VERSION=21.10
+# Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
+
+# Whether or not to enable GPU build
+ARG TRITON_ENABLE_GPU=ON
 
 FROM ${BASE_IMAGE} as base
 
@@ -18,34 +26,30 @@ RUN wget \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh 
 
-COPY ./conda/environments/rapids_triton_dev_cuda11.4.yml /environment.yml
+COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
     && conda clean -afy \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
-    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete \
-    && rm /root/miniconda3/envs/rapids_triton_dev/lib/libstdc++.so*
+    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-RUN mkdir /rapids_triton
+SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "bash", "-c"]
+
+FROM base as build-stage
+
+RUN mkdir -p /rapids_triton/build /rapids_triton/install
 
 COPY ./src /rapids_triton/src
 COPY ./CMakeLists.txt /rapids_triton
 COPY ./cmake /rapids_triton/cmake
 
-WORKDIR /rapids_triton
-
-SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "bash", "-c"]
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "bash"]
-
-FROM base as build-stage
-
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
 
-ARG BACKEND_NAME
+ARG BACKEND_NAME=fil
 ENV BACKEND_NAME=$BACKEND_NAME
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=$BUILD_TYPE
@@ -66,8 +70,6 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 ARG TRITON_ENABLE_STATS=ON
 ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
-RUN mkdir /rapids_triton/build /rapids_triton/install
-
 WORKDIR /rapids_triton/build
 
 # Remove potentially stale build artifacts
@@ -79,6 +81,7 @@ RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
     fi
 
 RUN cmake \
+    --log-level=VERBOSE \
     -GNinja \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DBUILD_TESTS="${BUILD_TESTS}" \
@@ -97,7 +100,27 @@ RUN cmake \
     -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
     ..;
 
-RUN ninja install
+ENV CCACHE_DIR=/ccache
+
+RUN --mount=type=cache,target=/ccache/ ninja install
+
+FROM base as test-install
+
+COPY ./conda/environments/rapids_triton_test.yml /environment.yml
+
+RUN conda env update -f /environment.yml \
+    && rm /environment.yml \
+    && conda clean -afy \
+    && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
+    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
+
+FROM build-stage as test-stage
+
+COPY --from=test-install /root/miniconda3 /root/miniconda3
+
+COPY qa /qa
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_test", "/bin/bash", "/qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE}
 
