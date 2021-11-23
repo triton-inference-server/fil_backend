@@ -19,6 +19,7 @@
 #include <names.h>
 
 #include <cstddef>
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
@@ -33,8 +34,8 @@ struct ForestModel {
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    throw TritonException(
-        Error::Unsupported,
+    throw rapids::TritonException(
+        rapids::Error::Unsupported,
         "ForestModel invoked with a memory type unsupported by this build");
   }
 };

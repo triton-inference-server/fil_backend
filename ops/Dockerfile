@@ -106,7 +106,7 @@ RUN --mount=type=cache,target=/ccache/ ninja install
 
 FROM base as test-install
 
-COPY ./conda/environments/rapids_triton_test.yml /environment.yml
+COPY ./qa/environment.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
@@ -120,7 +120,7 @@ COPY --from=test-install /root/miniconda3 /root/miniconda3
 
 COPY qa /qa
 
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_test", "/bin/bash", "/qa/entrypoint.sh"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_test", "/bin/bash", "/qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE}
 

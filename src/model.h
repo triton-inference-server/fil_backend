@@ -162,8 +162,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // Load model via Treelite
     auto tl_model = std::make_shared<TreeliteModel>(
-        model_file(), shared_state->model_format(),
-        shared_state->treelite_config());
+        model_file(), shared_state->model_format(), shared_state->config());
 
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {

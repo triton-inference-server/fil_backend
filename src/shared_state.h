@@ -62,7 +62,7 @@ struct RapidsSharedState : rapids::SharedModelState {
   auto predict_proba() const { return predict_proba_; }
   auto model_format() const { return model_format_; }
   auto transfer_threshold() const { return transfer_threshold_; }
-  auto treelite_config() const { return tl_config_; }
+  auto config() const { return tl_config_; }
 
  private:
   bool predict_proba_{};
