@@ -16,3 +16,11 @@
 
 #pragma once
 #define NAMESPACE fil
+
+#ifndef TRITON_ENABLE_GPU
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+
+namespace triton { namespace backend { namespace NAMESPACE {
+using cudaStream_t = rapids::cudaStream_t;
+}}}  // namespace triton::backend::NAMESPACE
+#endif

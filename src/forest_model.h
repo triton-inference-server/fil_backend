@@ -16,9 +16,15 @@
 
 #pragma once
 
+#ifdef TRITON_ENABLE_GPU
+#include <cuda_runtime_api.h>
+#endif
+
 #include <names.h>
+#include <tl_model.h>
 
 #include <cstddef>
+#include <memory>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
@@ -30,6 +36,24 @@ namespace triton { namespace backend { namespace NAMESPACE {
  * is expected to process */
 template <rapids::MemoryType M>
 struct ForestModel {
+  using device_id_t = int;
+
+  ForestModel(std::shared_ptr<TreeliteModel> tl_model)
+  {
+    throw rapids::TritonException(
+        rapids::Error::Unsupported,
+        "ForestModel invoked with a memory type unsupported by this build");
+  }
+
+  ForestModel(
+      device_id_t device_id, cudaStream_t stream,
+      std::shared_ptr<TreeliteModel> tl_model)
+  {
+    throw rapids::TritonException(
+        rapids::Error::Unsupported,
+        "ForestModel invoked with a memory type unsupported by this build");
+  }
+
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
