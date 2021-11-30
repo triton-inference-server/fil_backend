@@ -18,7 +18,7 @@ set -e
 QA_DIR=$(cd $(dirname $0); pwd)
 SERVER_ARGS=""
 UUID="$(cat /proc/sys/kernel/random/uuid)"
-CONTAINER_NAME="rapids_triton-ci-$UUID"
+CONTAINER_NAME="fil_backend-ci-$UUID"
 DOCKER_RUN=0
 DOCKER_ARGS="-d -p 8000:8000 -p 8001:8001 -p 8002:8002 --name ${CONTAINER_NAME}"
 TRITON_PID=""
