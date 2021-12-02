@@ -26,7 +26,7 @@ from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
 from rapids_triton.testing import get_random_seed, arrays_close
 
-TOTAL_SAMPLES = 10
+TOTAL_SAMPLES = 15
 MODELS = (
     'xgboost',
     'xgboost_json',
@@ -52,6 +52,12 @@ def client():
     return client
 
 
+@pytest.fixture(scope='session')
+def model_repo(pytestconfig):
+    return pytestconfig.getoption('repo')
+
+
+# TODO(wphicks): Turn these into fixtures
 def get_input_shapes(client, model):
     try:
         return get_input_shapes.cache[model]
@@ -173,13 +179,13 @@ class GroundTruthModel:
     deadline=None,
     suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much)
 )
-def test_model(client, model_name, hypothesis_data):
+def test_model(client, model_repo, model_name, hypothesis_data):
     input_shapes = get_input_shapes(client, model_name)
     all_model_inputs = defaultdict(list)
     total_output_sizes = {}
     all_triton_outputs = defaultdict(list)
     default_arrays = {
-        name: np.random.rand(1, *shape).astype('float32')
+        name: np.random.rand(TOTAL_SAMPLES, *shape).astype('float32')
         for name, shape in input_shapes.items()
     }
 
@@ -187,7 +193,7 @@ def test_model(client, model_name, hypothesis_data):
         model_inputs = {
             name: hypothesis_data.draw(
                 st.one_of(
-                    st.just(default_arrays[name]),
+                    st.just(default_arrays[name][i:i+1, :]),
                     st_arrays('float32', [1] + shape)
                 )
             ) for name, shape in input_shapes.items()
@@ -209,7 +215,6 @@ def test_model(client, model_name, hypothesis_data):
         for name, output in result.items():
             all_triton_outputs[name].append(output)
 
-    model_repo = '/qa/L0_e2e/model_repository'
     gt_model = GroundTruthModel.get(client, model_name, model_repo)
 
     all_model_inputs = {
@@ -248,15 +253,14 @@ def test_model(client, model_name, hypothesis_data):
             all_triton_outputs[output_name],
             ground_truth[output_name],
             atol=1.5e-3,
-            total_atol=2,
+            total_atol=3,
             assert_close=True
         )
 
 
 @pytest.mark.parametrize("model_name", MODELS)
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())
-def test_max_batch(client, model_name, shared_mem):
-    model_repo = '/qa/L0_e2e/model_repository'
+def test_max_batch(client, model_repo, model_name, shared_mem):
     input_shapes = get_input_shapes(client, model_name)
     gt_model = GroundTruthModel.get(client, model_name, model_repo)
     max_batch_size = get_max_batch_size(client, model_name)

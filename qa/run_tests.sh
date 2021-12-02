@@ -92,4 +92,4 @@ finally() {
 
 trap finally EXIT
 
-pytest "$QA_DIR"
+pytest --repo "${MODEL_REPO}" "$QA_DIR"
