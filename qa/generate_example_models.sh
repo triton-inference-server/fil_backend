@@ -18,8 +18,8 @@ set -e
 RETRAIN=${RETRAIN:-0}
 
 QA_DIR=$(cd $(dirname $0); pwd)
-MODEL_REPO="${HOST_QA_DIR}/L0_e2e/model_repository"
-CPU_MODEL_REPO="${HOST_QA_DIR}/L0_e2e/cpu_model_repository"
+MODEL_REPO="${QA_DIR}/L0_e2e/model_repository"
+CPU_MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository"
 
 SCRIPTS_DIR="${QA_DIR}/../scripts"
 MODEL_REPO="${QA_DIR}/L0_e2e/model_repository"
@@ -112,7 +112,7 @@ fi
 $CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
 
 mkdir -p "${CPU_MODEL_REPO}"
-cp -r "${MODEL_REPO}"/* "${CPU_MODEL_REPO}/"
+cp -r "${MODEL_REPO}"/* "${CPU_MODEL_REPO}"/
 
 if [ ! -z $OWNER_ID ] && [ ! -z $OWNER_GID ]
 then

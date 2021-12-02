@@ -9,10 +9,13 @@ dependencies:
   - cudatoolkit=11.4
   - cuml=21.10
   - flake8
+  - hypothesis
   - lightgbm
   - pip
+  - pytest
   - python=3.8
   - rapidsai::py-xgboost
   - scikit-learn
   - pip:
       - tritonclient[all]
+      - git+https://github.com/rapidsai/rapids-triton.git#subdirectory=python

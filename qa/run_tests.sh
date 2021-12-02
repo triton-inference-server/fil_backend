@@ -40,19 +40,16 @@ DOCKER_ARGS="${DOCKER_ARGS} -v ${MODEL_REPO}:/models"
 
 if [ -z $CPU_ONLY ] || [ $CPU_ONLY -eq 0 ]
 then
-  if [[ -v CUDA_VISIBLE_DEVICES ]]
+  if [ -z $CUDA_VISIBLE_DEVICES ]
   then
-    if [ -z $CUDA_VISIBLE_DEVICES ]
-    then
-      CPU_ONLY=1
-    else
-      DOCKER_ARGS="${DOCKER_ARGS} --gpus ${CUDA_VISIBLE_DEVICES}"
-    fi
-  else
     DOCKER_ARGS="${DOCKER_ARGS} --gpus all"
+    TRITON_VISIBLE_DEVICES='all'
+  else
+    DOCKER_ARGS="${DOCKER_ARGS} --gpus ${CUDA_VISIBLE_DEVICES}"
+    TRITON_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES}"
   fi
 else
-  export CUDA_VISIBLE_DEVICES=""
+  TRITON_VISIBLE_DEVICES=''
 fi
 
 # If a Triton Docker image has been provided or no tritonserver executable is
@@ -71,7 +68,12 @@ start_server() {
   then
     docker run $DOCKER_ARGS $TRITON_IMAGE > /dev/null
   else
-    tritonserver $SERVER_ARGS > $SERVER_LOG 2>&1 &
+    if [ -z $TRITON_VISIBLE_DEVICES ]
+    then
+      CUDA_VISIBLE_DEVICES='' tritonserver $SERVER_ARGS > $SERVER_LOG 2>&1 &
+    else
+      tritonserver $SERVER_ARGS > $SERVER_LOG 2>&1 &
+    fi
     TRITON_PID="$!"
   fi
 }

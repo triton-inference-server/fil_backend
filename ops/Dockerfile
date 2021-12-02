@@ -7,6 +7,8 @@ ARG TRITON_VERSION=21.10
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
 ARG TRITON_ENABLE_GPU=ON
+# A Triton server image to use as base for test layers (skip actual build)
+ARG SERVER_IMAGE=build-stage
 
 FROM ${BASE_IMAGE} as base
 
@@ -116,7 +118,7 @@ RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environ
     && rm /environment.yml
 
 # Stage for generating testing image
-FROM build-stage as test-stage
+FROM ${SERVER_IMAGE} as test-stage
 
 COPY --from=test-install /root/miniconda3 /root/miniconda3
 
@@ -126,9 +128,9 @@ COPY scripts /scripts
 # Default to triton_test conda env
 RUN sed -i s/rapids_triton_dev/triton_test/g /root/.bashrc
 
-CMD ["/bin/bash", "-c", "/qa/entrypoint.sh"]
+CMD ["conda", "run", "--no-capture-output", "-n", "triton_test", "/qa/entrypoint.sh"]
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} as final
 
 ARG BACKEND_NAME
 ENV BACKEND_NAME=$BACKEND_NAME

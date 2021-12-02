@@ -17,7 +17,7 @@ export TEST_TAG=triton_fil_test
 echo "Building Docker images..."
 $REPO_DIR/build.sh
 
-DOCKER_ARGS="-v ${QA_DIR}/logs:/qa/logs"
+DOCKER_ARGS="-t -v ${QA_DIR}/logs:/qa/logs"
 
 if [ -z $CUDA_VISIBLE_DEVICES ]
 then
@@ -41,11 +41,7 @@ echo "Running GPU-enabled tests..."
 docker run \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  --rm $TEST_TAG
-echo "Running CPU models in GPU-enabled build..."
-docker run \
-  $DOCKER_ARGS \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
 
 export SERVER_TAG=triton_fil:cpu
@@ -57,5 +53,6 @@ $REPO_DIR/build.sh --cpu-only
 echo "Running CPU-only tests..."
 docker run \
   $DOCKER_ARGS \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
