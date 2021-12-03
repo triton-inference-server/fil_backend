@@ -16,6 +16,7 @@ dependencies:
   - python=3.8
   - rapidsai::py-xgboost
   - scikit-learn
+  - treelite
   - pip:
       - tritonclient[all]
       - git+https://github.com/rapidsai/rapids-triton.git#subdirectory=python
