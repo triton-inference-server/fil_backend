@@ -65,7 +65,8 @@ then
     --type lightgbm \
     --depth 3 \
     --trees 2000 \
-    --cat_features 3
+    --cat_features 3 \
+    --predict_proba
   models+=( $name )
 fi
 
@@ -91,7 +92,8 @@ then
     --type sklearn \
     --depth 3 \
     --trees 10 \
-    --features 500
+    --features 500 \
+    --predict_proba
   models+=( $name )
 fi
 $SKLEARN_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null

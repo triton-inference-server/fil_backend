@@ -14,12 +14,13 @@
 
 import os
 import pickle
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from functools import lru_cache
 
 import cuml
 import numpy as np
 import pytest
+import treelite
 from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
@@ -36,9 +37,19 @@ MODELS = (
     'cuml'
 )
 
+ModelData = namedtuple('ModelData', (
+    'name',
+    'input_shapes',
+    'output_sizes',
+    'max_batch_size',
+    'ground_truth_model',
+    'config'
+))
+
 # TODO(wphicks): Replace with cache in 3.9
 @lru_cache()
 def valid_shm_modes():
+    """Return a tuple of allowed shared memory modes"""
     modes = [None]
     if os.environ.get('CPU_ONLY', 0) == 0:
         modes.append('cuda')
@@ -47,6 +58,7 @@ def valid_shm_modes():
 
 @pytest.fixture(scope='session')
 def client():
+    """A RAPIDS-Triton client for submitting inference requests"""
     client = Client()
     client.wait_for_server(120)
     return client
@@ -54,49 +66,12 @@ def client():
 
 @pytest.fixture(scope='session')
 def model_repo(pytestconfig):
+    """The path to the model repository directory"""
     return pytestconfig.getoption('repo')
 
 
-# TODO(wphicks): Turn these into fixtures
-def get_input_shapes(client, model):
-    try:
-        return get_input_shapes.cache[model]
-    except KeyError:
-        config = client.get_model_config(model)
-        get_input_shapes.cache[model] = {
-            input_.name: list(input_.dims) for input_ in config.input
-        }
-    except AttributeError:
-        get_input_shapes.cache = {}
-    return get_input_shapes(client, model)
-
-
-def get_output_sizes(client, model, dtype='float32'):
-    try:
-        return get_output_sizes.cache[model]
-    except KeyError:
-        config = client.get_model_config(model)
-        get_output_sizes.cache[model] = {
-            output.name: np.product(output.dims) * np.dtype(dtype).itemsize
-            for output in config.output
-        }
-    except AttributeError:
-        get_output_sizes.cache = {}
-    return get_output_sizes(client, model)
-
-
-def get_max_batch_size(client, model):
-    try:
-        return get_max_batch_size.cache[model]
-    except KeyError:
-        config = client.get_model_config(model)
-        get_max_batch_size.cache[model] = config.max_batch_size
-    except AttributeError:
-        get_max_batch_size.cache = {}
-    return get_max_batch_size(client, model)
-
-
 def get_model_parameter(config, param, default=None):
+    """Retrieve custom model parameters from config"""
     param_str = config.parameters[param].string_value
     if param_str:
         return param_str
@@ -104,9 +79,36 @@ def get_model_parameter(config, param, default=None):
         return default
 
 
-class GroundTruthModel:
-    model_cache = {}
+class GTILModel:
+    """A compatibility wrapper for executing models with GTIL"""
 
+    def __init__(self, model_path, model_format, output_class):
+        if model_format == 'treelite_checkpoint':
+            self.tl_model = treelite.Model.deserialize(model_path)
+        else:
+            self.tl_model = treelite.Model.load(model_path, model_format)
+        self.output_class = output_class
+
+    def _predict(self, arr):
+        return treelite.gtil.predict(self.tl_model, arr)
+
+    def predict_proba(self, arr):
+        result = self._predict(arr)
+        if len(result.shape) > 1:
+            return result
+        else:
+            return np.transpose(np.vstack((1 - result, result)))
+
+    def predict(self, arr):
+        if self.output_class:
+            return np.argmax(self.predict_proba(arr), axis=1)
+        else:
+            return self._predict(arr)
+
+
+class GroundTruthModel:
+    """A reference model used for comparison against results returned from
+    Triton"""
     def __init__(
             self,
             name,
@@ -114,6 +116,7 @@ class GroundTruthModel:
             model_format,
             predict_proba,
             output_class,
+            use_cpu,
             *,
             model_version=1):
         model_dir = os.path.join(model_repo, name, f'{model_version}')
@@ -126,17 +129,25 @@ class GroundTruthModel:
         elif model_format == 'lightgbm':
             model_path = os.path.join(model_dir, 'model.txt')
         elif model_format == 'treelite_checkpoint':
-            model_path = os.path.join(model_dir, 'model.pkl')
+            if use_cpu:
+                model_path = os.path.join(model_dir, 'checkpoint.tl')
+            else:
+                model_path = os.path.join(model_dir, 'model.pkl')
         else:
             raise RuntimeError('Model format not recognized')
 
-        if model_format == 'treelite_checkpoint':
-            with open(model_path, 'rb') as pkl_file:
-                self._base_model = pickle.load(pkl_file)
-        else:
-            self._base_model = cuml.ForestInference.load(
-                model_path, output_class=output_class, model_type=model_format
+        if use_cpu:
+            self._base_model = GTILModel(
+                model_path, model_format, output_class
             )
+        else:
+            if model_format == 'treelite_checkpoint':
+                with open(model_path, 'rb') as pkl_file:
+                    self._base_model = pickle.load(pkl_file)
+            else:
+                self._base_model = cuml.ForestInference.load(
+                    model_path, output_class=output_class, model_type=model_format
+                )
 
     def predict(self, inputs):
         if self.predict_proba:
@@ -147,46 +158,64 @@ class GroundTruthModel:
             'output__0': result
         }
 
-    @classmethod
-    def get(cls, client, model, repo, *, version=1):
-        model_key = (model, version)
-        try:
-            return cls.model_cache[model_key]
-        except KeyError:
-            config = client.get_model_config(model)
-            model_format = get_model_parameter(
-                config, 'model_type', default='xgboost'
-            )
-            predict_proba = get_model_parameter(
-                config, 'predict_proba', default='false'
-            )
-            predict_proba = (predict_proba == 'true')
-            output_class = get_model_parameter(
-                config, 'output_class', default='true'
-            )
-            output_class = (output_class == 'true')
 
-            cls.model_cache[model_key] = cls(
-                model, repo, model_format, predict_proba, output_class,
-                model_version=version
-            )
-        return cls.get(client, model, repo, version=version)
+@pytest.fixture(scope='session', params=MODELS)
+def model_data(request, client, model_repo):
+    """All data associated with a model required for generating examples and
+    comparing with ground truth results"""
+    name = request.param
+    config = client.get_model_config(name)
+    input_shapes = {
+        input_.name: list(input_.dims) for input_ in config.input
+    }
+    output_sizes = {
+        output.name: np.product(output.dims) * np.dtype('float32').itemsize
+        for output in config.output
+    }
+    max_batch_size = config.max_batch_size
+
+    model_format = get_model_parameter(
+        config, 'model_type', default='xgboost'
+    )
+    predict_proba = get_model_parameter(
+        config, 'predict_proba', default='false'
+    )
+    predict_proba = (predict_proba == 'true')
+    output_class = get_model_parameter(
+        config, 'output_class', default='true'
+    )
+    output_class = (output_class == 'true')
+
+    use_cpu = (config.instance_group[0].kind != 1)
+
+    ground_truth_model = GroundTruthModel(
+        name, model_repo, model_format, predict_proba, output_class, use_cpu,
+        model_version=1
+    )
+
+    return ModelData(
+        name,
+        input_shapes,
+        output_sizes,
+        max_batch_size,
+        ground_truth_model,
+        config
+    )
 
 
-@pytest.mark.parametrize("model_name", MODELS)
 @given(hypothesis_data=st.data())
 @settings(
     deadline=None,
     suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much)
 )
-def test_model(client, model_repo, model_name, hypothesis_data):
-    input_shapes = get_input_shapes(client, model_name)
+def test_small(client, model_data, hypothesis_data):
+    """Test Triton-served model on many small Hypothesis-generated examples"""
     all_model_inputs = defaultdict(list)
     total_output_sizes = {}
     all_triton_outputs = defaultdict(list)
     default_arrays = {
         name: np.random.rand(TOTAL_SAMPLES, *shape).astype('float32')
-        for name, shape in input_shapes.items()
+        for name, shape in model_data.input_shapes.items()
     }
 
     for i in range(TOTAL_SAMPLES):
@@ -196,17 +225,21 @@ def test_model(client, model_repo, model_name, hypothesis_data):
                     st.just(default_arrays[name][i:i+1, :]),
                     st_arrays('float32', [1] + shape)
                 )
-            ) for name, shape in input_shapes.items()
+            ) for name, shape in model_data.input_shapes.items()
         }
+        if model_data.name == 'sklearn':
+            for array in model_inputs.values():
+                assume(not np.any(np.isnan(array)))
         model_output_sizes = {
             name: size
-            for name, size in get_output_sizes(client, model_name).items()
+            for name, size in model_data.output_sizes.items()
         }
         shared_mem = hypothesis_data.draw(st.one_of(
             st.just(mode) for mode in valid_shm_modes()
         ))
         result = client.predict(
-            model_name, model_inputs, model_output_sizes, shared_mem=shared_mem
+            model_data.name, model_inputs, model_data.output_sizes,
+            shared_mem=shared_mem
         )
         for name, input_ in model_inputs.items():
             all_model_inputs[name].append(input_)
@@ -214,8 +247,6 @@ def test_model(client, model_repo, model_name, hypothesis_data):
             total_output_sizes[name] = total_output_sizes.get(name, 0) + size
         for name, output in result.items():
             all_triton_outputs[name].append(output)
-
-    gt_model = GroundTruthModel.get(client, model_name, model_repo)
 
     all_model_inputs = {
         name: np.concatenate(arrays)
@@ -227,63 +258,88 @@ def test_model(client, model_repo, model_name, hypothesis_data):
     }
 
     try:
-        ground_truth = gt_model.predict(all_model_inputs)
+        ground_truth = model_data.ground_truth_model.predict(all_model_inputs)
     except Exception:
         assume(False)
 
     for output_name in sorted(ground_truth.keys()):
-        arrays_close(
-            all_triton_outputs[output_name],
-            ground_truth[output_name],
-            atol=1.5e-3,
-            total_atol=2,
-            assert_close=True
-        )
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
+            )
+        else:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_atol=3,
+                assert_close=True
+            )
 
     # Test entire batch of Hypothesis-generated inputs at once
     shared_mem = hypothesis_data.draw(st.one_of(
         st.just(mode) for mode in valid_shm_modes()
     ))
     all_triton_outputs = client.predict(
-        model_name, all_model_inputs, total_output_sizes, shared_mem=shared_mem
+        model_data.name, all_model_inputs, total_output_sizes,
+        shared_mem=shared_mem
     )
 
     for output_name in sorted(ground_truth.keys()):
-        arrays_close(
-            all_triton_outputs[output_name],
-            ground_truth[output_name],
-            atol=1.5e-3,
-            total_atol=3,
-            assert_close=True
-        )
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
+            )
+        else:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_atol=3,
+                assert_close=True
+            )
 
 
-@pytest.mark.parametrize("model_name", MODELS)
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())
-def test_max_batch(client, model_repo, model_name, shared_mem):
-    input_shapes = get_input_shapes(client, model_name)
-    gt_model = GroundTruthModel.get(client, model_name, model_repo)
-    max_batch_size = get_max_batch_size(client, model_name)
+def test_max_batch(client, model_data, shared_mem):
+    """Test processing of a single maximum-sized batch"""
     max_inputs = {
-        name: np.random.rand(max_batch_size, *shape).astype('float32')
-        for name, shape in input_shapes.items()
+        name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')
+        for name, shape in model_data.input_shapes.items()
     }
     model_output_sizes = {
-        name: size * max_batch_size
-        for name, size in get_output_sizes(client, model_name).items()
+        name: size * model_data.max_batch_size
+        for name, size in model_data.output_sizes.items()
     }
     shared_mem = valid_shm_modes()[0]
     result = client.predict(
-        model_name, max_inputs, model_output_sizes, shared_mem=shared_mem
+        model_data.name, max_inputs, model_output_sizes, shared_mem=shared_mem
     )
 
-    ground_truth = gt_model.predict(max_inputs)
+    ground_truth = model_data.ground_truth_model.predict(max_inputs)
 
     for output_name in sorted(ground_truth.keys()):
-        arrays_close(
-            result[output_name],
-            ground_truth[output_name],
-            atol=1.5e-3,
-            total_atol=2,
-            assert_close=True
-        )
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                result[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
+            )
+        else:
+            arrays_close(
+                result[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_rtol=3,
+                assert_close=True
+            )
