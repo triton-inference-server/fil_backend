@@ -26,7 +26,7 @@ from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
 from rapids_triton.testing import get_random_seed, arrays_close
 
-TOTAL_SAMPLES = 15
+TOTAL_SAMPLES = 20
 MODELS = (
     'xgboost',
     'xgboost_json',
