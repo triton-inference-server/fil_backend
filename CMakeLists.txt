@@ -28,7 +28,7 @@ if(TRITON_FIL_DOCKER_BUILD)
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
-    COMMAND docker build -t
+    COMMAND DOCKER_BUILDKIT=1 docker build -t
       triton_fil_builder
       --build-arg BUILD_TYPE=${CMAKE_BUILD_TYPE}
       --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION}

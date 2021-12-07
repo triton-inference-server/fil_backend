@@ -80,6 +80,8 @@ start_server() {
 
 start_server
 
+# TODO (wphicks): Run linters
+
 finally() {
   if [ -z $TRITON_PID ]
   then
