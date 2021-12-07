@@ -74,6 +74,11 @@ docker run \
   $TEST_TAG \
   bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
 
+if [ -z $CPU_ONLY ]
+then
+  DOCKER_ARGS="${DOCKER_ARGS} -e TRITON_ENABLE_GPU=OFF"
+fi
+
 echo "Running tests..."
 docker run \
   $DOCKER_ARGS \
