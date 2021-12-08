@@ -52,7 +52,7 @@ LOG_DIR="$(readlink -f $LOG_DIR)"
 
 DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
-if [ -z $NV_DOCKER_ARGS ]
+if [ -z "$NV_DOCKER_ARGS" ]
 then
   if [ -z $CUDA_VISIBLE_DEVICES ]
   then
