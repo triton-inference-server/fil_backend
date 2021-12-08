@@ -132,17 +132,19 @@ else()
   # - compiler options ---------------------------------------------------------
   set(CMAKE_C_COMPILER_LAUNCHER ccache)
   set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
-  set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
+  if(TRITON_ENABLE_GPU)
+    set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
 
-  # * find CUDAToolkit package
-  # * determine GPU architectures
-  # * enable the CMake CUDA language
-  # * set other CUDA compilation flags
-  rapids_find_package(CUDAToolkit REQUIRED
-      BUILD_EXPORT_SET rapids_triton-exports
-      INSTALL_EXPORT_SET rapids_triton-exports
-      )
-  include(cmake/modules/ConfigureCUDA.cmake)
+    # * find CUDAToolkit package
+    # * determine GPU architectures
+    # * enable the CMake CUDA language
+    # * set other CUDA compilation flags
+    rapids_find_package(CUDAToolkit REQUIRED
+        BUILD_EXPORT_SET rapids_triton-exports
+        INSTALL_EXPORT_SET rapids_triton-exports
+        )
+    include(cmake/modules/ConfigureCUDA.cmake)
+  endif()
 
   ##############################################################################
   # - Requirements -------------------------------------------------------------

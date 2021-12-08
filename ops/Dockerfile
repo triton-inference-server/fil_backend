@@ -15,7 +15,7 @@ FROM ${BASE_IMAGE} as base
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y wget \
+    && apt-get install --no-install-recommends -y build-essential wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
