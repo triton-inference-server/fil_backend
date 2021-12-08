@@ -42,5 +42,5 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_rapids_triton(VERSION    21.10
                         FORK       rapidsai
-                        PINNED_TAG 75f9b222f551fe4b9207c9012e897ebb60408783
+                        PINNED_TAG 6f915e648f9be1360c5c89791fb0cefa1971346b
                         )
