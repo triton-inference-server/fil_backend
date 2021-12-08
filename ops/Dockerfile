@@ -22,10 +22,10 @@ RUN apt-get update \
 ENV PYTHONDONTWRITEBYTECODE=true
 
 RUN wget \
-    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
     && mkdir /root/.conda \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+    && bash Miniconda3-latest-Linux-$(uname -m).sh -b \
+    && rm -f Miniconda3-latest-Linux-$(uname -m).sh 
 
 COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 
@@ -124,10 +124,10 @@ ENV PATH="/root/miniconda3/bin:${PATH}"
 ENV PYTHONDONTWRITEBYTECODE=true
 RUN if ! command -v conda; then \
       wget \
-      https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+      https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
       && mkdir /root/.conda \
-      && bash Miniconda3-latest-Linux-x86_64.sh -b \
-      && rm -f Miniconda3-latest-Linux-x86_64.sh \
+      && bash Miniconda3-latest-Linux-$(uname -m).sh -b \
+      && rm -f Miniconda3-latest-Linux-$(uname -m).sh \
       && conda init; \
     fi
 ENV PYTHONDONTWRITEBYTECODE=false
