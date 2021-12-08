@@ -8,6 +8,7 @@ set -e
 # LOG_DIR: Host directory for storing logs
 # NV_DOCKER_ARGS: Docker arguments for controlling GPU access
 # BUILDPY: 1 to use Triton's build.py script for server build
+# CPU_ONLY: 1 to build without GPU support
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
@@ -74,7 +75,7 @@ docker run \
   $TEST_TAG \
   bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
 
-if [ -z $CPU_ONLY ]
+if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
 then
   DOCKER_ARGS="${DOCKER_ARGS} -e TRITON_ENABLE_GPU=OFF"
 fi

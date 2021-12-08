@@ -120,6 +120,18 @@ RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environ
 # Stage for generating testing image
 FROM ${SERVER_IMAGE} as test-stage
 
+ENV PATH="/root/miniconda3/bin:${PATH}"
+ENV PYTHONDONTWRITEBYTECODE=true
+RUN if ! command -v conda; then \
+      wget \
+      https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+      && mkdir /root/.conda \
+      && bash Miniconda3-latest-Linux-x86_64.sh -b \
+      && rm -f Miniconda3-latest-Linux-x86_64.sh \
+      && conda init; \
+    fi
+ENV PYTHONDONTWRITEBYTECODE=false
+
 COPY --from=test-install /root/miniconda3 /root/miniconda3
 
 COPY qa /qa
@@ -128,6 +140,7 @@ COPY scripts /scripts
 # Default to triton_test conda env
 RUN sed -i s/rapids_triton_dev/triton_test/g /root/.bashrc
 
+ENTRYPOINT []
 CMD ["conda", "run", "--no-capture-output", "-n", "triton_test", "/qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE} as final
