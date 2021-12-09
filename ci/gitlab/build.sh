@@ -38,7 +38,6 @@ then
 else
   export TEST_TAG="$PREBUILT_TEST_TAG"
 fi
-export TEST_TAG=triton_fil_test
 
 # Set up directory for logging
 if [ -z $LOG_DIR ]
