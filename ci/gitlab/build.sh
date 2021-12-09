@@ -5,6 +5,7 @@ set -e
 # ENVIRONMENT VARIABLE OPTIONS
 # PREBUILT_SERVER_TAG: The tag of the prebuilt Triton server image to test
 # PREBUILT_TEST_TAG: The tag of the prebuilt test image to run tests in
+# MODEL_BUILDER_IMAGE: A Docker image to be used for training test models
 # LOG_DIR: Host directory for storing logs
 # NV_DOCKER_ARGS: A bash expression that (when evaluated) returns Docker
 #   arguments for controlling GPU access
@@ -40,6 +41,8 @@ else
   export TEST_TAG="$PREBUILT_TEST_TAG"
 fi
 
+MODEL_BUILDER_IMAGE=${MODEL_BUILDER_IMAGE:-${TEST_TAG}}
+
 # Set up directory for logging
 if [ -z $LOG_DIR ]
 then
@@ -53,19 +56,16 @@ LOG_DIR="$(readlink -f $LOG_DIR)"
 
 DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
-if [ $CPU_ONLY -eq 0 ]
+if [ -z "$NV_DOCKER_ARGS" ]
 then
-  if [ -z "$NV_DOCKER_ARGS" ]
+  if [ -z $CUDA_VISIBLE_DEVICES ]
   then
-    if [ -z $CUDA_VISIBLE_DEVICES ]
-    then
-      DOCKER_ARGS="$DOCKER_ARGS --gpus all"
-    else
-      DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
-    fi
+    GPU_DOCKER_ARGS='--gpus all'
   else
-    DOCKER_ARGS="$DOCKER_ARGS $(eval ${NV_DOCKER_ARGS})"
+    GPU_DOCKER_ARGS='--gpus $CUDA_VISIBLE_DEVICES'
   fi
+else
+  GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS})"
 fi
 
 echo "Generating example models..."
@@ -73,15 +73,18 @@ docker run \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
   -e OWNER_GID=$(id -g) \
+  $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
-  $TEST_TAG \
+  $MODEL_BUILDER_IMAGE \
   bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
 
 if [ $CPU_ONLY -eq 1 ]
 then
   DOCKER_ARGS="${DOCKER_ARGS} -e TRITON_ENABLE_GPU=OFF"
+else
+  DOCKER_ARGS="${DOCKER_ARGS} ${GPU_DOCKER_ARGS}"
 fi
 
 echo "Running tests..."
