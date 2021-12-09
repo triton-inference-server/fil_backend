@@ -16,6 +16,7 @@ QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
 CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
+CPU_ONLY=${CPU_ONLY:-0}
 
 # Check if test or base images need to be built and do so if necessary
 if [ -z $PREBUILT_SERVER_TAG ]
@@ -52,16 +53,18 @@ LOG_DIR="$(readlink -f $LOG_DIR)"
 
 DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
-if [ -z "$NV_DOCKER_ARGS" ]
-then
-  if [ -z $CUDA_VISIBLE_DEVICES ]
+if [ $CPU_ONLY -eq 0 ]
+  if [ -z "$NV_DOCKER_ARGS" ]
   then
-    DOCKER_ARGS="$DOCKER_ARGS --gpus all"
+    if [ -z $CUDA_VISIBLE_DEVICES ]
+    then
+      DOCKER_ARGS="$DOCKER_ARGS --gpus all"
+    else
+      DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
+    fi
   else
-    DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
+    DOCKER_ARGS="$DOCKER_ARGS $(eval ${NV_DOCKER_ARGS})"
   fi
-else
-  DOCKER_ARGS="$DOCKER_ARGS $(eval ${NV_DOCKER_ARGS})"
 fi
 
 echo "Generating example models..."
@@ -75,7 +78,7 @@ docker run \
   $TEST_TAG \
   bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
 
-if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
+if [ $CPU_ONLY -eq 1 ]
 then
   DOCKER_ARGS="${DOCKER_ARGS} -e TRITON_ENABLE_GPU=OFF"
 fi
