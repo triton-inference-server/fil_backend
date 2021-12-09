@@ -54,6 +54,7 @@ LOG_DIR="$(readlink -f $LOG_DIR)"
 DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
 if [ $CPU_ONLY -eq 0 ]
+then
   if [ -z "$NV_DOCKER_ARGS" ]
   then
     if [ -z $CUDA_VISIBLE_DEVICES ]
