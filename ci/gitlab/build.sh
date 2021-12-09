@@ -6,7 +6,8 @@ set -e
 # PREBUILT_SERVER_TAG: The tag of the prebuilt Triton server image to test
 # PREBUILT_TEST_TAG: The tag of the prebuilt test image to run tests in
 # LOG_DIR: Host directory for storing logs
-# NV_DOCKER_ARGS: Docker arguments for controlling GPU access
+# NV_DOCKER_ARGS: A bash expression that (when evaluated) returns Docker
+#   arguments for controlling GPU access
 # BUILDPY: 1 to use Triton's build.py script for server build
 # CPU_ONLY: 1 to build without GPU support
 
@@ -61,7 +62,7 @@ then
     DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
   fi
 else
-  DOCKER_ARGS="$DOCKER_ARGS $NV_DOCKER_ARGS"
+  DOCKER_ARGS="$DOCKER_ARGS $(eval ${NV_DOCKER_ARGS})"
 fi
 
 echo "Generating example models..."
