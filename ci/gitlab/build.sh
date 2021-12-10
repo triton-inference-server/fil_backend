@@ -92,6 +92,8 @@ else
   DOCKER_ARGS="${DOCKER_ARGS} ${GPU_DOCKER_ARGS}"
 fi
 
+echo "DOCKER_ARGS >>>>>>>>>>>>>>>>>>> ${DOCKER_ARGS}"
+
 echo "Running tests..."
 docker run \
   $DOCKER_ARGS \
