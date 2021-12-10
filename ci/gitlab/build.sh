@@ -93,6 +93,7 @@ else
 fi
 
 echo "DOCKER_ARGS >>>>>>>>>>>>>>>>>>> ${DOCKER_ARGS}"
+command -v docker-compose && echo 'DOCKER-COMPOSE INSTALLED' || echo 'NO DOCKER-COMPOSE'
 
 echo "Running tests..."
 docker run \
