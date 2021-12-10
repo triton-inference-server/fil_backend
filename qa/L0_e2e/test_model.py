@@ -17,7 +17,10 @@ import pickle
 from collections import defaultdict, namedtuple
 from functools import lru_cache
 
-import cuml
+try:
+    import cuml
+except Exception:
+    cuml = None
 import numpy as np
 import pytest
 import treelite
