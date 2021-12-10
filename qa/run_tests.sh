@@ -21,7 +21,7 @@ UUID="$(cat /proc/sys/kernel/random/uuid)"
 CONTAINER_NAME="fil_backend-ci-$UUID"
 DOCKER_RUN=0
 DOCKER_ARGS="-d -p 8000:8000 -p 8001:8001 -p 8002:8002 --name ${CONTAINER_NAME}"
-TRITON_PID=""
+TRITON_PID=''
 LOG_DIR="${QA_DIR}/logs"
 SERVER_LOG="${LOG_DIR}/${UUID}-server.log"
 
@@ -78,17 +78,20 @@ start_server() {
   fi
 }
 
-start_server
+[ ${START_SERVER:-0} -eq 1 ] && start_server || true
 
 # TODO (wphicks): Run linters
 
 finally() {
-  if [ -z $TRITON_PID ]
+  if [ ${START_SERVER:-0} -eq 1 ]
   then
-    docker logs $CONTAINER_NAME > $SERVER_LOG 2>&1
-    docker rm -f $CONTAINER_NAME > /dev/null 2>&1
-  else
-    kill -15 $TRITON_PID
+    if [ -z $TRITON_PID ]
+    then
+      docker logs $CONTAINER_NAME > $SERVER_LOG 2>&1
+      docker rm -f $CONTAINER_NAME > /dev/null 2>&1
+    else
+      kill -15 $TRITON_PID
+    fi
   fi
 }
 
