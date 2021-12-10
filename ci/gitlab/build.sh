@@ -33,10 +33,15 @@ then
   echo "Building Docker images..."
   if [ $BUILDPY -eq 1 ]
   then
-    $REPO_DIR/build.sh --buildpy
+    BUILDARGS='--buildpy'
   else
-    $REPO_DIR/build.sh
+    BUILDARGS=''
   fi
+  if [ $CPU_ONLY -eq 1 ]
+  then
+    BUILDARGS="$BUILDARGS --cpu-only"
+  fi
+  $REPO_DIR/build.sh $BUILDARGS
 else
   export TEST_TAG="$PREBUILT_TEST_TAG"
 fi
