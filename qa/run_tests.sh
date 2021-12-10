@@ -78,12 +78,12 @@ start_server() {
   fi
 }
 
-[ ${START_SERVER:-0} -eq 1 ] && start_server || true
+[ ${START_SERVER:-1} -eq 1 ] && start_server || true
 
 # TODO (wphicks): Run linters
 
 finally() {
-  if [ ${START_SERVER:-0} -eq 1 ]
+  if [ ${START_SERVER:-1} -eq 1 ]
   then
     if [ -z $TRITON_PID ]
     then
