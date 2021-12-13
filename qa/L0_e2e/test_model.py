@@ -28,7 +28,7 @@ from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
-from rapids_triton.testing import get_random_seed, arrays_close
+from rapids_triton.testing import arrays_close
 
 TOTAL_SAMPLES = 20
 MODELS = (
@@ -48,6 +48,7 @@ ModelData = namedtuple('ModelData', (
     'ground_truth_model',
     'config'
 ))
+
 
 # TODO(wphicks): Replace with cache in 3.9
 @lru_cache()
@@ -149,7 +150,8 @@ class GroundTruthModel:
                     self._base_model = pickle.load(pkl_file)
             else:
                 self._base_model = cuml.ForestInference.load(
-                    model_path, output_class=output_class, model_type=model_format
+                    model_path,
+                    output_class=output_class, model_type=model_format
                 )
 
     def predict(self, inputs):
@@ -315,7 +317,9 @@ def test_small(client, model_data, hypothesis_data):
 def test_max_batch(client, model_data, shared_mem):
     """Test processing of a single maximum-sized batch"""
     max_inputs = {
-        name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')
+        name: np.random.rand(
+            model_data.max_batch_size, *shape
+        ).astype('float32')
         for name, shape in model_data.input_shapes.items()
     }
     model_output_sizes = {
