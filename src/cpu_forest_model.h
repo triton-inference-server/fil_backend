@@ -25,23 +25,27 @@
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 template <>
 struct ForestModel<rapids::HostMemory> {
   ForestModel() = default;
   ForestModel(std::shared_ptr<TreeliteModel> tl_model) : tl_model_{tl_model} {}
 
-  void predict(
-      rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t samples, bool predict_proba) const
+  void predict(rapids::Buffer<float>& output,
+               rapids::Buffer<float const> const& input,
+               std::size_t samples,
+               bool predict_proba) const
   {
     tl_model_->predict(output, input, samples, predict_proba);
   }
-
 
  private:
   std::shared_ptr<TreeliteModel> tl_model_;
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

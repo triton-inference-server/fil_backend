@@ -21,12 +21,13 @@
 #include <sstream>
 #include <string>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 enum struct SerializationFormat { xgboost, xgboost_json, lightgbm, treelite };
 
-inline auto
-string_to_serialization(std::string const& type_string)
+inline auto string_to_serialization(std::string const& type_string)
 {
   auto result = SerializationFormat{};
 
@@ -40,35 +41,27 @@ string_to_serialization(std::string const& type_string)
     result = SerializationFormat::treelite;
   } else {
     auto log_stream = std::stringstream{};
-    log_stream << type_string
-               << " not recognized as a valid serialization format.";
+    log_stream << type_string << " not recognized as a valid serialization format.";
     throw rapids::TritonException(rapids::Error::Unsupported, log_stream.str());
   }
 
   return result;
 }
 
-inline auto
-serialization_to_string(SerializationFormat format)
+inline auto serialization_to_string(SerializationFormat format)
 {
   auto result = std::string{};
 
   switch (format) {
-    case SerializationFormat::xgboost:
-      result = "xgboost";
-      break;
-    case SerializationFormat::xgboost_json:
-      result = "xgboost_json";
-      break;
-    case SerializationFormat::lightgbm:
-      result = "lightgbm";
-      break;
-    case SerializationFormat::treelite:
-      result = "treelite_checkpoint";
-      break;
+    case SerializationFormat::xgboost: result = "xgboost"; break;
+    case SerializationFormat::xgboost_json: result = "xgboost_json"; break;
+    case SerializationFormat::lightgbm: result = "lightgbm"; break;
+    case SerializationFormat::treelite: result = "treelite_checkpoint"; break;
   }
 
   return result;
 }
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

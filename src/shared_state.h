@@ -26,37 +26,36 @@
 #include <memory>
 #include <rapids_triton/model/shared_state.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 auto constexpr DEFAULT_TRANSFER_THRESHOLD = std::size_t{};
 
 struct RapidsSharedState : rapids::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-      : rapids::SharedModelState{std::move(config), true}
+    : rapids::SharedModelState{std::move(config), true}
   {
   }
 
   void load()
   {
     predict_proba_ = get_config_param<bool>("predict_proba", false);
-    model_format_ = string_to_serialization(
-        get_config_param<std::string>("model_type", std::string{"xgboost"}));
-    transfer_threshold_ = get_config_param<std::size_t>(
-        "transfer_threshold", DEFAULT_TRANSFER_THRESHOLD);
+    model_format_ =
+      string_to_serialization(get_config_param<std::string>("model_type", std::string{"xgboost"}));
+    transfer_threshold_ =
+      get_config_param<std::size_t>("transfer_threshold", DEFAULT_TRANSFER_THRESHOLD);
 
-    tl_config_->algo =
-        get_config_param<std::string>("algo", std::string("ALGO_AUTO"));
-    tl_config_->storage_type =
-        get_config_param<std::string>("storage_type", std::string("AUTO"));
+    tl_config_->algo         = get_config_param<std::string>("algo", std::string("ALGO_AUTO"));
+    tl_config_->storage_type = get_config_param<std::string>("storage_type", std::string("AUTO"));
     tl_config_->output_class = get_config_param<bool>("output_class");
     if (tl_config_->output_class) {
       tl_config_->threshold = get_config_param<float>("threshold");
     } else {
       tl_config_->threshold = 0.5f;
     }
-    tl_config_->blocks_per_sm = get_config_param<int>("blocks_per_sm", 0);
-    tl_config_->threads_per_tree =
-        std::max(1, get_config_param<int>("threads_per_tree", 1));
+    tl_config_->blocks_per_sm    = get_config_param<int>("blocks_per_sm", 0);
+    tl_config_->threads_per_tree = std::max(1, get_config_param<int>("threads_per_tree", 1));
   }
 
   auto predict_proba() const { return predict_proba_; }
@@ -68,8 +67,9 @@ struct RapidsSharedState : rapids::SharedModelState {
   bool predict_proba_{};
   SerializationFormat model_format_{};
   std::size_t transfer_threshold_{};
-  std::shared_ptr<treelite_config> tl_config_ =
-      std::make_shared<treelite_config>();
+  std::shared_ptr<treelite_config> tl_config_ = std::make_shared<treelite_config>();
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton
