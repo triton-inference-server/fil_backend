@@ -187,3 +187,11 @@ PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:21.11-py3 ./ci/gitlab/build.sh
 ```
 This will build a test image based on this pre-built server image and run it.
 For CPU-only builds, the environment variable `CPU_ONLY` should be set to 1.
+
+## Style
+Contributions to the FIL backend should:
+- Adhere to [Almost-Always-Auto](https://herbsutter.com/2013/08/12/gotw-94-solution-aaa-style-almost-always-auto/) style
+- Prefer STL algorithms to [raw loops](https://belaycpp.com/2021/06/22/dont-use-raw-loops/) wherever possible
+- Use C++ types except where explicitly interfacing with C code (e.g.
+  `std::size_t` as opposed to `size_t`)
+- Avoid depending on transitive includes
