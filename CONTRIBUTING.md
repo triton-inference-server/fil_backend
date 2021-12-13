@@ -100,7 +100,9 @@ also be invoked with the `--buildpy` flag, which will invoke Triton's
 `build.py` script on the current FIL backend branch. Note that this requires
 that the branch be pushed to the FIL backend Github repo, so it is typically
 only invoked by internal developers and CI to confirm that there are no
-incompatibilities with Triton's build infrastructure.
+incompatibilities with Triton's build infrastructure. Invoking Triton's
+`build.py` requires additional dependencies which may be installed using
+`conda/environments/buildpy.yml`.
 
 For rapid iteration on build issues, it can be helpful to build a Docker image
 right up to the point of the `cmake` invocation and then use it to manually
