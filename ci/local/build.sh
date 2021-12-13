@@ -34,7 +34,7 @@ docker run \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
-  $TEST_TAG \
+  --rm $TEST_TAG \
   bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
 
 echo "Running GPU-enabled tests..."

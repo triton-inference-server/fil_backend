@@ -173,8 +173,8 @@ buildpy () {
   if [ $branch = 'HEAD' ]
   then
     branch='main'
-    echo "build.sh: Building on branch '$branch' with build.py"
   fi
+  echo "build.sh: Building on branch '$branch' with build.py"
 
   if [ -z $JOB_ID ]
   then
