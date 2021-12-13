@@ -15,14 +15,14 @@ forest model framework you wish to use
 [XGBoost](https://xgboost.readthedocs.io/en/latest/install.html), or
 [Scikit-Learn](https://scikit-learn.org/stable/install.html)). For convenience,
 a Conda environment [config
-file](https://github.com/triton-inference-server/fil_backend/blob/main/qa/environment.yml)
+file](https://github.com/triton-inference-server/fil_backend/blob/main/conda/environments/triton_test.yml)
 is included in the FIL backend repo which can be used to install all of these
 frameworks:
 
 ```bash
 git clone https://github.com/triton-inference-server/fil_backend.git
 cd fil_backend
-conda env update -f qa/environment.yml
+conda env create -f conda/environments/triton_test.yml
 conda activate triton_test
 ```
 

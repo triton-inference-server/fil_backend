@@ -112,7 +112,7 @@ RUN --mount=type=cache,target=/ccache/ ninja install
 # Stage for installing test dependencies
 FROM base as test-install
 
-COPY ./qa/environment.yml /environment.yml
+COPY ./conda/environments/triton_test.yml /environment.yml
 
 RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
     && rm /environment.yml
