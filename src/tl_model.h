@@ -23,14 +23,23 @@
 #include <treelite/tree.h>
 #include <xgboost/c_api.h>
 
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <memory>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
+#include <string>
 
 namespace triton { namespace backend { namespace NAMESPACE {
+
+void xgb_check(int err) {
+  if (err != 0) {
+    throw rapids::TritonException(rapids::Error::Internal, std::string{XGBGetLastError()});
+  }
+}
+
 struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
@@ -38,7 +47,7 @@ struct TreeliteModel {
       : handle_{load_tl_handle(model_file, format)},
         num_classes_{tl_get_num_classes(handle_)}, tl_config_{tl_config}
   {
-    xgb_check(XGBoosterCreate(nullptr, 0, booster_));
+    xgb_check(XGBoosterCreate(nullptr, 0, &booster_));
     xgb_check(XGBoosterLoadModel(booster_, model_file.c_str()));
   }
   TreeliteModel(TreeliteModel const& other) = default;
@@ -51,6 +60,7 @@ struct TreeliteModel {
     if (handle_ != nullptr) {
       TreeliteFreeModel(handle_);
     }
+    xgb_check(XGBoosterFree(booster_));
   }
 
   auto* handle() const { return handle_; }
@@ -63,45 +73,18 @@ struct TreeliteModel {
   {
     auto* handle_model = static_cast<treelite::Model*>(handle_);
 
-    // Create non-owning Buffer to same memory as `output`
-    auto output_buffer =
-        rapids::Buffer<float>{output.data(), output.size(), output.mem_type(),
-                              output.device(), output.stream()};
+    auto d_in = DMatrixHandle{};
+    xgb_check(XGDMatrixCreateFromMat(input.data(), samples, input.size() / samples, NAN, &d_in));
 
-    auto gtil_output_size = output.size();
-    // GTIL expects buffer of size samples * num_classes_ for multi-class
-    // classifiers, but output buffer may be smaller, so we will create a
-    // temporary buffer
-    if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
-      gtil_output_size = samples * num_classes_;
-      std::strcpy(handle_model->param.pred_transform, "max_index");
-    }
+    auto d_out_p = static_cast<float const*>(nullptr);
+    auto out_size = static_cast<bst_ulong>(output.size());
+    xgb_check(XGBoosterPredict(booster_, d_in, 0, 0, 0, &out_size, &d_out_p));
 
-    // If expected GTIL size is not the same as the size of `output`, create
-    // a temporary buffer of the correct size
-    if (gtil_output_size != output.size()) {
-      output_buffer =
-          rapids::Buffer<float>{gtil_output_size, rapids::HostMemory};
-    }
+    xgb_check(XGDMatrixFree(d_in));
 
-    // Actually perform inference
-    auto out_result_size = std::size_t{};
-    auto gtil_result = TreeliteGTILPredict(
-        handle_, input.data(), samples, output_buffer.data(), 1,
-        &out_result_size);
-    if (gtil_result != 0) {
-      throw rapids::TritonException(
-          rapids::Error::Internal, TreeliteGetLastError());
-    }
-
-    // Copy back to expected output location
-    if (gtil_output_size != output.size()) {
-      rapids::copy<float, float>(
-          output, output_buffer, std::size_t{}, output.size());
-    }
-
+    std::copy(d_out_p, d_out_p + output.size(), output.data());
     // Transform probabilities to desired output if necessary
-    if (num_classes_ == 1 && predict_proba) {
+    /* if (num_classes_ == 1 && predict_proba) {
       auto i = output.size();
       while (i > 0) {
         --i;
@@ -115,7 +98,7 @@ struct TreeliteModel {
           [this](float raw_pred) {
             return (raw_pred > tl_config_->threshold) ? 1.0f : 0.0f;
           });
-    }
+    } */
   }
 
  private:

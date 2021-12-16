@@ -85,6 +85,16 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 ARG TRITON_ENABLE_STATS=ON
 ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
+RUN git clone --recursive https://github.com/dmlc/xgboost \
+ && mkdir xgboost/build
+
+WORKDIR /rapids_triton/build/xgboost/build
+RUN cmake -GNinja -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX ..
+ENV CCACHE_DIR=/ccache
+RUN --mount=type=cache,target=/ccache/ ninja install
+
+WORKDIR /rapids_triton/build
+
 RUN cmake \
     --log-level=VERBOSE \
     -GNinja \

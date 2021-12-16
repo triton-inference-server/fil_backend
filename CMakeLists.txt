@@ -158,9 +158,9 @@ else()
     include(cmake/thirdparty/get_cuml.cmake)
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
+  include(cmake/thirdparty/get_xgboost.cmake)
 
   set(CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
-  find_package(xgboost REQUIRED)
 
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)

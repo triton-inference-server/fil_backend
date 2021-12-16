@@ -112,7 +112,7 @@ performed from the root of the repo:
 $ DOCKER_BUILDKIT=1 docker build --target=build-prep -f ops/Dockerfile -t fil_build .
 $ docker run --gpus all --rm -it \
     -p 8000:8000 -p 8001:8001 -p 8002:8002 \
-    -v $PWD/src:/rapids_triton/src -v $PWD/cmake:/rapids_triton_cmake \
+    -v $PWD/src:/rapids_triton/src -v $PWD/cmake:/rapids_triton/cmake \
     -v $PWD/qa/L0_e2e/model_repository:/models
     -v $PWD/qa/L0_e2e/cpu_model_repository:/cpu_models
     fil_build
