@@ -11,6 +11,7 @@ set -e
 #   arguments for controlling GPU access
 # BUILDPY: 1 to use Triton's build.py script for server build
 # CPU_ONLY: 1 to build without GPU support
+# NO_CACHE: 0 to enable Docker cache during build
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
@@ -18,6 +19,7 @@ MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
 CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
+NO_CACHE=${CPU_ONLY:-1}
 
 # Check if test or base images need to be built and do so if necessary
 if [ -z $PREBUILT_SERVER_TAG ]
@@ -40,6 +42,10 @@ then
   if [ $CPU_ONLY -eq 1 ]
   then
     BUILDARGS="$BUILDARGS --cpu-only"
+  fi
+  if [ $NO_CACHE -eq 1 ]
+  then
+    BUILDARGS="$BUILDARGS --no-cache"
   fi
   $REPO_DIR/build.sh $BUILDARGS
 else

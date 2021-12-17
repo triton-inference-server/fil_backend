@@ -30,8 +30,9 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g               - build for debug
    -h               - print this text
    --cpu-only       - build CPU-only versions of targets
-   --tag-commit     - tag docker images based on current git commit
+   --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
+   --no-cache       - disable Docker cache for build
 
  default action (no args) is to build all targets
  The following environment variables are also accepted to allow further customization:
@@ -79,6 +80,7 @@ LONG_ARGUMENT_LIST=(
     "cpu-only"
     "tag-commit"
     "buildpy"
+    "no-cache"
 )
 
 # Short arguments
@@ -117,6 +119,9 @@ do
       ;;
     --buildpy )
       BUILDPY=1
+      ;;
+    --no-cache )
+      DOCKER_ARGS="$DOCKER_ARGS --no-cache"
       ;;
     --)
       shift
