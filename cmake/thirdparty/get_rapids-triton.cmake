@@ -40,7 +40,7 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_rapids_triton(VERSION    21.10
+find_and_configure_rapids_triton(VERSION    21.12
                         FORK       rapidsai
-                        PINNED_TAG 3a05c3b2c992aed57de2c1ab1e7d0eabf68d1a3c
+                        PINNED_TAG branch-21.12
                         )

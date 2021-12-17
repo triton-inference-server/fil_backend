@@ -102,7 +102,7 @@ else()
   # - Project Initialization ---------------------------------------------------
 
   if(TRITON_ENABLE_GPU)
-    rapids_cuda_init_architectures(RAPIDS_TRITON)
+    rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
     project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
   else()
     project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX)
