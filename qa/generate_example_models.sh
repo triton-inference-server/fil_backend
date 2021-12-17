@@ -56,63 +56,6 @@ then
   models+=( $name )
 fi
 
-name=lightgbm
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --format lightgbm \
-    --type lightgbm \
-    --depth 3 \
-    --trees 2000 \
-    --cat_features 3 \
-    --predict_proba
-  models+=( $name )
-fi
-
-name=regression
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --format lightgbm \
-    --type lightgbm \
-    --depth 25 \
-    --trees 10 \
-    --features 400 \
-    --task regression
-  models+=( $name )
-fi
-
-name=sklearn
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --type sklearn \
-    --depth 3 \
-    --trees 10 \
-    --features 500 \
-    --predict_proba
-  models+=( $name )
-fi
-$SKLEARN_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
-
-name=cuml
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --type cuml \
-    --depth 3 \
-    --trees 10 \
-    --max_batch_size 32768 \
-    --features 500 \
-    --task regression
-  models+=( $name )
-fi
-$CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
-
 mkdir -p "${CPU_MODEL_REPO}"
 cp -r "${MODEL_REPO}"/* "${CPU_MODEL_REPO}"/
 

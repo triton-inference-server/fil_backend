@@ -89,9 +89,15 @@ RUN git clone --recursive https://github.com/dmlc/xgboost \
  && mkdir xgboost/build
 
 WORKDIR /rapids_triton/build/xgboost/build
-RUN cmake -GNinja -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX ..
+RUN cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    ..
 ENV CCACHE_DIR=/ccache
-RUN --mount=type=cache,target=/ccache/ ninja install
+RUN --mount=type=cache,target=/ccache/ ninja install \
+ && cp /rapids_triton/build/xgboost/lib/libxgboost.so /opt/tritonserver/backends/fil
 
 WORKDIR /rapids_triton/build
 

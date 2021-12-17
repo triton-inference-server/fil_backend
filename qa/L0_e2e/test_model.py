@@ -34,10 +34,6 @@ TOTAL_SAMPLES = 20
 MODELS = (
     'xgboost',
     'xgboost_json',
-    'lightgbm',
-    'regression',
-    'sklearn',
-    'cuml'
 )
 
 ModelData = namedtuple('ModelData', (
