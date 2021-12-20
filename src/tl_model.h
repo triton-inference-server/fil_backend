@@ -15,9 +15,9 @@
  */
 
 #pragma once
-#include <cuml/fil/fil.h>
 #include <names.h>
 #include <serialization.h>
+#include <tl_config.h>
 #include <tl_utils.h>
 #include <treelite/c_api.h>
 #include <treelite/tree.h>
@@ -33,9 +33,9 @@ namespace triton { namespace backend { namespace NAMESPACE {
 struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
-      std::shared_ptr<ML::fil::treelite_params_t> tl_params)
+      std::shared_ptr<treelite_config> tl_config)
       : handle_{load_tl_handle(model_file, format)},
-        num_classes_{tl_get_num_classes(handle_)}, tl_params_{tl_params}
+        num_classes_{tl_get_num_classes(handle_)}, tl_config_{tl_config}
   {
   }
   TreeliteModel(TreeliteModel const& other) = default;
@@ -52,7 +52,7 @@ struct TreeliteModel {
 
   auto* handle() const { return handle_; }
   auto num_classes() const { return num_classes_; }
-  auto& params() const { return *tl_params_; }
+  auto& config() const { return *tl_config_; }
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
@@ -69,7 +69,7 @@ struct TreeliteModel {
     // GTIL expects buffer of size samples * num_classes_ for multi-class
     // classifiers, but output buffer may be smaller, so we will create a
     // temporary buffer
-    if (!predict_proba && tl_params_->output_class && num_classes_ > 1) {
+    if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
       gtil_output_size = samples * num_classes_;
       std::strcpy(handle_model->param.pred_transform, "max_index");
     }
@@ -106,11 +106,11 @@ struct TreeliteModel {
             ((i % 2) == 1) ? output.data()[i / 2] : 1.0f - output.data()[i / 2];
       }
     } else if (
-        num_classes_ == 1 && !predict_proba && tl_params_->output_class) {
+        num_classes_ == 1 && !predict_proba && tl_config_->output_class) {
       std::transform(
           output.data(), output.data() + output.size(), output.data(),
           [this](float raw_pred) {
-            return (raw_pred > tl_params_->threshold) ? 1.0f : 0.0f;
+            return (raw_pred > tl_config_->threshold) ? 1.0f : 0.0f;
           });
     }
   }
@@ -118,7 +118,7 @@ struct TreeliteModel {
  private:
   void* handle_;
   std::size_t num_classes_;
-  std::shared_ptr<ML::fil::treelite_params_t> tl_params_;
+  std::shared_ptr<treelite_config> tl_config_;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

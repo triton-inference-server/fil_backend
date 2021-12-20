@@ -1,52 +1,71 @@
+###########################################################################################
+# Arguments for controlling build details
+###########################################################################################
+# Version of Triton to use
 ARG TRITON_VERSION=21.11
+# Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
+# Whether or not to enable GPU build
+ARG TRITON_ENABLE_GPU=ON
+# A Triton server image to use as base for test layers (skip actual build)
+ARG SERVER_IMAGE=build-stage
 
 FROM ${BASE_IMAGE} as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y wget \
+    && apt-get install --no-install-recommends -y build-essential wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=true
 
 RUN wget \
-    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
     && mkdir /root/.conda \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+    && bash Miniconda3-latest-Linux-$(uname -m).sh -b \
+    && rm -f Miniconda3-latest-Linux-$(uname -m).sh 
 
-COPY ./conda/environments/rapids_triton_dev_cuda11.4.yml /environment.yml
+COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 
-RUN conda env update -f /environment.yml \
-    && rm /environment.yml \
-    && conda clean -afy \
-    && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
-    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete \
-    && rm /root/miniconda3/envs/rapids_triton_dev/lib/libstdc++.so*
+RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
+    && rm /environment.yml
+
+RUN conda init && echo 'conda activate rapids_triton_dev' >> /root/.bashrc
+
+SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "/bin/bash", "-c"]
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-RUN mkdir /rapids_triton
+# Stage immediately before building; useful for build iteration
+FROM base as build-prep
+
+RUN mkdir -p /rapids_triton/build /rapids_triton/install
 
 COPY ./src /rapids_triton/src
 COPY ./CMakeLists.txt /rapids_triton
 COPY ./cmake /rapids_triton/cmake
 
-WORKDIR /rapids_triton
+ARG BACKEND_NAME=fil
+ENV BACKEND_NAME=$BACKEND_NAME
 
-SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "bash", "-c"]
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "bash"]
+WORKDIR /rapids_triton/build
 
-FROM base as build-stage
+# Remove potentially stale build artifacts
+RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
+    else \
+      mkdir /opt/tritonserver/backends/${BACKEND_NAME}; \
+    fi
+
+# Stage where build actually takes place
+FROM build-prep as build-stage
 
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
 
-ARG BACKEND_NAME
-ENV BACKEND_NAME=$BACKEND_NAME
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=$BUILD_TYPE
 ARG BUILD_TESTS
@@ -66,19 +85,8 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 ARG TRITON_ENABLE_STATS=ON
 ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
-RUN mkdir /rapids_triton/build /rapids_triton/install
-
-WORKDIR /rapids_triton/build
-
-# Remove potentially stale build artifacts
-RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
-    then \
-      rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
-    else \
-      mkdir /opt/tritonserver/backends/${BACKEND_NAME}; \
-    fi
-
 RUN cmake \
+    --log-level=VERBOSE \
     -GNinja \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DBUILD_TESTS="${BUILD_TESTS}" \
@@ -97,9 +105,45 @@ RUN cmake \
     -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
     ..;
 
-RUN ninja install
+ENV CCACHE_DIR=/ccache
 
-FROM ${BASE_IMAGE}
+RUN --mount=type=cache,target=/ccache/ ninja install
+
+# Stage for installing test dependencies
+FROM base as test-install
+
+COPY ./conda/environments/triton_test.yml /environment.yml
+
+RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
+    && rm /environment.yml
+
+# Stage for generating testing image
+FROM ${SERVER_IMAGE} as test-stage
+
+ENV PATH="/root/miniconda3/bin:${PATH}"
+ENV PYTHONDONTWRITEBYTECODE=true
+RUN if ! command -v conda; then \
+      wget \
+      https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
+      && mkdir /root/.conda \
+      && bash Miniconda3-latest-Linux-$(uname -m).sh -b \
+      && rm -f Miniconda3-latest-Linux-$(uname -m).sh \
+      && conda init; \
+    fi
+ENV PYTHONDONTWRITEBYTECODE=false
+
+COPY --from=test-install /root/miniconda3 /root/miniconda3
+
+COPY qa /qa
+COPY scripts /scripts
+
+# Default to triton_test conda env
+RUN sed -i s/rapids_triton_dev/triton_test/g /root/.bashrc
+
+ENTRYPOINT []
+CMD ["conda", "run", "--no-capture-output", "-n", "triton_test", "/qa/entrypoint.sh"]
+
+FROM ${BASE_IMAGE} as final
 
 ARG BACKEND_NAME
 ENV BACKEND_NAME=$BACKEND_NAME

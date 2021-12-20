@@ -1,0 +1,7 @@
+---
+name: triton_buildpy
+channels:
+  - conda-forge
+dependencies:
+  - docker-py
+  - python

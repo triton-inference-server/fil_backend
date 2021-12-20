@@ -27,8 +27,8 @@ if(TRITON_FIL_DOCKER_BUILD)
   set(TRITON_BUILD_CONTAINER_VERSION "21.11" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
-    OUTPUT fil/libtriton_fil.so fil/libcuml++.so
-    COMMAND docker build -t
+    OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
+    COMMAND DOCKER_BUILDKIT=1 docker build -t
       triton_fil_builder
       --build-arg BUILD_TYPE=${CMAKE_BUILD_TYPE}
       --build-arg TRITON_VERSION=${TRITON_BUILD_CONTAINER_VERSION}
@@ -49,7 +49,7 @@ if(TRITON_FIL_DOCKER_BUILD)
   add_custom_target(
     fil_docker
     ALL
-    DEPENDS fil/libtriton_fil.so fil/libcuml++.so
+    DEPENDS fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
   )
   install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fil
@@ -76,19 +76,6 @@ else()
   include(rapids-export)
   include(rapids-find)
 
-  rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-
-  project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
-
-  ##############################################################################
-  # - build type ---------------------------------------------------------------
-
-  # Set a default build type if none was specified
-  rapids_cmake_build_type(Release)
-
-  # this is needed for clang-tidy runs
-  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
   ##############################################################################
   # - User Options  ------------------------------------------------------------
 
@@ -112,6 +99,25 @@ else()
   message(VERBOSE "RAPIDS_TRITON_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
 
   ##############################################################################
+  # - Project Initialization ---------------------------------------------------
+
+  if(TRITON_ENABLE_GPU)
+    rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
+    project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
+  else()
+    project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX)
+  endif()
+
+  ##############################################################################
+  # - build type ---------------------------------------------------------------
+
+  # Set a default build type if none was specified
+  rapids_cmake_build_type(Release)
+
+  # this is needed for clang-tidy runs
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+  ##############################################################################
   # - Conda environment detection ----------------------------------------------
 
   if(DETECT_CONDA_ENV)
@@ -124,16 +130,21 @@ else()
 
   ##############################################################################
   # - compiler options ---------------------------------------------------------
+  set(CMAKE_C_COMPILER_LAUNCHER ccache)
+  set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+  if(TRITON_ENABLE_GPU)
+    set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
 
-  # * find CUDAToolkit package
-  # * determine GPU architectures
-  # * enable the CMake CUDA language
-  # * set other CUDA compilation flags
-  rapids_find_package(CUDAToolkit REQUIRED
-      BUILD_EXPORT_SET rapids_triton-exports
-      INSTALL_EXPORT_SET rapids_triton-exports
-      )
-  include(cmake/modules/ConfigureCUDA.cmake)
+    # * find CUDAToolkit package
+    # * determine GPU architectures
+    # * enable the CMake CUDA language
+    # * set other CUDA compilation flags
+    rapids_find_package(CUDAToolkit REQUIRED
+        BUILD_EXPORT_SET rapids_triton-exports
+        INSTALL_EXPORT_SET rapids_triton-exports
+        )
+    include(cmake/modules/ConfigureCUDA.cmake)
+  endif()
 
   ##############################################################################
   # - Requirements -------------------------------------------------------------
@@ -142,8 +153,10 @@ else()
   rapids_cpm_init()
 
   include(cmake/thirdparty/get_treelite.cmake)
-  include(cmake/thirdparty/get_raft.cmake)
-  include(cmake/thirdparty/get_cuml.cmake)
+  if(TRITON_ENABLE_GPU)
+    include(cmake/thirdparty/get_raft.cmake)
+    include(cmake/thirdparty/get_cuml.cmake)
+  endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
@@ -157,18 +170,30 @@ else()
     ${BACKEND_TARGET} SHARED
     src/api.cc
   )
-  
-  set_target_properties(${BACKEND_TARGET}
-  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-             INSTALL_RPATH                       "\$ORIGIN"
-             # set target compile options
-             CXX_STANDARD                        17
-             CXX_STANDARD_REQUIRED               ON
-             CUDA_STANDARD                       17
-             CUDA_STANDARD_REQUIRED              ON
-             POSITION_INDEPENDENT_CODE           ON
-             INTERFACE_POSITION_INDEPENDENT_CODE ON
-  )
+
+  IF(TRITON_ENABLE_GPU)
+    set_target_properties(${BACKEND_TARGET}
+    PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+               INSTALL_RPATH                       "\$ORIGIN"
+               # set target compile options
+               CXX_STANDARD                        17
+               CXX_STANDARD_REQUIRED               ON
+               CUDA_STANDARD                       17
+               CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
+               INTERFACE_POSITION_INDEPENDENT_CODE ON
+    )
+  else()
+    set_target_properties(${BACKEND_TARGET}
+    PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+               INSTALL_RPATH                       "\$ORIGIN"
+               # set target compile options
+               CXX_STANDARD                        17
+               CXX_STANDARD_REQUIRED               ON
+               POSITION_INDEPENDENT_CODE           ON
+               INTERFACE_POSITION_INDEPENDENT_CODE ON
+    )
+  endif()
   
   target_compile_options(${BACKEND_TARGET}
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
@@ -180,23 +205,43 @@ else()
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
   
-  target_link_libraries(${BACKEND_TARGET}
-  PRIVATE
-    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
-    $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
-    raft::raft
-    cuml++
-    rapids_triton::rapids_triton
-    triton-core-serverstub
-    triton-backend-utils
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
+  if(TRITON_ENABLE_GPU)
+    target_link_libraries(${BACKEND_TARGET}
+    PRIVATE
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      raft::raft
+      cuml++
+      rapids_triton::rapids_triton
+      triton-core-serverstub
+      triton-backend-utils
+      "${TRITONSERVER_LIB}"
+      $<TARGET_NAME_IF_EXISTS:conda_env>
+    )
+  else()
+    target_link_libraries(${BACKEND_TARGET}
+    PRIVATE
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
+      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      rapids_triton::rapids_triton
+      triton-core-serverstub
+      triton-backend-utils
+      "${TRITONSERVER_LIB}"
+      $<TARGET_NAME_IF_EXISTS:conda_env>
+    )
+  endif()
   
-  install(
-    TARGETS ${BACKEND_TARGET} cuml++
-    LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
-  )
+  if(TRITON_ENABLE_GPU)
+    install(
+      TARGETS ${BACKEND_TARGET} cuml++
+      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+    )
+  else()
+    install(
+      TARGETS ${BACKEND_TARGET}
+      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+    )
+  endif()
   
   ##############################################################################
   # - build test executable ----------------------------------------------------

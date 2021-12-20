@@ -15,12 +15,20 @@
  */
 
 #pragma once
-#define NAMESPACE fil
 
-#ifndef TRITON_ENABLE_GPU
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <names.h>
+
+#include <string>
 
 namespace triton { namespace backend { namespace NAMESPACE {
-using cudaStream_t = rapids::cudaStream_t;
+
+struct treelite_config {
+  std::string algo;
+  bool output_class;
+  float threshold;
+  std::string storage_type;
+  int blocks_per_sm;
+  int threads_per_tree;
+};
+
 }}}  // namespace triton::backend::NAMESPACE
-#endif

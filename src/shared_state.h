@@ -18,6 +18,7 @@
 
 #include <names.h>
 #include <serialization.h>
+#include <tl_config.h>
 #include <tl_utils.h>
 
 #include <algorithm>
@@ -43,32 +44,32 @@ struct RapidsSharedState : rapids::SharedModelState {
     transfer_threshold_ = get_config_param<std::size_t>(
         "transfer_threshold", DEFAULT_TRANSFER_THRESHOLD);
 
-    tl_params_->algo = name_to_tl_algo(
-        get_config_param<std::string>("algo", std::string("ALGO_AUTO")));
-    tl_params_->storage_type = name_to_storage_type(
-        get_config_param<std::string>("storage_type", std::string("AUTO")));
-    tl_params_->output_class = get_config_param<bool>("output_class");
-    if (tl_params_->output_class) {
-      tl_params_->threshold = get_config_param<float>("threshold");
+    tl_config_->algo =
+        get_config_param<std::string>("algo", std::string("ALGO_AUTO"));
+    tl_config_->storage_type =
+        get_config_param<std::string>("storage_type", std::string("AUTO"));
+    tl_config_->output_class = get_config_param<bool>("output_class");
+    if (tl_config_->output_class) {
+      tl_config_->threshold = get_config_param<float>("threshold");
     } else {
-      tl_params_->threshold = 0.5f;
+      tl_config_->threshold = 0.5f;
     }
-    tl_params_->blocks_per_sm = get_config_param<int>("blocks_per_sm", 0);
-    tl_params_->threads_per_tree =
+    tl_config_->blocks_per_sm = get_config_param<int>("blocks_per_sm", 0);
+    tl_config_->threads_per_tree =
         std::max(1, get_config_param<int>("threads_per_tree", 1));
   }
 
   auto predict_proba() const { return predict_proba_; }
   auto model_format() const { return model_format_; }
   auto transfer_threshold() const { return transfer_threshold_; }
-  auto treelite_params() const { return tl_params_; }
+  auto config() const { return tl_config_; }
 
  private:
   bool predict_proba_{};
   SerializationFormat model_format_{};
   std::size_t transfer_threshold_{};
-  std::shared_ptr<ML::fil::treelite_params_t> tl_params_ =
-      std::make_shared<ML::fil::treelite_params_t>();
+  std::shared_ptr<treelite_config> tl_config_ =
+      std::make_shared<treelite_config>();
 };
 
 }}}  // namespace triton::backend::NAMESPACE
