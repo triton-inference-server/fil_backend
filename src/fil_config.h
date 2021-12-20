@@ -22,12 +22,13 @@
 #include <rapids_triton/exceptions.hpp>
 #include <sstream>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 namespace detail {
 
-inline auto
-name_to_tl_algo(std::string const& name)
+inline auto name_to_tl_algo(std::string const& name)
 {
   auto result = ML::fil::algo_t{};
   if (name == "ALGO_AUTO") {
@@ -47,8 +48,7 @@ name_to_tl_algo(std::string const& name)
   return result;
 }
 
-inline auto
-name_to_storage_type(std::string const& name)
+inline auto name_to_storage_type(std::string const& name)
 {
   auto result = ML::fil::storage_type_t{};
   if (name == "AUTO") {
@@ -70,18 +70,18 @@ name_to_storage_type(std::string const& name)
 
 }  // namespace detail
 
-inline auto
-tl_to_fil_config(treelite_config const& tl_config)
+inline auto tl_to_fil_config(treelite_config const& tl_config)
 {
-  return ML::fil::treelite_params_t{
-      detail::name_to_tl_algo(tl_config.algo),
-      tl_config.output_class,
-      tl_config.threshold,
-      detail::name_to_storage_type(tl_config.storage_type),
-      tl_config.blocks_per_sm,
-      tl_config.threads_per_tree,
-      0,
-      nullptr};
+  return ML::fil::treelite_params_t{detail::name_to_tl_algo(tl_config.algo),
+                                    tl_config.output_class,
+                                    tl_config.threshold,
+                                    detail::name_to_storage_type(tl_config.storage_type),
+                                    tl_config.blocks_per_sm,
+                                    tl_config.threads_per_tree,
+                                    0,
+                                    nullptr};
 }
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

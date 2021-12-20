@@ -39,23 +39,26 @@
 #include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
 #include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 struct RapidsModel : rapids::Model<RapidsSharedState> {
-  RapidsModel(
-      std::shared_ptr<RapidsSharedState> shared_state,
-      rapids::device_id_t device_id, cudaStream_t default_stream,
-      rapids::DeploymentType deployment_type, std::string const& filepath)
-      : rapids::Model<RapidsSharedState>(
-            shared_state, device_id, default_stream, deployment_type, filepath)
+  RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
+              rapids::device_id_t device_id,
+              cudaStream_t default_stream,
+              rapids::DeploymentType deployment_type,
+              std::string const& filepath)
+    : rapids::Model<RapidsSharedState>(
+        shared_state, device_id, default_stream, deployment_type, filepath)
   {
   }
 
   void predict(rapids::Batch& batch) const
   {
     /* Get I/O Tensors */
-    auto input = get_input<float>(batch, "input__0");
-    auto output = get_output<float>(batch, "output__0");
+    auto input   = get_input<float>(batch, "input__0");
+    auto output  = get_output<float>(batch, "output__0");
     auto samples = input.shape()[0];
 
     /* Cache pointer to shared state */
@@ -66,11 +69,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
      * inputs to device for processing, new buffers will be allocated on-device
      * in place of these. */
     auto input_buffer = rapids::Buffer<float const>(
-        input.data(), input.size(), input.mem_type(), input.device(),
-        input.stream());
+      input.data(), input.size(), input.mem_type(), input.device(), input.stream());
     auto output_buffer = rapids::Buffer<float>(
-        output.data(), output.size(), output.mem_type(), output.device(),
-        output.stream());
+      output.data(), output.size(), output.mem_type(), output.device(), output.stream());
 
     /* Determine if it is possible and worthwhile to copy data to device
      * before performing inference */
@@ -80,8 +81,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         if (input.mem_type() == rapids::HostMemory &&
             samples > shared_state->transfer_threshold()) {
           // Create new buffer on-device to store input data
-          input_buffer = rapids::Buffer<float const>(
-              input_buffer, rapids::DeviceMemory, get_device_id());
+          input_buffer =
+            rapids::Buffer<float const>(input_buffer, rapids::DeviceMemory, get_device_id());
         }
       }
 
@@ -89,18 +90,16 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
       if (input_buffer.mem_type() != output_buffer.mem_type()) {
         // Create output buffer in correct  location
         output_buffer = rapids::Buffer<float>(
-            output.size(), input_buffer.mem_type(), get_device_id(),
-            get_stream());
+          output.size(), input_buffer.mem_type(), get_device_id(), get_stream());
       }
     }
 
     /* Perform inference */
     if (input_buffer.mem_type() == rapids::DeviceMemory) {
       gpu_model.value().predict(
-          output_buffer, input_buffer, samples, shared_state->predict_proba());
+        output_buffer, input_buffer, samples, shared_state->predict_proba());
     } else {
-      cpu_model.predict(
-          output_buffer, input_buffer, samples, shared_state->predict_proba());
+      cpu_model.predict(output_buffer, input_buffer, samples, shared_state->predict_proba());
     }
 
     /* If the output buffer we used for prediction is in a different place from
@@ -118,18 +117,10 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     auto path = std::filesystem::path(get_filepath());
     if (std::filesystem::is_directory(path)) {
       switch (get_shared_state()->model_format()) {
-        case SerializationFormat::xgboost:
-          path /= "xgboost.model";
-          break;
-        case SerializationFormat::xgboost_json:
-          path /= "xgboost.json";
-          break;
-        case SerializationFormat::lightgbm:
-          path /= "model.txt";
-          break;
-        case SerializationFormat::treelite:
-          path /= "checkpoint.tl";
-          break;
+        case SerializationFormat::xgboost: path /= "xgboost.model"; break;
+        case SerializationFormat::xgboost_json: path /= "xgboost.json"; break;
+        case SerializationFormat::lightgbm: path /= "model.txt"; break;
+        case SerializationFormat::treelite: path /= "checkpoint.tl"; break;
       }
     }
     return path;
@@ -162,7 +153,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // Load model via Treelite
     auto tl_model = std::make_shared<TreeliteModel>(
-        model_file(), shared_state->model_format(), shared_state->config());
+      model_file(), shared_state->model_format(), shared_state->config());
 
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
@@ -172,8 +163,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     cpu_model = ForestModel<rapids::HostMemory>(tl_model);
   }
 
-  std::optional<rapids::MemoryType> preferred_mem_type(
-      rapids::Batch& batch) const
+  std::optional<rapids::MemoryType> preferred_mem_type(rapids::Batch& batch) const
   {
     return preferred_mem_type_;
   }
@@ -185,4 +175,6 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

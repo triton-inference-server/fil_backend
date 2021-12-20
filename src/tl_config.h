@@ -20,7 +20,9 @@
 
 #include <string>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 struct treelite_config {
   std::string algo;
@@ -31,4 +33,6 @@ struct treelite_config {
   int threads_per_tree;
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton
