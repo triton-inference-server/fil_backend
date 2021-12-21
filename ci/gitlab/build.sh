@@ -12,8 +12,14 @@ set -e
 # BUILDPY: 1 to use Triton's build.py script for server build
 # CPU_ONLY: 1 to build without GPU support
 # NO_CACHE: 0 to enable Docker cache during build
+# REPO_DIR: The directory of the FIL backend repository. If not set, an attempt
+#   will be made to automatically detect it.
 
-REPO_DIR=$(cd $(dirname $0)/../../; pwd)
+if [ -z $REPO_DIR ]
+then
+  SCRIPT_DIR=$(cd $(dirname $0); pwd)
+  REPO_DIR=$(cd ${REPO_DIR}/../../; pwd)
+fi
 QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
 CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
