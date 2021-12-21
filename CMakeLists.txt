@@ -152,10 +152,11 @@ else()
   # add third party dependencies using CPM
   rapids_cpm_init()
 
-  include(cmake/thirdparty/get_treelite.cmake)
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_raft.cmake)
     include(cmake/thirdparty/get_cuml.cmake)
+  else()
+    include(cmake/thirdparty/get_treelite.cmake)
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
@@ -208,8 +209,8 @@ else()
   if(TRITON_ENABLE_GPU)
     target_link_libraries(${BACKEND_TARGET}
     PRIVATE
-      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
-      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      treelite::treelite_static
+      treelite::treelite_runtime_static
       raft::raft
       cuml++
       rapids_triton::rapids_triton
@@ -221,8 +222,8 @@ else()
   else()
     target_link_libraries(${BACKEND_TARGET}
     PRIVATE
-      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_static,treelite::treelite>
-      $<IF:$<BOOL:${Treelite_ADDED}>,treelite::treelite_runtime_static,treelite::treelite_runtime>
+      treelite::treelite_static
+      treelite::treelite_runtime_static
       rapids_triton::rapids_triton
       triton-core-serverstub
       triton-backend-utils
