@@ -90,7 +90,7 @@ docker run \
   $DOCKER_ARGS \
   -v "${REPO_DIR}:/rapids_triton_src" \
   --rm $TEST_TAG \
-  bash -c 'cd /rapids_triton_src && ls && conda run -n triton_test python qa/run-clang-format.py && conda run -n triton_test flake8'
+  bash -c 'cd /rapids_triton_src && conda run -n triton_test python qa/run-clang-format.py && conda run -n triton_test flake8'
 
 echo "Generating example models..."
 docker run \
