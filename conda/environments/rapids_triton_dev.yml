@@ -3,6 +3,7 @@ name: rapids_triton_dev
 channels:
   - conda-forge
 dependencies:
+  - ccache
   - cmake>=3.21
   - ninja
   - rapidjson

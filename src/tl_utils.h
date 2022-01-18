@@ -72,46 +72,4 @@ tl_get_num_classes(void* handle)
   return result;
 }
 
-inline auto
-name_to_tl_algo(std::string const& name)
-{
-  auto result = ML::fil::algo_t{};
-  if (name == "ALGO_AUTO") {
-    result = ML::fil::algo_t::ALGO_AUTO;
-  } else if (name == "NAIVE") {
-    result = ML::fil::algo_t::NAIVE;
-  } else if (name == "TREE_REORG") {
-    result = ML::fil::algo_t::TREE_REORG;
-  } else if (name == "BATCH_TREE_REORG") {
-    result = ML::fil::algo_t::BATCH_TREE_REORG;
-  } else {
-    auto log_stream = std::stringstream{};
-    log_stream << "Unknown FIL algorithm name: " << name;
-    throw rapids::TritonException(rapids::Error::InvalidArg, log_stream.str());
-  }
-
-  return result;
-}
-
-inline auto
-name_to_storage_type(std::string const& name)
-{
-  auto result = ML::fil::storage_type_t{};
-  if (name == "AUTO") {
-    result = ML::fil::storage_type_t::AUTO;
-  } else if (name == "DENSE") {
-    result = ML::fil::storage_type_t::DENSE;
-  } else if (name == "SPARSE") {
-    result = ML::fil::storage_type_t::SPARSE;
-  } else if (name == "SPARSE8") {
-    result = ML::fil::storage_type_t::SPARSE8;
-  } else {
-    auto log_stream = std::stringstream{};
-    log_stream << "Unknown FIL storage type name: " << name;
-    throw rapids::TritonException(rapids::Error::InvalidArg, log_stream.str());
-  }
-
-  return result;
-}
-
 }}}  // namespace triton::backend::NAMESPACE

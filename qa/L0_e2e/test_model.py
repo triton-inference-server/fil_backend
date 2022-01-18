@@ -12,725 +12,337 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import os
 import pickle
-import threading
-import traceback
-import warnings
-from queue import Queue, Empty
-from time import perf_counter, time
-from uuid import uuid4
+from collections import defaultdict, namedtuple
+from functools import lru_cache
 
-import cuml
+try:
+    import cuml
+except Exception:
+    cuml = None
 import numpy as np
-import tritonclient.http as triton_http
-import tritonclient.grpc as triton_grpc
-import tritonclient.utils.cuda_shared_memory as shm
-from tritonclient import utils as triton_utils
+import pytest
+import treelite
+from hypothesis import given, settings, assume, HealthCheck
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays as st_arrays
+from rapids_triton import Client
+from rapids_triton.testing import get_random_seed, arrays_close
+
+TOTAL_SAMPLES = 20
+MODELS = (
+    'xgboost',
+    'xgboost_json',
+    'lightgbm',
+    'regression',
+    'sklearn',
+    'cuml'
+)
+
+ModelData = namedtuple('ModelData', (
+    'name',
+    'input_shapes',
+    'output_sizes',
+    'max_batch_size',
+    'ground_truth_model',
+    'config'
+))
+
+# TODO(wphicks): Replace with cache in 3.9
+@lru_cache()
+def valid_shm_modes():
+    """Return a tuple of allowed shared memory modes"""
+    modes = [None]
+    if os.environ.get('CPU_ONLY', 0) == 0:
+        modes.append('cuda')
+    return tuple(modes)
 
 
-STANDARD_PORTS = {
-    'http': 8000,
-    'grpc': 8001
-}
-
-
-def arrays_close(
-        a,
-        b,
-        atol=None,
-        rtol=None,
-        total_atol=None,
-        total_rtol=None,
-        assert_close=False):
-    """
-    Compare numpy arrays for approximate equality
-
-    :param numpy.array a: The array to compare against a reference value
-    :param numpy.array b: The reference array to compare against
-    :param float atol: The maximum absolute difference allowed between an
-        element in a and an element in b before they are considered non-close.
-        If both atol and rtol are set to None, atol is assumed to be 0. If atol
-        is set to None and rtol is not None, no absolute threshold is used in
-        comparisons.
-    :param float rtol: The maximum relative difference allowed between an
-        element in a and an element in b before they are considered non-close.
-        If rtol is set to None, no relative threshold is used in comparisons.
-    :param int total_atol: The maximum number of elements allowed to be
-        non-close before the arrays are considered non-close.
-    :param float total_rtol: The maximum proportion of elements allowed to be
-        non-close before the arrays are considered non-close.
-    """
-
-    if np.any(a.shape != b.shape):
-        if assert_close:
-            raise AssertionError(
-                "Arrays have different shapes:\n{} vs. {}".format(
-                    a.shape, b.shape
-                )
-            )
-        return False
-
-    if a.size == 0 and b.size == 0:
-        return True
-
-    if atol is None and rtol is None:
-        atol = 0
-    if total_atol is None and total_rtol is None:
-        total_atol = 0
-
-    diff_mask = np.ones(a.shape, dtype='bool')
-
-    diff = np.abs(a-b)
-
-    if atol is not None:
-        diff_mask = np.logical_and(diff_mask, diff > atol)
-
-    if rtol is not None:
-        diff_mask = np.logical_and(diff_mask, diff > rtol * np.abs(b))
-
-    is_close = True
-
-    mismatch_count = np.sum(diff_mask)
-
-    if total_atol is not None and mismatch_count > total_atol:
-        is_close = False
-
-    mismatch_proportion = mismatch_count / a.size
-    if total_rtol is not None and mismatch_proportion > total_rtol:
-        is_close = False
-
-    if assert_close and not is_close:
-        total_tol_desc = []
-        if total_atol is not None:
-            total_tol_desc.append(str(int(total_atol)))
-        if total_rtol is not None:
-            total_tol_desc.append(
-                "{:.2f} %".format(total_rtol * 100)
-            )
-        total_tol_desc = " or ".join(total_tol_desc)
-
-        msg = """Arrays have more than {} mismatched elements.
-
-Mismatch in {} ({:.2f} %) elements
- a: {}
- b: {}
-
- Mismatched indices: {}""".format(
-            total_tol_desc, mismatch_count, mismatch_proportion * 100, a, b,
-            np.transpose(np.nonzero(diff_mask)))
-        raise AssertionError(msg)
-    return is_close
-
-
-class TritonMessage:
-    """Adapter to read output from both GRPC and HTTP responses"""
-    def __init__(self, message):
-        self.message = message
-
-    def __getattr__(self, attr):
-        try:
-            return getattr(self.message, attr)
-        except AttributeError:
-            try:
-                return self.message[attr]
-            except Exception:  # Re-raise AttributeError
-                pass
-            raise
-
-
-def get_random_seed():
-    """Provide random seed to allow for easer reproduction of testing failures
-
-    Note: Code taken directly from cuML testing infrastructure"""
-    current_random_seed = os.getenv('PYTEST_RANDOM_SEED')
-    if current_random_seed is not None and current_random_seed.isdigit():
-        random_seed = int(current_random_seed)
-    else:
-        random_seed = np.random.randint(0, 1e6)
-        os.environ['PYTEST_RANDOM_SEED'] = str(random_seed)
-    print("\nRandom seed value:", random_seed)
-    return random_seed
-
-
-def get_triton_client(
-        protocol="grpc",
-        host='localhost',
-        port=None,
-        concurrency=4):
-    """Get Triton client instance of desired type """
-
-    if protocol == 'grpc':
-        if port is None:
-            port = 8001
-        client = triton_grpc.InferenceServerClient(
-            url=f'{host}:{port}',
-            verbose=False
-        )
-    elif protocol == 'http':
-        if port is None:
-            port = 8000
-        client = triton_http.InferenceServerClient(
-            url=f'{host}:{port}',
-            verbose=False,
-            concurrency=concurrency
-        )
-    else:
-        raise RuntimeError('Bad protocol: "{}"'.format(protocol))
-
+@pytest.fixture(scope='session')
+def client():
+    """A RAPIDS-Triton client for submitting inference requests"""
+    client = Client()
+    client.wait_for_server(120)
     return client
 
 
-def set_up_triton_io(
-        client, arr, protocol='grpc', shared_mem=None, predict_proba=False,
-        num_classes=1):
-    """Set up Triton input and output objects"""
-    if protocol == 'grpc':
-        triton_input = triton_grpc.InferInput('input__0', arr.shape, 'FP32')
-        triton_output = triton_grpc.InferRequestedOutput('output__0')
-    elif protocol == 'http':
-        triton_input = triton_http.InferInput('input__0', arr.shape, 'FP32')
-        triton_output = triton_http.InferRequestedOutput(
-            'output__0',
-            binary_data=True
-        )
+@pytest.fixture(scope='session')
+def model_repo(pytestconfig):
+    """The path to the model repository directory"""
+    return pytestconfig.getoption('repo')
 
-    output_handle = None
 
-    if shared_mem is None:
-        if protocol == 'grpc':
-            triton_input.set_data_from_numpy(arr)
-        elif protocol == 'http':
-            triton_input.set_data_from_numpy(arr, binary_data=True)
+def get_model_parameter(config, param, default=None):
+    """Retrieve custom model parameters from config"""
+    param_str = config.parameters[param].string_value
+    if param_str:
+        return param_str
+    else:
+        return default
+
+
+class GTILModel:
+    """A compatibility wrapper for executing models with GTIL"""
+
+    def __init__(self, model_path, model_format, output_class):
+        if model_format == 'treelite_checkpoint':
+            self.tl_model = treelite.Model.deserialize(model_path)
         else:
-            raise RuntimeError('Bad protocol: "{}"'.format(protocol))
-        input_name = None
-        output_name = None
-    elif shared_mem == 'cuda':
-        input_size = arr.size * arr.itemsize
-        output_size = arr.shape[0] * arr.itemsize
-        if predict_proba:
-            output_size *= num_classes
+            self.tl_model = treelite.Model.load(model_path, model_format)
+        self.output_class = output_class
 
-        request_uuid = uuid4().hex
-        input_name = 'input_{}'.format(request_uuid)
-        output_name = 'output_{}'.format(request_uuid)
+    def _predict(self, arr):
+        return treelite.gtil.predict(self.tl_model, arr)
 
-        output_handle = shm.create_shared_memory_region(
-            output_name, output_size, 0
-        )
+    def predict_proba(self, arr):
+        result = self._predict(arr)
+        if len(result.shape) > 1:
+            return result
+        else:
+            return np.transpose(np.vstack((1 - result, result)))
 
-        client.register_cuda_shared_memory(
-            output_name, shm.get_raw_handle(output_handle), 0, output_size
-        )
+    def predict(self, arr):
+        if self.output_class:
+            return np.argmax(self.predict_proba(arr), axis=1)
+        else:
+            return self._predict(arr)
 
-        input_handle = shm.create_shared_memory_region(
-            input_name, input_size, 0
-        )
 
-        shm.set_shared_memory_region(input_handle, [arr])
+class GroundTruthModel:
+    """A reference model used for comparison against results returned from
+    Triton"""
+    def __init__(
+            self,
+            name,
+            model_repo,
+            model_format,
+            predict_proba,
+            output_class,
+            use_cpu,
+            *,
+            model_version=1):
+        model_dir = os.path.join(model_repo, name, f'{model_version}')
+        self.predict_proba = predict_proba
 
-        client.register_cuda_shared_memory(
-            input_name, shm.get_raw_handle(input_handle), 0, input_size
-        )
+        if model_format == 'xgboost':
+            model_path = os.path.join(model_dir, 'xgboost.model')
+        elif model_format == 'xgboost_json':
+            model_path = os.path.join(model_dir, 'xgboost.json')
+        elif model_format == 'lightgbm':
+            model_path = os.path.join(model_dir, 'model.txt')
+        elif model_format == 'treelite_checkpoint':
+            if use_cpu:
+                model_path = os.path.join(model_dir, 'checkpoint.tl')
+            else:
+                model_path = os.path.join(model_dir, 'model.pkl')
+        else:
+            raise RuntimeError('Model format not recognized')
 
-        triton_input.set_shared_memory(input_name, input_size)
+        if use_cpu:
+            self._base_model = GTILModel(
+                model_path, model_format, output_class
+            )
+        else:
+            if model_format == 'treelite_checkpoint':
+                with open(model_path, 'rb') as pkl_file:
+                    self._base_model = pickle.load(pkl_file)
+            else:
+                self._base_model = cuml.ForestInference.load(
+                    model_path, output_class=output_class, model_type=model_format
+                )
 
-        triton_output.set_shared_memory(output_name, output_size)
+    def predict(self, inputs):
+        if self.predict_proba:
+            result = self._base_model.predict_proba(inputs['input__0'])
+        else:
+            result = self._base_model.predict(inputs['input__0'])
+        return {
+            'output__0': result
+        }
 
-        shared_memory_regions = client.get_cuda_shared_memory_status()
-        try:
-            shared_memory_regions = shared_memory_regions.regions
-        except AttributeError:  # HTTP response
-            shared_memory_regions = [
-                region['name'] for region in shared_memory_regions
-            ]
-        assert input_name in shared_memory_regions
-        assert output_name in shared_memory_regions
 
-    return (
-        triton_input, triton_output, output_handle, input_name, output_name
+@pytest.fixture(scope='session', params=MODELS)
+def model_data(request, client, model_repo):
+    """All data associated with a model required for generating examples and
+    comparing with ground truth results"""
+    name = request.param
+    config = client.get_model_config(name)
+    input_shapes = {
+        input_.name: list(input_.dims) for input_ in config.input
+    }
+    output_sizes = {
+        output.name: np.product(output.dims) * np.dtype('float32').itemsize
+        for output in config.output
+    }
+    max_batch_size = config.max_batch_size
+
+    model_format = get_model_parameter(
+        config, 'model_type', default='xgboost'
+    )
+    predict_proba = get_model_parameter(
+        config, 'predict_proba', default='false'
+    )
+    predict_proba = (predict_proba == 'true')
+    output_class = get_model_parameter(
+        config, 'output_class', default='true'
+    )
+    output_class = (output_class == 'true')
+
+    use_cpu = (config.instance_group[0].kind != 1)
+
+    ground_truth_model = GroundTruthModel(
+        name, model_repo, model_format, predict_proba, output_class, use_cpu,
+        model_version=1
+    )
+
+    return ModelData(
+        name,
+        input_shapes,
+        output_sizes,
+        max_batch_size,
+        ground_truth_model,
+        config
     )
 
 
-def get_result(response, output_handle):
-    """Convert Triton response to NumPy array"""
-    if output_handle is None:
-        return response.as_numpy('output__0')
-    else:
-        network_result = TritonMessage(response.get_output('output__0'))
-        return shm.get_contents_as_numpy(
-            output_handle,
-            triton_utils.triton_to_np_dtype(network_result.datatype),
-            network_result.shape
+@given(hypothesis_data=st.data())
+@settings(
+    deadline=None,
+    suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much)
+)
+def test_small(client, model_data, hypothesis_data):
+    """Test Triton-served model on many small Hypothesis-generated examples"""
+    all_model_inputs = defaultdict(list)
+    total_output_sizes = {}
+    all_triton_outputs = defaultdict(list)
+    default_arrays = {
+        name: np.random.rand(TOTAL_SAMPLES, *shape).astype('float32')
+        for name, shape in model_data.input_shapes.items()
+    }
+
+    for i in range(TOTAL_SAMPLES):
+        model_inputs = {
+            name: hypothesis_data.draw(
+                st.one_of(
+                    st.just(default_arrays[name][i:i+1, :]),
+                    st_arrays('float32', [1] + shape)
+                )
+            ) for name, shape in model_data.input_shapes.items()
+        }
+        if model_data.name == 'sklearn':
+            for array in model_inputs.values():
+                assume(not np.any(np.isnan(array)))
+        model_output_sizes = {
+            name: size
+            for name, size in model_data.output_sizes.items()
+        }
+        shared_mem = hypothesis_data.draw(st.one_of(
+            st.just(mode) for mode in valid_shm_modes()
+        ))
+        result = client.predict(
+            model_data.name, model_inputs, model_data.output_sizes,
+            shared_mem=shared_mem
         )
+        for name, input_ in model_inputs.items():
+            all_model_inputs[name].append(input_)
+        for name, size in model_output_sizes.items():
+            total_output_sizes[name] = total_output_sizes.get(name, 0) + size
+        for name, output in result.items():
+            all_triton_outputs[name].append(output)
 
+    all_model_inputs = {
+        name: np.concatenate(arrays)
+        for name, arrays in all_model_inputs.items()
+    }
+    all_triton_outputs = {
+        name: np.concatenate(arrays)
+        for name, arrays in all_triton_outputs.items()
+    }
 
-def triton_predict(
-        model_name, arr, model_version='1', protocol='grpc', host='localhost',
-        port=None, shared_mem=None, predict_proba=False, num_classes=1,
-        attempts=3):
-    """Perform prediction on a numpy array using a Triton model"""
-    if port is None:
-        port = STANDARD_PORTS[protocol]
-    client = get_triton_client(protocol=protocol, host=host, port=port)
-    start = perf_counter()
     try:
-        triton_input, triton_output, handle, input_name, output_name = \
-            set_up_triton_io(
-                client,
-                arr,
-                protocol=protocol,
-                shared_mem=shared_mem,
-                predict_proba=predict_proba,
-                num_classes=num_classes
+        ground_truth = model_data.ground_truth_model.predict(all_model_inputs)
+    except Exception:
+        assume(False)
+
+    for output_name in sorted(ground_truth.keys()):
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
+            )
+        else:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_atol=3,
+                assert_close=True
             )
 
-        result = client.infer(
-            model_name,
-            model_version=str(model_version),
-            inputs=[triton_input],
-            outputs=[triton_output]
-        )
-    except triton_utils.InferenceServerException as exc:
-        # Workaround for Triton Python client bug
-        if exc.status() == 'StatusCode.NOT_FOUND' and attempts > 1:
-            return triton_predict(
-                model_name,
-                arr,
-                model_version=model_version,
-                protocol=protocol,
-                host=host,
-                port=port,
-                shared_mem=shared_mem,
-                predict_proba=predict_proba,
-                num_classes=num_classes,
-                attempts=attempts - 1
-            )
-        raise
-    output = get_result(result, handle)
-    elapsed = perf_counter() - start
-
-    if input_name is not None:
-        client.unregister_cuda_shared_memory(name=input_name)
-    if output_name is not None:
-        client.unregister_cuda_shared_memory(name=output_name)
-
-    return output, elapsed
-
-
-def run_test(
-        model_repo=None,
-        model_name='xgboost_classification_xgboost',
-        model_version=1,
-        protocol='grpc',
-        total_rows=8192,
-        batch_sizes=None,
-        shared_mem=(None, 'cuda'),
-        concurrency=8,
-        timeout=60,
-        server_grace=120,
-        retries=3,
-        host='localhost',
-        http_port=STANDARD_PORTS['http'],
-        grpc_port=STANDARD_PORTS['grpc']):
-
-    np.random.seed(seed=get_random_seed())
-
-    if batch_sizes is None:
-        batch_sizes = []
-        if total_rows > 128:
-            batch_sizes.append(128)
-        # Note: We default to putting the batch size 1 runs in between the
-        # batch size 128 and 1024 runs in order to increase the likelihood that
-        # the server will have to deal with different-sized arrays in a single
-        # server-side batch.
-        batch_sizes.append(1)
-        if total_rows > 1024:
-            batch_sizes.append(1024)
-        if total_rows > max(batch_sizes):
-            batch_sizes.append(total_rows)
-
-    if model_repo is None:
-        model_repo = os.path.join(
-            os.path.dirname(__file__),
-            'model_repository'
-        )
-
-    concurrency = max(
-        len(shared_mem), concurrency - concurrency % len(shared_mem)
+    # Test entire batch of Hypothesis-generated inputs at once
+    shared_mem = hypothesis_data.draw(st.one_of(
+        st.just(mode) for mode in valid_shm_modes()
+    ))
+    all_triton_outputs = client.predict(
+        model_data.name, all_model_inputs, total_output_sizes,
+        shared_mem=shared_mem
     )
 
-    client = get_triton_client(
-        protocol='grpc',
-        host=host,
-        port=grpc_port
-    )
-
-    # Wait for server startup
-    server_wait_start = time()
-    while time() - server_wait_start < server_grace:
-        try:
-            if client.is_server_ready():
-                break
-        except triton_utils.InferenceServerException:
-            pass
-    if time() - server_wait_start > server_grace:
-        warnings.warn("Server may not be ready!")
-
-    client.unregister_cuda_shared_memory()
-    client.unregister_system_shared_memory()
-
-    config = client.get_model_config(model_name).config
-    features = config.input[0].dims[0]
-    output_dims = config.output[0].dims
-
-    predict_proba = config.parameters.get('predict_proba', None)
-    if predict_proba is not None and predict_proba.string_value == 'true':
-        predict_proba = True
-        num_classes = output_dims[0]
-    else:
-        predict_proba = False
-        num_classes = 2
-
-    output_class = config.parameters.get('output_class')
-    output_class = (
-        output_class is None or output_class.string_value == 'true'
-    )
-
-    model_format = config.parameters.get('model_type', None)
-    if model_format is None:
-        model_format = 'xgboost'
-    else:
-        model_format = model_format.string_value
-
-    model_dir = os.path.join(model_repo, model_name, str(model_version))
-    if model_format == 'xgboost':
-        model_path = os.path.join(model_dir, 'xgboost.model')
-        model_type = 'xgboost'
-    elif model_format == 'xgboost_json':
-        model_path = os.path.join(model_dir, 'xgboost.json')
-        model_type = 'xgboost_json'
-    elif model_format == 'lightgbm':
-        model_path = os.path.join(model_dir, 'model.txt')
-        model_type = 'lightgbm'
-    elif model_format == 'treelite_checkpoint':
-        model_path = os.path.join(model_dir, 'checkpoint.tl')
-        model_type = 'treelite_checkpoint'
-    else:
-        raise RuntimeError('Model format not recognized')
-
-    # NOTE: Once FIL has been updated to directly load treelite_checkpoint
-    # models, this workaround should be removed
-    # (https://github.com/rapidsai/cuml/issues/3934)
-    if model_format == 'treelite_checkpoint':
-        pkl_path = os.path.join(model_dir, 'model.pkl')
-        with open(pkl_path, 'rb') as pkl_file:
-            fil_model = pickle.load(pkl_file)
-    else:
-        fil_model = cuml.ForestInference.load(
-            model_path, output_class=output_class, model_type=model_type
-        )
-
-    total_batch = np.random.rand(total_rows, features).astype('float32')
-
-    if predict_proba:
-        fil_result = fil_model.predict_proba(total_batch)
-    else:
-        fil_result = fil_model.predict(total_batch)
-
-    # Perform single-inference tests
-    if None in shared_mem:
-        triton_result, _ = triton_predict(
-            model_name,
-            total_batch[0: 5],
-            model_version=model_version,
-            protocol='http',
-            host=host,
-            port=http_port,
-            shared_mem=None,
-            predict_proba=predict_proba,
-            num_classes=num_classes
-        )
-        arrays_close(
-            triton_result,
-            fil_result[0: 5],
-            atol=1.5e-3,
-            total_atol=2,
-            assert_close=True
-        )
-
-    if 'cuda' in shared_mem:
-        triton_result, _ = triton_predict(
-            model_name,
-            total_batch[0: 5],
-            model_version=model_version,
-            protocol='grpc',
-            host=host,
-            port=grpc_port,
-            shared_mem='cuda',
-            predict_proba=predict_proba,
-            num_classes=num_classes
-        )
-        arrays_close(
-            triton_result,
-            fil_result[0: 5],
-            atol=1.5e-3,
-            total_atol=2,
-            assert_close=True
-        )
-
-    # Perform multi-threaded tests
-    def predict_networked(arr):
-        try:
-            return triton_predict(
-                model_name,
-                arr,
-                model_version=model_version,
-                protocol=protocol,
-                host=host,
-                port=[http_port, grpc_port][protocol == 'grpc'],
-                shared_mem=None,
-                predict_proba=predict_proba,
-                num_classes=num_classes,
-                attempts=retries
+    for output_name in sorted(ground_truth.keys()):
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
             )
-        except Exception:
-            return (None, traceback.format_exc())
-
-    def predict_shared(arr):
-        try:
-            return triton_predict(
-                model_name,
-                arr,
-                model_version=model_version,
-                protocol=protocol,
-                host=host,
-                port=[http_port, grpc_port][protocol == 'grpc'],
-                shared_mem='cuda',
-                predict_proba=predict_proba,
-                num_classes=num_classes,
-                attempts=retries
-            )
-        except Exception:
-            return (None, traceback.format_exc())
-
-    queue = Queue()
-    results = []
-
-    def predict_worker():
-        while True:
-            try:
-                next_input = queue.get()
-            except Empty:
-                continue
-            if next_input is None:
-                queue.task_done()
-                return
-            arr, indices, sharing = next_input
-            if sharing is None:
-                results.append(
-                    (indices, predict_networked(arr))
-                )
-            elif sharing == 'cuda':
-                results.append(
-                    (indices, predict_shared(arr))
-                )
-            queue.task_done()
-
-    pool = [
-        threading.Thread(target=predict_worker) for _ in range(concurrency)
-    ]
-    for thread in pool:
-        thread.daemon = True
-        thread.start()
-
-    start = perf_counter()
-    for batch_size_ in batch_sizes:
-        for i in range(
-            total_rows // batch_size_ +
-            int(bool(total_rows % batch_size_))
-        ):
-            indices = (
-                i * batch_size_,
-                min((i + 1) * batch_size_, total_rows)
+        else:
+            arrays_close(
+                all_triton_outputs[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_atol=3,
+                assert_close=True
             )
 
-            arr = total_batch[indices[0]: indices[1]]
-            queue.put((arr, indices, shared_mem[i % len(shared_mem)]))
-    for _ in range(concurrency):
-        queue.put(None)
 
-    for thread in pool:
-        thread.join(timeout=timeout)
-        if thread.is_alive():
-            raise RuntimeError("Test run exceeded timeout")
-    total = perf_counter() - start
+@pytest.mark.parametrize("shared_mem", valid_shm_modes())
+def test_max_batch(client, model_data, shared_mem):
+    """Test processing of a single maximum-sized batch"""
+    max_inputs = {
+        name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')
+        for name, shape in model_data.input_shapes.items()
+    }
+    model_output_sizes = {
+        name: size * model_data.max_batch_size
+        for name, size in model_data.output_sizes.items()
+    }
+    shared_mem = valid_shm_modes()[0]
+    result = client.predict(
+        model_data.name, max_inputs, model_output_sizes, shared_mem=shared_mem
+    )
 
-    throughput = len(batch_sizes) * total_rows / total
-    per_sample = 1 / throughput
+    ground_truth = model_data.ground_truth_model.predict(max_inputs)
 
-    all_triton_results = np.zeros(fil_result.shape, dtype=fil_result.dtype)
-
-    request_latency = 0
-    row_latency = 0
-    for indices, (triton_result, batch_latency) in results:
-        if triton_result is None:
-            # On failure, the second output from the prediction call is the
-            # traceback for the exception (stored in the "batch_latency"
-            # variable during unpacking)
-            error_msg = batch_latency
-            raise RuntimeError(
-                f'Prediction failed with error:\n\n{error_msg}'
+    for output_name in sorted(ground_truth.keys()):
+        if model_data.ground_truth_model.predict_proba:
+            arrays_close(
+                result[output_name],
+                ground_truth[output_name],
+                rtol=1e-3,
+                atol=1e-2,
+                assert_close=True
             )
-        all_triton_results[indices[0]: indices[1]] = triton_result
-        request_latency += batch_latency
-        row_latency += batch_latency / (indices[1] - indices[0])
-
-    arrays_close(
-        all_triton_results,
-        fil_result,
-        atol=1.5e-3,
-        total_rtol=0.001,
-        assert_close=True
-    )
-
-    request_latency /= len(results)
-    row_latency /= len(results)
-
-    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    print(f"Total rows: {total_rows}")
-    print("Batch sizes: {}".format(", ".join(
-        (str(size_) for size_ in batch_sizes)
-    )))
-    print("Shared memory: {}".format(", ".join(
-        (str(mem) for mem in shared_mem)
-    )))
-    print(f"Features: {features}")
-    print(f"Classes: {num_classes}")
-    print(f"Proba: {predict_proba}")
-    print(f"Model format: {model_format}")
-    print(f"Protocol: {protocol}")
-    print(f"Concurrency: {concurrency}")
-    print("-----------------------------------------")
-    print("Throughput, Request latency, Time/sample, Row latency")
-    print(f"{throughput}, {request_latency}, {per_sample}, {row_latency}")
-    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
-
-def parse_args():
-    """Parse CLI arguments for model testing"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--repo',
-        help='path to model repository',
-        default=None
-    )
-    parser.add_argument(
-        '--host',
-        help='URL of Triton server',
-        default='localhost'
-    )
-    parser.add_argument(
-        '--http_port',
-        type=int,
-        help='HTTP port for Triton server',
-        default=STANDARD_PORTS['http']
-    )
-    parser.add_argument(
-        '--grpc_port',
-        type=int,
-        help='GRPC port for Triton server',
-        default=STANDARD_PORTS['grpc']
-    )
-    parser.add_argument(
-        '--name',
-        help='name for model',
-        default='xgboost_classification_xgboost'
-    )
-    parser.add_argument(
-        '--model_version',
-        default='1',
-        help='model version to be tested',
-    )
-    parser.add_argument(
-        '--protocol',
-        choices=('grpc', 'http'),
-        default='grpc',
-        help='network protocol to use in tests',
-    )
-    parser.add_argument(
-        '--samples',
-        type=int,
-        help='number of total test samples per batch size',
-        default=8192
-    )
-    parser.add_argument(
-        '-b',
-        '--batch_size',
-        type=int,
-        default=[],
-        nargs='*',
-        help='batch size(s) to use (may be repeated); default based on total'
-        ' samples',
-        action='append'
-    )
-    parser.add_argument(
-        '--shared_mem',
-        choices=('None', 'cuda'),
-        default=[],
-        nargs='*',
-        help='shared memory mode(s) to use (may be repeated)',
-        action='append'
-    )
-    parser.add_argument(
-        '--concurrency',
-        type=int,
-        default=8,
-        help='concurrent threads to use for making requests',
-    )
-    parser.add_argument(
-        '--timeout',
-        type=int,
-        default=60,
-        help='time in seconds to wait for processing of all samples',
-    )
-    parser.add_argument(
-        '--server_grace',
-        type=int,
-        default=120,
-        help='time in seconds to wait for server to come online',
-    )
-    parser.add_argument(
-        '--retries',
-        type=int,
-        default=3,
-        help='allowed retries for network failures',
-    )
-
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    args = parse_args()
-    batch_sizes = [
-        size_ for inner in args.batch_size for size_ in inner
-    ] or None
-    shared_mem = [
-        [mem, None][mem.lower() == 'none']
-        for inner in args.shared_mem for mem in inner
-    ] or (None, 'cuda')
-    run_test(
-        model_repo=args.repo,
-        model_name=args.name,
-        model_version=args.model_version,
-        protocol=args.protocol,
-        total_rows=args.samples,
-        batch_sizes=batch_sizes,
-        shared_mem=shared_mem,
-        concurrency=args.concurrency,
-        timeout=args.timeout,
-        server_grace=args.server_grace,
-        retries=args.retries
-    )
+        else:
+            arrays_close(
+                result[output_name],
+                ground_truth[output_name],
+                atol=0.1,
+                total_rtol=3,
+                assert_close=True
+            )
