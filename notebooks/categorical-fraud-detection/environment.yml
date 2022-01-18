@@ -1,0 +1,22 @@
+---
+name: triton_example
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai
+dependencies:
+  - cudatoolkit=11.4
+  - cudf=21.12
+  - cuml=21.12
+  - cupy
+  - jupyter
+  - kaggle
+  - matplotlib
+  - numpy
+  - pandas
+  - pip
+  - python=3.8
+  - scikit-learn
+  - pip:
+      - tritonclient[all]
+      - xgboost>=1.5

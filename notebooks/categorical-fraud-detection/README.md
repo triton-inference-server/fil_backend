@@ -1,5 +1,5 @@
 <!--
-# Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,26 +26,32 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
 
-# FIL Backend Examples
+# Fraud Detection With Categorical XGBoost
 
-This directory contains example notebooks which illustrate typical workflows
-and use-cases for the Triton FIL backend. Additional examples will be added to
-this directory over time.
+This example notebook demonstrates how to train and deploy an XGBoost model
+with categorical features in Triton using the FIL backend. We begin by training
+two separate models on a fraud detection dataset with categorical variables:
+one small model designed to maximize runtime performance and one larger model
+designed to maximize accurate and precise detection of fraud. We then deploy
+both models on CPU and GPU and compare their performance using Triton's
+`perf_analyzer`. Based on these results, we see that GPU deployment opens up
+the possibility of deploying a much larger and more accurate fraud model with
+higher throughput while also keeping to a tight latency budget.
 
-**Note**: For those looking for the example notebook which was initially
-included at the top-level of this directory, it has been moved to the
-[simple-xgboost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost)
-directory.
+## Running the notebook
+The notebook itself requires a few Python dependencies. To easily install them,
+you may make use of the provided conda environment file as follows:
+```bash
+conda env create -f environment.yml
+```
+You may then activate the conda environment and run the notebook as usual:
+```bash
+conda activate triton_example
+jupyter notebook
+```
+The Jupyter interface should now be accessible from a browser, and you can
+follow the instructions from there.
 
-Each subdirectory contains an example notebook and a README with instructions
-on how to run the example.
-
-## Current Examples
-- [Simple
-  XGBoost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost):
-  This example demonstrates how to load an XGBoost model into Triton and
-  optimize its configuration with the Triton Model Analyzer.
-- [Categorical Fraud
-  Example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection):
-  This example walks through training a categorical XGBoost model for fraud
-  detection and deploying it on both GPU-accelerated and CPU-only systems.
+**NOTE**: You will also need [Docker](https://docs.docker.com/get-docker/)
+available on your system in order to run the Triton server as part of the
+example notebook.
