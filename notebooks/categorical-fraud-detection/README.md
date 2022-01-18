@@ -40,7 +40,9 @@ higher throughput while also keeping to a tight latency budget.
 
 ## Running the notebook
 The notebook itself requires a few Python dependencies. To easily install them,
-you may make use of the provided conda environment file as follows:
+you may make use of the provided conda [environment
+file](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection/environment.yml)
+as follows:
 ```bash
 conda env create -f environment.yml
 ```
