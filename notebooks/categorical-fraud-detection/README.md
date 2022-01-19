@@ -39,8 +39,11 @@ the possibility of deploying a much larger and more accurate fraud model with
 higher throughput while also keeping to a tight latency budget.
 
 ## Running the notebook
-The notebook itself requires a few Python dependencies. To easily install them,
-you may make use of the provided conda [environment
+In order to launch the Triton server, you will need
+[Docker](https://docs.docker.com/get-docker/) installed on your system. The
+rest of the notebook also requires a few Python dependencies. To easily install
+these additional dependencies, you may make use of the provided conda
+[environment
 file](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection/environment.yml)
 as follows:
 ```bash
@@ -52,8 +55,4 @@ conda activate triton_example
 jupyter notebook
 ```
 The Jupyter interface should now be accessible from a browser, and you can
-follow the instructions from there.
-
-**NOTE**: You will also need [Docker](https://docs.docker.com/get-docker/)
-available on your system in order to run the Triton server as part of the
-example notebook.
+follow the instructions within the notebook itself from there.
