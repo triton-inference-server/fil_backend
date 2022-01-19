@@ -28,7 +28,7 @@
 
 # Fraud Detection With Categorical XGBoost
 
-This example notebook demonstrates how to train and deploy an XGBoost model
+This example notebook shows how to train and deploy an XGBoost model
 with categorical features in Triton using the FIL backend. We begin by training
 two separate models on a fraud detection dataset with categorical variables:
 one small model designed to maximize runtime performance and one larger model
