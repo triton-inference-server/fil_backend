@@ -1,9 +1,9 @@
-# Trtion FIL backend with XGBoost
+# Triton FIL backend with XGBoost
 
-This notebook is a reference for deploying a forest model trained using XGBoost library in Triton Inference Server with Forest Inference Library (FIL) backend. The notebook explains how one can deploy XGBoost model in Triton, check deployment status and send inference requests, set concurrent model execution and dynamic batching and find the best deployment configuration using Model Analyzer.
+This notebook is a reference for deploying an XGBoost model on Triton with the FIL backend. The notebook explains how one can deploy XGBoost model in Triton, check deployment status and send inference requests, set concurrent model execution and dynamic batching and find the best deployment configuration using Model Analyzer.
 
 ## Requirements
-* Nvidia GPU (Pascal+ Recommended GPUs: T4, V100 or A100)
+* NVIDIA GPU (Pascal+ required, recommended GPUs: T4, V100 or A100)
 * [Latest NVIDIA driver](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html)
 * [Docker](https://docs.docker.com/get-docker/)
 * [The NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)
