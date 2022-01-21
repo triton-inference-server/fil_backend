@@ -47,6 +47,8 @@ HELP="$0 [<target> ...] [<flag> ...]
    BACKEND_REF      - Commit ref for Triton backend repo when using build.py
    THIRDPARTY_REF   - Commit ref for Triton third-party repos when using build.py
    JOB_ID           - A unique id to use for this build job
+   USE_CLIENT_WHEEL - If 1, Triton client will be installed from wheel
+   SDK_IMAGE        - If set, client wheel will be copied from this image
 "
 
 BUILD_TYPE=Release
@@ -159,6 +161,17 @@ fi
 if [ ! -z $TRITON_VERSION ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
+fi
+
+if [ ! -z $SDK_IMAGE ]
+then
+  USE_CLIENT_WHEEL=1
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg SDK_IMAGE=${SDK_IMAGE}"
+fi
+
+if [ ! -z $USE_CLIENT_WHEEL ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg USE_CLIENT_WHEEL=${USE_CLIENT_WHEEL}"
 fi
 
 if completeBuild || hasArg server

@@ -1,0 +1,19 @@
+name: triton_test
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai
+dependencies:
+  - aws-sdk-cpp<1.9
+  - clang-tools=11.1.0
+  - cudatoolkit=11.4
+  - cuml=21.12
+  - flake8
+  - hypothesis
+  - lightgbm
+  - pip
+  - pytest
+  - python=3.8
+  - rapidsai::py-xgboost
+  - scikit-learn
+  - treelite
