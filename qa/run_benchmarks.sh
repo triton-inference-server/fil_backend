@@ -6,7 +6,7 @@ MAX_LATENCY=${MAX_LATENCY:-5}
 repo_root="$(git rev-parse --show-toplevel)" || repo_root="$PWD"
 if [ -z $OUTPUT ]
 then
-  OUTPUT="$repo_root/qa/benchmarks"
+  OUTPUT="$repo_root/qa/benchmark_output"
 fi
 
 run_benchmark() {
