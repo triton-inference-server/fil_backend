@@ -24,6 +24,7 @@ except Exception:
 import numpy as np
 import pytest
 import treelite
+import tritonclient.utils.cuda_shared_memory as shm
 from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
