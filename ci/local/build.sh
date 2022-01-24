@@ -26,6 +26,13 @@ else
   DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
 fi
 
+echo "Running linters..."
+docker run \
+  $DOCKER_ARGS \
+  -v "${REPO_DIR}:/rapids_triton_src" \
+  --rm $TEST_TAG \
+  bash -c 'cd /rapids_triton_src && conda run -n triton_test python qa/run-clang-format.py && conda run -n triton_test flake8'
+
 echo "Generating example models..."
 docker run \
   -e RETRAIN=${RETRAIN:-0} \

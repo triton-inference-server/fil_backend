@@ -25,11 +25,11 @@
 #include <rapids_triton/exceptions.hpp>
 #include <sstream>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
-inline auto*
-load_tl_handle(
-    std::filesystem::path const& model_file, SerializationFormat format)
+inline auto* load_tl_handle(std::filesystem::path const& model_file, SerializationFormat format)
 {
   auto handle = static_cast<void*>(nullptr);
 
@@ -51,25 +51,24 @@ load_tl_handle(
   }
   if (load_result != 0) {
     auto log_stream = std::stringstream{};
-    log_stream << "Model failed to load into Treelite with error: "
-               << TreeliteGetLastError();
+    log_stream << "Model failed to load into Treelite with error: " << TreeliteGetLastError();
     throw rapids::TritonException(rapids::Error::Unknown, log_stream.str());
   }
 
   return handle;
 }
 
-inline auto
-tl_get_num_classes(void* handle)
+inline auto tl_get_num_classes(void* handle)
 {
   auto result = std::size_t{};
   if (TreeliteQueryNumClass(handle, &result) != 0) {
-    throw rapids::TritonException(
-        rapids::Error::Unknown,
-        "Treelite could not determine number of classes in model");
+    throw rapids::TritonException(rapids::Error::Unknown,
+                                  "Treelite could not determine number of classes in model");
   }
 
   return result;
 }
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

@@ -29,7 +29,9 @@
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 /* This struct defines a unified prediction interface to both FIL and GTIL.
  * Template specializations are provided based on the type of memory the model
@@ -41,26 +43,27 @@ struct ForestModel {
   ForestModel(std::shared_ptr<TreeliteModel> tl_model)
   {
     throw rapids::TritonException(
-        rapids::Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+      rapids::Error::Unsupported,
+      "ForestModel invoked with a memory type unsupported by this build");
   }
 
-  ForestModel(
-      device_id_t device_id, cudaStream_t stream,
-      std::shared_ptr<TreeliteModel> tl_model)
+  ForestModel(device_id_t device_id, cudaStream_t stream, std::shared_ptr<TreeliteModel> tl_model)
   {
     throw rapids::TritonException(
-        rapids::Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+      rapids::Error::Unsupported,
+      "ForestModel invoked with a memory type unsupported by this build");
   }
 
-  void predict(
-      rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t samples, bool predict_proba) const
+  void predict(rapids::Buffer<float>& output,
+               rapids::Buffer<float const> const& input,
+               std::size_t samples,
+               bool predict_proba) const
   {
     throw rapids::TritonException(
-        rapids::Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+      rapids::Error::Unsupported,
+      "ForestModel invoked with a memory type unsupported by this build");
   }
 };
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton
