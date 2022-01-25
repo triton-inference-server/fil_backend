@@ -53,9 +53,9 @@ ModelData = namedtuple('ModelData', (
 @lru_cache()
 def valid_shm_modes():
     """Return a tuple of allowed shared memory modes"""
-    modes = [None]
-    if os.environ.get('CPU_ONLY', 0) == 0:
-        modes.append('cuda')
+    modes = [None, 'cuda']
+    # if os.environ.get('CPU_ONLY', 0) == 0:
+    #     modes.append('cuda')
     return tuple(modes)
 
 
@@ -287,6 +287,7 @@ def test_small(client, model_data, hypothesis_data):
     shared_mem = hypothesis_data.draw(st.one_of(
         st.just(mode) for mode in valid_shm_modes()
     ))
+    shared_mem = None
     all_triton_outputs = client.predict(
         model_data.name, all_model_inputs, total_output_sizes,
         shared_mem=shared_mem
