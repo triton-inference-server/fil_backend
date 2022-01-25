@@ -47,6 +47,10 @@ HELP="$0 [<target> ...] [<flag> ...]
    BACKEND_REF      - Commit ref for Triton backend repo when using build.py
    THIRDPARTY_REF   - Commit ref for Triton third-party repos when using build.py
    JOB_ID           - A unique id to use for this build job
+   BUILDPY_BRANCH   - Instead of autodetecting the current branch of the FIL
+                      backend repo, use this branch when building with
+                      build.py. For all other build methods, the backend will
+                      simply be built with the current version of the code
 "
 
 BUILD_TYPE=Release
@@ -174,10 +178,15 @@ fi
 
 buildpy () {
   pushd "$REPODIR"
-  branch=$(git rev-parse --abbrev-ref HEAD) || branch='HEAD'
-  if [ $branch = 'HEAD' ]
+  if [ -z $BUILDPY_BRANCH ]
   then
-    branch='main'
+    branch=$(git rev-parse --abbrev-ref HEAD) || branch='HEAD'
+    if [ $branch = 'HEAD' ]
+    then
+      branch='main'
+    fi
+  else
+    branch="$BUILDPY_BRANCH"
   fi
   echo "build.sh: Building on branch '$branch' with build.py"
 

@@ -21,6 +21,11 @@ BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${CPU_ONLY:-1}
 
+if [ -z $CI_COMMIT_BRANCH ]
+then
+  export BUILDPY_BRANCH="$CI_COMMIT_BRANCH"
+fi
+
 # Check if test or base images need to be built and do so if necessary
 if [ -z $PREBUILT_SERVER_TAG ]
 then
