@@ -240,6 +240,7 @@ def test_small(client, model_data, hypothesis_data):
         shared_mem = hypothesis_data.draw(st.one_of(
             st.just(mode) for mode in valid_shm_modes()
         ))
+        shared_mem = None
         result = client.predict(
             model_data.name, model_inputs, model_data.output_sizes,
             shared_mem=shared_mem
