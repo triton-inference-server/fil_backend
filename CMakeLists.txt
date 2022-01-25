@@ -232,14 +232,22 @@ else()
     )
   endif()
   
+  rapids_cmake_install_lib_dir( lib_dir )
+  include(CPack)
+
   if(TRITON_ENABLE_GPU)
     install(
-      TARGETS ${BACKEND_TARGET} cuml++
-      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+      TARGETS 
+        ${BACKEND_TARGET}
+      DESTINATION
+        ${lib_dir}
+      EXPORT
+        rapids_triton-exports
     )
   else()
     install(
-      TARGETS ${BACKEND_TARGET}
+      TARGETS 
+        ${BACKEND_TARGET}
       LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
     )
   endif()

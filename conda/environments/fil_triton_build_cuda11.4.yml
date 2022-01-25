@@ -1,0 +1,8 @@
+name: fil_triton_build
+channels:
+  - conda-forge
+  - nvidia
+dependencies:
+  - cmake>=3.21
+  - ninja
+  - cudatoolkit=11.4
