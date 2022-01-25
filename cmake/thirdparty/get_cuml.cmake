@@ -20,6 +20,7 @@ function(find_and_configure_cuml)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
+    set(CUML_CPP_ALGORITHMS "FIL" CACHE STRING "Building cuML with only FIL")
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++
       BUILD_EXPORT_SET    rapids_triton-exports
@@ -35,7 +36,6 @@ function(find_and_configure_cuml)
               "BUILD_CUML_EXAMPLES OFF"
               "BUILD_CUML_BENCH OFF"
               "BUILD_CUML_PRIMS_BENCH OFF"
-              "CUML_CPP_ALGORITHMS FIL"
               "CUML_USE_TREELITE_STATIC ON"
     )
 
