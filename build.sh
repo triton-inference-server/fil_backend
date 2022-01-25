@@ -47,8 +47,11 @@ HELP="$0 [<target> ...] [<flag> ...]
    BACKEND_REF      - Commit ref for Triton backend repo when using build.py
    THIRDPARTY_REF   - Commit ref for Triton third-party repos when using build.py
    JOB_ID           - A unique id to use for this build job
-   USE_CLIENT_WHEEL - If 1, Triton client will be installed from wheel
-   SDK_IMAGE        - If set, client wheel will be copied from this image
+   USE_CLIENT_WHEEL - If 1, Triton Python client will be installed from wheel
+                      distributed in a Triton SDK image.
+   SDK_IMAGE        - If set, client wheel will be copied from this image.
+                      Otherwise, if USE_CLIENT_WHEEL is 1, use SDK image
+                      corresponding to TRITON_VERSION
 "
 
 BUILD_TYPE=Release
