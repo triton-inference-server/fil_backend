@@ -14,7 +14,7 @@ dependencies:
   - pip
   - pytest
   - python=3.8
-  - rapidsai::py-xgboost
+  - rapidsai::xgboost
   - scikit-learn
   - treelite
   - pip:
