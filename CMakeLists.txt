@@ -158,6 +158,7 @@ else()
   else()
     include(cmake/thirdparty/get_treelite.cmake)
   endif()
+  include(cmake/thirdparty/get_rapidjson.cmake)
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
@@ -213,6 +214,7 @@ else()
       treelite::treelite_runtime_static
       raft::raft
       cuml++
+      rapidjson::rapidjson
       rapids_triton::rapids_triton
       triton-core-serverstub
       triton-backend-utils
@@ -224,6 +226,7 @@ else()
     PRIVATE
       treelite::treelite_static
       treelite::treelite_runtime_static
+      rapidjson::rapidjson
       rapids_triton::rapids_triton
       triton-core-serverstub
       triton-backend-utils
