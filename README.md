@@ -62,11 +62,11 @@ container; the `21.06.1` patch release or later is required.
 
 #### Building locally
 
-To build the Triton server container with the FIL backend, run the following
-from the repo root:
+To build the Triton server container with the FIL backend, you can invoke the
+`build.sh` wrapper from the repo root:
 
 ```bash
-docker build -t triton_fil -f ops/Dockerfile .
+./build.sh
 ```
 
 #### Customized builds (ADVANCED)
