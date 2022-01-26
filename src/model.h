@@ -108,6 +108,17 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     if (output_buffer.mem_type() != output.mem_type()) {
       rapids::copy(output.buffer(), output_buffer);
     }
+    auto logger = rapids::log_info();
+    if (output_buffer.mem_type() == rapids::HostMemory) {
+      for (auto i = std::size_t{}; i < output_buffer.size(); ++i) {
+        logger << output_buffer.data()[i] << ", ";
+      }
+    } else {
+      auto debug_buffer = rapids::Buffer(output_buffer, rapids::HostMemory);
+      for (auto i = std::size_t{}; i < debug_buffer.size(); ++i) {
+        logger << debug_buffer.data()[i] << ", ";
+      }
+    }
 
     output.finalize();
   }
