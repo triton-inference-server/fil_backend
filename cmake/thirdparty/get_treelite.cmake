@@ -23,7 +23,7 @@ function(find_and_configure_treelite)
     rapids_cpm_find(Treelite ${PKG_VERSION}
         GLOBAL_TARGETS  treelite::treelite treelite
         CPM_ARGS
-            GIT_REPOSITORY  https://github.com/dmlc/treelite.git
+            GIT_REPOSITORY  https://github.com/hcho3/treelite.git
             GIT_TAG         ${PKG_PINNED_TAG}
             OPTIONS
               "USE_OPENMP ON"
@@ -54,5 +54,5 @@ function(find_and_configure_treelite)
 
 endfunction()
 
-find_and_configure_treelite(VERSION     2.1.0
-                        PINNED_TAG  e5248931c62e3807248e0b150e27b2530a510634)
+find_and_configure_treelite(VERSION     2.2.1
+                        PINNED_TAG  973749a8aaa41253fe39ba344abc7d7916e92b19)
