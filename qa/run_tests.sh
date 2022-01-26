@@ -97,4 +97,4 @@ finally() {
 
 trap finally EXIT
 
-pytest --repo "${MODEL_REPO}" "$QA_DIR"
+pytest --hypothesis-verbosity=debug --repo "${MODEL_REPO}" "$QA_DIR"
