@@ -70,9 +70,9 @@ start_server() {
   else
     if [ -z $TRITON_VISIBLE_DEVICES ]
     then
-      CUDA_VISIBLE_DEVICES='' tritonserver $SERVER_ARGS
+      CUDA_VISIBLE_DEVICES='' tritonserver $SERVER_ARGS &
     else
-      tritonserver $SERVER_ARGS
+      tritonserver $SERVER_ARGS &
     fi
     TRITON_PID="$!"
   fi
