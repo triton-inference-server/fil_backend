@@ -12,6 +12,8 @@ set -e
 # BUILDPY: 1 to use Triton's build.py script for server build
 # CPU_ONLY: 1 to build without GPU support
 # NO_CACHE: 0 to enable Docker cache during build
+# USE_CLIENT_WHEEL: 1 to install Triton client from wheel for tests
+# SDK_IMAGE: If set, copy client wheel from this SDK image
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
@@ -20,6 +22,11 @@ CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${CPU_ONLY:-1}
+
+if [ -z $CI_COMMIT_BRANCH ]
+then
+  export BUILDPY_BRANCH="$CI_COMMIT_BRANCH"
+fi
 
 # Check if test or base images need to be built and do so if necessary
 if [ -z $PREBUILT_SERVER_TAG ]
@@ -46,6 +53,15 @@ then
   if [ $NO_CACHE -eq 1 ]
   then
     BUILDARGS="$BUILDARGS --no-cache"
+  fi
+  if [ ! -z $SDK_IMAGE ]
+  then
+    USE_CLIENT_WHEEL=1
+    export SDK_IMAGE="${SDK_IMAGE}"
+  fi
+  if [ ! -z $USE_CLIENT_WHEEL ]
+  then
+    export USE_CLIENT_WHEEL="${USE_CLIENT_WHEEL}"
   fi
   $REPO_DIR/build.sh $BUILDARGS
 else

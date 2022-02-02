@@ -47,6 +47,15 @@ HELP="$0 [<target> ...] [<flag> ...]
    BACKEND_REF      - Commit ref for Triton backend repo when using build.py
    THIRDPARTY_REF   - Commit ref for Triton third-party repos when using build.py
    JOB_ID           - A unique id to use for this build job
+   USE_CLIENT_WHEEL - If 1, Triton Python client will be installed from wheel
+                      distributed in a Triton SDK image.
+   SDK_IMAGE        - If set, client wheel will be copied from this image.
+                      Otherwise, if USE_CLIENT_WHEEL is 1, use SDK image
+                      corresponding to TRITON_VERSION
+   BUILDPY_BRANCH   - Instead of autodetecting the current branch of the FIL
+                      backend repo, use this branch when building with
+                      build.py. For all other build methods, the backend will
+                      simply be built with the current version of the code
 "
 
 BUILD_TYPE=Release
@@ -161,6 +170,17 @@ then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
 fi
 
+if [ ! -z $SDK_IMAGE ]
+then
+  USE_CLIENT_WHEEL=1
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg SDK_IMAGE=${SDK_IMAGE}"
+fi
+
+if [ ! -z $USE_CLIENT_WHEEL ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg USE_CLIENT_WHEEL=${USE_CLIENT_WHEEL}"
+fi
+
 if completeBuild || hasArg server
 then
   BACKEND=1
@@ -174,10 +194,15 @@ fi
 
 buildpy () {
   pushd "$REPODIR"
-  branch=$(git rev-parse --abbrev-ref HEAD) || branch='HEAD'
-  if [ $branch = 'HEAD' ]
+  if [ -z $BUILDPY_BRANCH ]
   then
-    branch='main'
+    branch=$(git rev-parse --abbrev-ref HEAD) || branch='HEAD'
+    if [ $branch = 'HEAD' ]
+    then
+      branch='main'
+    fi
+  else
+    branch="$BUILDPY_BRANCH"
   fi
   echo "build.sh: Building on branch '$branch' with build.py"
 

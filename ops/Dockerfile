@@ -1,14 +1,19 @@
+# syntax = docker/dockerfile:1.3
 ###########################################################################################
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=21.12
+ARG TRITON_VERSION=22.01
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
 ARG TRITON_ENABLE_GPU=ON
 # A Triton server image to use as base for test layers (skip actual build)
 ARG SERVER_IMAGE=build-stage
+# Whether or not to install Triton client from wheel in SDK image
+ARG USE_CLIENT_WHEEL=0
+# SDK container image (only used if USE_CLIENT_WHEEL==1)
+ARG SDK_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3-sdk
 
 FROM ${BASE_IMAGE} as base
 
@@ -110,12 +115,28 @@ ENV CCACHE_DIR=/ccache
 RUN --mount=type=cache,target=/ccache/ ninja install
 
 # Stage for installing test dependencies
-FROM base as test-install
+FROM base as base-test-install
 
-COPY ./conda/environments/triton_test.yml /environment.yml
+COPY ./conda/environments/triton_test_no_client.yml /environment.yml
 
 RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
     && rm /environment.yml
+
+FROM base-test-install as wheel-install-0
+RUN conda run --no-capture-output -n triton_test pip install tritonclient[all]
+
+FROM ${SDK_IMAGE} as sdk-image
+
+FROM base-test-install as wheel-install-1
+COPY --from=sdk-image /workspace/install/python /sdk_install
+RUN conda run --no-capture-output -n triton_test \
+    pip install /sdk_install/tritonclient*manylinux*.whl \
+ && rm -r /sdk_install
+
+FROM wheel-install-${USE_CLIENT_WHEEL} as test-install
+RUN conda run --no-capture-output -n triton_test \
+    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
+
 
 # Stage for generating testing image
 FROM ${SERVER_IMAGE} as test-stage
