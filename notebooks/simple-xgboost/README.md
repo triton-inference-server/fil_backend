@@ -23,7 +23,7 @@ docker run \
   --gpus=all \
   --rm \
   --net=host \
-  --name triton_fil
+  --name triton_fil \
   nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
 ```
 
