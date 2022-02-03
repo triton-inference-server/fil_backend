@@ -9,6 +9,11 @@ then
   OUTPUT="$repo_root/qa/benchmark_output"
 fi
 
+if [ -z $SHARED_MEM ]
+then
+  SHARED_MEM="none"
+fi
+
 run_benchmark() {
   model="$1"
   batch="$2"
@@ -20,6 +25,8 @@ run_benchmark() {
 
   output_file="$output_dir/$batch.csv"
   perf_analyzer \
+    --request-distribution poisson \
+    --shared-memory $SHARED_MEM \
     --percentile 99 \
     --binary-search \
     --concurrency-range 1:64:2 \
