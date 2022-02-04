@@ -25,6 +25,7 @@ run_benchmark() {
 
   output_file="$output_dir/$batch.csv"
   perf_analyzer \
+    -i GRPC \
     --request-distribution poisson \
     --shared-memory $SHARED_MEM \
     --percentile 99 \
