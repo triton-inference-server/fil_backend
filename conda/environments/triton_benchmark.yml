@@ -1,0 +1,17 @@
+name: triton_benchmark
+channels:
+  - conda-forge
+  - nvidia
+  - rapidsai
+dependencies:
+  - cudatoolkit=11.4
+  - cudf=21.12
+  - matplotlib
+  - onnxmltools
+  - pip
+  - python=3.8
+  - rapidsai::py-xgboost
+  - skl2onnx
+  - pip:
+      - tritonclient[all]
+      - git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
