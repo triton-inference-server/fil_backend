@@ -23,7 +23,7 @@ docker run \
   --gpus=all \
   --rm \
   --net=host \
-  --name triton_fil
+  --name triton_fil \
   nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
 ```
 
@@ -42,9 +42,9 @@ In the previous terminal perform the following steps:
 pip3 install jupyter
 ```
 ### Run Jupyter notebook inside the Triton container
-Change directory to `/notebook` folder and run the jupyter notebook:
+Change directory to `/notebooks` folder and run the jupyter notebook:
 ```
-cd /notebook
+cd /notebooks
 jupyter notebook --allow-root --no-browser --port 7001
 ```
 
