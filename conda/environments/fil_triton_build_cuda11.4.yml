@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nvidia
 dependencies:
+  - ccache
   - cmake>=3.21
   - ninja
   - cudatoolkit=11.4

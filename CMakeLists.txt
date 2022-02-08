@@ -85,7 +85,6 @@ else()
   option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
-  set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
 
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
@@ -152,14 +151,12 @@ else()
   # add third party dependencies using CPM
   rapids_cpm_init()
 
+  include(cmake/thirdparty/get_rapids-triton.cmake)
   if(TRITON_ENABLE_GPU)
-    include(cmake/thirdparty/get_raft.cmake)
     include(cmake/thirdparty/get_cuml.cmake)
   else()
     include(cmake/thirdparty/get_treelite.cmake)
   endif()
-  include(cmake/thirdparty/get_rapidjson.cmake)
-  include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)
@@ -207,53 +204,29 @@ else()
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
   
-  if(TRITON_ENABLE_GPU)
-    target_link_libraries(${BACKEND_TARGET}
-    PRIVATE
-      treelite::treelite_static
-      treelite::treelite_runtime_static
-      raft::raft
-      cuml++
-      rapidjson::rapidjson
-      rapids_triton::rapids_triton
-      triton-core-serverstub
-      triton-backend-utils
-      "${TRITONSERVER_LIB}"
-      $<TARGET_NAME_IF_EXISTS:conda_env>
-    )
-  else()
-    target_link_libraries(${BACKEND_TARGET}
-    PRIVATE
-      treelite::treelite_static
-      treelite::treelite_runtime_static
-      rapidjson::rapidjson
-      rapids_triton::rapids_triton
-      triton-core-serverstub
-      triton-backend-utils
-      "${TRITONSERVER_LIB}"
-      $<TARGET_NAME_IF_EXISTS:conda_env>
-    )
-  endif()
+  target_link_libraries(${BACKEND_TARGET}
+  PRIVATE
+    treelite::treelite_static
+    treelite::treelite_runtime_static
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
+    rapids_triton::rapids_triton
+    triton-core-serverstub
+    triton-backend-utils
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
   
   rapids_cmake_install_lib_dir( lib_dir )
   include(CPack)
 
-  if(TRITON_ENABLE_GPU)
-    install(
-      TARGETS 
-        ${BACKEND_TARGET}
-      DESTINATION
-        ${lib_dir}
-      EXPORT
-        rapids_triton-exports
-    )
-  else()
-    install(
-      TARGETS 
-        ${BACKEND_TARGET}
-      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
-    )
-  endif()
+  install(
+    TARGETS 
+      ${BACKEND_TARGET}
+    DESTINATION
+      ${lib_dir}
+    EXPORT
+      rapids_triton-exports
+  )
   
   ##############################################################################
   # - build test executable ----------------------------------------------------
