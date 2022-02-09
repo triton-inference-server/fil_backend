@@ -19,6 +19,7 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #include <gpu_forest_model.h>
+#include <gpu_treeshap_model.h>
 #else
 #include <forest_model.h>
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
@@ -55,11 +56,19 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   {
     /* Get I/O Tensors */
     auto input = get_input<float>(batch, "input__0");
-    auto output = get_output<float>(batch, "output__0");
     auto samples = input.shape()[0];
 
     /* Cache pointer to shared state */
     auto shared_state = get_shared_state();
+
+    // get all output names
+    auto output_names = shared_state->get_output_names();
+    auto outputs = std::vector<std::pair<std::string, OutputTensor<float>>>{};
+    std::for_each(std::begin(output_names), std::end(output_names), [&outputs](auto &output_name) {
+      outputs.push_back(std::make_pair(output_name, get_output<float>(batch, output_name)));
+    });
+    // boolean to store whether gpu treeshap will be executed
+    auto run_gpu_treeshap = shared_state->check_output_name("treeshap_output");
 
     /* Create non-owning buffer pointing to same memory provided by I/O
      * tensors. If we determine that it is possible and worthwhile to transfer
@@ -68,9 +77,20 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     auto input_buffer = rapids::Buffer<float const>(
         input.data(), input.size(), input.mem_type(), input.device(),
         input.stream());
+
+    // get fil output
+    auto output = std::lower_bound(std::begin(outputs), std::end(outputs), "output__0", [auto& entry, auto& value] {return entry.first < value})->second;
     auto output_buffer = rapids::Buffer<float>(
         output.data(), output.size(), output.mem_type(), output.device(),
         output.stream());
+
+    // get treeshap output, which is optional
+    auto treeshap_output = std::lower_bound(std::begin(outputs), std::end(outputs), "treeshap_output", [auto& entry, auto& value] {return entry.first < value});
+    auto treeshap_output_buffer = std::optional<rapids::Buffer<float>{};
+    if (run_gpu_treeshap) {
+      treeshap_output_buffer.emplace(treeshap_output.data(), treeshap_output.size(), treeshap_output.mem_type(), treeshap_output.device(),
+        treeshap_output.stream());
+    }
 
     /* Determine if it is possible and worthwhile to copy data to device
      * before performing inference */
@@ -110,6 +130,36 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     }
 
     output.finalize();
+
+    /* For running gpu treeshap
+     * Make sure that input and output buffers are in device memory
+     * for gpu treeshap */
+    if (run_gpu_treeshap) {
+      if constexpr (rapids::IS_GPU_BUILD) {
+        if (gpu_treeshap_model.has_value()) {
+          // Always copy input buffer to device memory
+          if (input.mem_type() == rapids::HostMemory) {
+            input_buffer = rapids::Buffer<float const>(input_buffer, rapids::DeviceMemory, get_device_id());
+          }
+
+        // This will force a copy of the output buffer to device memory
+        if (input_buffer.mem_type() != treeshap_output_buffer.mem_type()) {
+          // Create output buffer in correct  location
+          treeshap_output_buffer = rapids::Buffer<float>(
+              treeshap_output.size(), input_buffer.mem_type(), get_device_id(),
+              get_stream());
+          }
+        }
+      }
+
+      gpu_treeshap_model.value().predict(output, input, n_rows, input.shape()[1]);
+
+      if (treeshap_output_buffer.mem_type() != treeshap_output.mem_type()) {
+        rapids::copy(treeshap_output.buffer(), treeshap_output_buffer);
+      }
+
+      treeshap_output.finalize();
+    }
   }
 
  private:
@@ -167,6 +217,10 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
         gpu_model.emplace(get_device_id(), get_stream(), tl_model);
+
+        if (shared_state->check_output_name("treeshap_output")) {
+          gpu_treeshap_model.emplace(get_device_id(), get_stream(), tl_model);
+        }
       }
     }
     cpu_model = ForestModel<rapids::HostMemory>(tl_model);
@@ -183,6 +237,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   std::size_t num_classes_{};
   ForestModel<rapids::HostMemory> cpu_model;
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
+  std::optional<TreeShapModel<rapids::DeviceMemory>> gpu_treeshap_model{};
 };
 
 }}}  // namespace triton::backend::NAMESPACE
