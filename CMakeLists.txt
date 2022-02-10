@@ -162,9 +162,8 @@ else()
   if(TRITON_ENABLE_GPU)
     # include(cmake/thirdparty/get_raft.cmake)
     include(cmake/thirdparty/get_cuml.cmake)
-  else()
-    include(cmake/thirdparty/get_treelite.cmake)
   endif()
+  include(cmake/thirdparty/get_treelite.cmake)
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
@@ -218,6 +217,8 @@ else()
     PRIVATE
       raft::raft
       cuml++
+      treelite::treelite_static
+      treelite::treelite_runtime_static
       rapids_triton::rapids_triton
       triton-core-serverstub
       triton-backend-utils
