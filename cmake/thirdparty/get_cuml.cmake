@@ -28,6 +28,16 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            OPTIONS
+              "BUILD_CUML_TESTS OFF"
+              "BUILD_PRIMS_TESTS OFF"
+              "BUILD_CUML_MG_TESTS OFF"
+              "BUILD_CUML_EXAMPLES OFF"
+              "BUILD_CUML_BENCH OFF"
+              "BUILD_CUML_PRIMS_BENCH OFF"
+              "CUML_USE_TREELITE_STATIC ON"
+              "RAFT_COMPILE_LIBRARIES OFF"
+              "RAFT_ENABLE_NN_DEPENDENCIES OFF"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using CUML located in ${cuml_SOURCE_DIR}")
@@ -37,7 +47,7 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_cuml(VERSION    21.12
-                        FORK       rapidsai
-                        PINNED_TAG branch-21.12
+find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
+                        FORK       divyegala
+                        PINNED_TAG unlink-raft-nn
                         )

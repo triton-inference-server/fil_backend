@@ -30,19 +30,17 @@ function(find_and_configure_raft)
             SOURCE_SUBDIR  cpp
             OPTIONS
               "BUILD_TESTS OFF"
+              "RAFT_COMPILE_LIBRARIES OFF"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using RAFT located in ${raft_SOURCE_DIR}")
 
 endfunction()
 
-set(RAPIDS_TRITON_MIN_VERSION_raft "${RAPIDS_TRITON_BACKEND_VERSION_MAJOR}.${RAPIDS_TRITON_BACKEND_VERSION_MINOR}.00")
-set(RAPIDS_TRITON_BRANCH_VERSION_raft "${RAPIDS_TRITON_BACKEND_VERSION_MAJOR}.${RAPIDS_TRITON_BACKEND_VERSION_MINOR}")
-
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_raft(VERSION    ${RAPIDS_TRITON_MIN_VERSION_raft}
+find_and_configure_raft(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       rapidsai
-                        PINNED_TAG branch-${RAPIDS_TRITON_BRANCH_VERSION_raft}
+                        PINNED_TAG branch-${RAPIDS_TRITON_BRANCH_VERSION_rapids_projects}
                         )
