@@ -16,7 +16,7 @@
 
 function(find_and_configure_cuml)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG)
+    set(oneValueArgs VERSION FORK PINNED_TAG USE_TREELITE_STATIC)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -35,7 +35,7 @@ function(find_and_configure_cuml)
               "BUILD_CUML_EXAMPLES OFF"
               "BUILD_CUML_BENCH OFF"
               "BUILD_CUML_PRIMS_BENCH OFF"
-              "CUML_USE_TREELITE_STATIC ON"
+              "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
               "RAFT_COMPILE_LIBRARIES OFF"
               "RAFT_ENABLE_NN_DEPENDENCIES OFF"
     )
@@ -50,4 +50,5 @@ endfunction()
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       divyegala
                         PINNED_TAG unlink-raft-nn
+                        USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
