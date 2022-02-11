@@ -37,7 +37,7 @@ struct ForestModel<rapids::DeviceMemory> {
   ForestModel(
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
-      : device_id_{device_id}, raft_handle_{}, tl_model_{tl_model},
+      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
         fil_forest_{[this]() {
           auto result = ML::fil::forest_t{};
           auto config = tl_to_fil_config(tl_model_->config());
@@ -46,7 +46,6 @@ struct ForestModel<rapids::DeviceMemory> {
           return result;
         }()}
   {
-    raft_handle_.set_stream(stream);
   }
 
   ForestModel(ForestModel const& other) = default;

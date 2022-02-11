@@ -67,7 +67,7 @@ else()
 
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
-  file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.12/RAPIDS.cmake
+  file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.02/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -86,12 +86,16 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
+  set(RAPIDS_DEPENDENCIES_VERSION "22.02" CACHE STRING "RAPIDS projects dependencies version")
+  option(FIL_TRITON_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" OFF)
 
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling nvtx markers: ${NVTX}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: RAPIDS projects dependencies version: ${RAPIDS_DEPENDENCIES_VERSION}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: Linking Treelite statically: ${FIL_TRITON_USE_TREELITE_STATIC}")
 
   # Set RMM logging level
   set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -103,9 +107,9 @@ else()
 
   if(TRITON_ENABLE_GPU)
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-    project(RAPIDS_TRITON_BACKEND VERSION 21.12.00 LANGUAGES CXX CUDA)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.02.00 LANGUAGES CXX CUDA)
   else()
-    project(RAPIDS_TRITON_BACKEND VERSION 21.12.00 LANGUAGES CXX)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.02.00 LANGUAGES CXX)
   endif()
 
   ##############################################################################
@@ -152,8 +156,12 @@ else()
   # add third party dependencies using CPM
   rapids_cpm_init()
 
+  # Version and Branch to use for RAPIDS projects dependencies
+  # This project trails behind RAPIDS versions by one release
+  set(RAPIDS_TRITON_MIN_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}.00")
+  set(RAPIDS_TRITON_BRANCH_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}")
+
   if(TRITON_ENABLE_GPU)
-    include(cmake/thirdparty/get_raft.cmake)
     include(cmake/thirdparty/get_cuml.cmake)
   else()
     include(cmake/thirdparty/get_treelite.cmake)
@@ -206,43 +214,37 @@ else()
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
   
-  if(TRITON_ENABLE_GPU)
-    target_link_libraries(${BACKEND_TARGET}
-    PRIVATE
-      treelite::treelite_static
-      treelite::treelite_runtime_static
-      raft::raft
-      cuml++
-      rapids_triton::rapids_triton
-      triton-core-serverstub
-      triton-backend-utils
-      "${TRITONSERVER_LIB}"
-      $<TARGET_NAME_IF_EXISTS:conda_env>
-    )
+  if(NOT TRITON_FIL_USE_TREELITE_STATIC)
+    list(APPEND TREELITE_LIBS treelite::treelite treelite::treelite_runtime)
+    list(APPEND TREELITE_LIBS_NO_PREFIX treelite treelite_runtime)
   else()
-    target_link_libraries(${BACKEND_TARGET}
-    PRIVATE
-      treelite::treelite_static
-      treelite::treelite_runtime_static
-      rapids_triton::rapids_triton
-      triton-core-serverstub
-      triton-backend-utils
-      "${TRITONSERVER_LIB}"
-      $<TARGET_NAME_IF_EXISTS:conda_env>
-    )
+    list(APPEND TREELITE_LIBS treelite::treelite_static treelite::treelite_runtime_static)
+    list(APPEND TREELITE_LIBS_NO_PREFIX treelite_static treelite_runtime_static)
+  endif()
+
+  target_link_libraries(${BACKEND_TARGET}
+  PRIVATE
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
+    ${TREELITE_LIBS}
+    rapids_triton::rapids_triton
+    triton-core-serverstub
+    triton-backend-utils
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
+
+  if(TRITON_ENABLE_GPU)
+    list(APPEND BACKEND_TARGET "cuml++")
+  endif()
+
+  if(NOT TRITON_FIL_USE_TREELITE_STATIC)
+    list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})
   endif()
   
-  if(TRITON_ENABLE_GPU)
-    install(
-      TARGETS ${BACKEND_TARGET} cuml++
-      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
-    )
-  else()
-    install(
-      TARGETS ${BACKEND_TARGET}
-      LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
-    )
-  endif()
+  install(
+    TARGETS ${BACKEND_TARGET}
+    LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
+  )
   
   ##############################################################################
   # - build test executable ----------------------------------------------------
