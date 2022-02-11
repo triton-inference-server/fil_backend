@@ -163,6 +163,8 @@ else()
 
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_cuml.cmake)
+  else()
+    include(cmake/thirdparty/get_treelite.cmake)
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
