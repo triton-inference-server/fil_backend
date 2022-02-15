@@ -31,7 +31,7 @@ function(find_and_configure_treelite)
         GLOBAL_TARGETS       ${TREELITE_LIBS}
         INSTALL_EXPORT_SET   cuml-exports
         CPM_ARGS
-            GIT_REPOSITORY   https://github.com/dmlc/treelite.git
+            GIT_REPOSITORY   https://github.com/wphicks/treelite.git
             GIT_TAG          ${PKG_PINNED_TAG}
             OPTIONS
               "USE_OPENMP ON"
@@ -90,6 +90,6 @@ function(find_and_configure_treelite)
     rapids_export_find_package_root(BUILD Treelite [=[${CMAKE_CURRENT_LIST_DIR}]=] cuml-exports)
 endfunction()
 
-find_and_configure_treelite(VERSION     2.2.1
-                        PINNED_TAG  1f9c5054ad7433fa88623fccf0ae46a6ba6a27c6
+find_and_configure_treelite(VERSION     2.2.2
+                        PINNED_TAG  02a73246b9a04bba89e52957f502902275ef1d6e
                         BUILD_STATIC_LIBS ${FIL_TRITON_USE_TREELITE_STATIC})
