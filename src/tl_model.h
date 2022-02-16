@@ -84,7 +84,7 @@ struct TreeliteModel {
     // Actually perform inference
     auto out_result_size = std::size_t{};
     auto gtil_result = TreeliteGTILPredict(
-        handle_, input.data(), samples, output_buffer.data(), 1,
+        handle_, input.data(), samples, output_buffer.data(), -1, 1,
         &out_result_size);
     if (gtil_result != 0) {
       throw rapids::TritonException(
