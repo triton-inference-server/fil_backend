@@ -87,7 +87,9 @@ else()
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
   set(RAPIDS_DEPENDENCIES_VERSION "22.02" CACHE STRING "RAPIDS projects dependencies version")
-  option(FIL_TRITON_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" OFF)
+  option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" OFF)
+  option(TRITON_FIL_ENABLE_TREESHAP "Compile GPU Treeshap when building cuml++.so" OFF)
+
 
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
@@ -96,6 +98,7 @@ else()
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: RAPIDS projects dependencies version: ${RAPIDS_DEPENDENCIES_VERSION}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Linking Treelite statically: ${FIL_TRITON_USE_TREELITE_STATIC}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: Compiling GPU Treeshap in cuml++.so ${TRITON_FIL_ENABLE_TREESHAP}")
 
   # Set RMM logging level
   set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -212,6 +215,11 @@ else()
   target_include_directories(${BACKEND_TARGET}
     PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include>"
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+
+  target_compile_definitions(${BACKEND_TARGET}
+    PRIVATE
+      TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_ENABLE_TREESHAP}
   )
   
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)

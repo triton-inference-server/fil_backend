@@ -19,6 +19,7 @@
 #include <cuda_runtime_api.h>
 #include <cuml/explainer/tree_shap.hpp>
 #include <tl_model.h>
+#include <treeshap_model.h>
 
 #include <cstddef>
 #include <memory>
@@ -29,23 +30,20 @@
 namespace triton { namespace backend { namespace NAMESPACE {
 
 template <>
-struct TreeShapModel {
+struct TreeShapModel<rapids::DeviceMemory> {
   using device_id_t = int;
   TreeShapModel(
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
-      : device_id_{device_id}, raft_handle_{}, tl_model_{tl_model}
+      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model}
   {
-    raft_handle_.set_stream(stream);
-    path_info_ = extract_path_info(tl_model_.handle);
+    path_info_ = ML::Explainer::extract_path_info(tl_model_->handle());
   }
 
   TreeShapModel(TreeShapModel const& other) = default;
   TreeShapModel& operator=(TreeShapModel const& other) = default;
   TreeShapModel(TreeShapModel&& other) = default;
   TreeShapModel& operator=(TreeShapModel&& other) = default;
-
-  ~TreeShapModel() noexcept { ML::fil::free(raft_handle_, fil_forest_); }
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
