@@ -61,9 +61,9 @@ struct TreeliteModel {
     auto* handle_model = static_cast<treelite::Model*>(handle_);
 
     // Create non-owning Buffer to same memory as `output`
-    auto output_buffer =
-        rapids::Buffer<float>{output.data(), output.size(), output.mem_type(),
-                              output.device(), output.stream()};
+    auto output_buffer = rapids::Buffer<float>{
+        output.data(), output.size(), output.mem_type(), output.device(),
+        output.stream()};
 
     auto gtil_output_size = output.size();
     // GTIL expects buffer of size samples * num_classes_ for multi-class

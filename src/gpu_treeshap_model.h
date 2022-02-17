@@ -17,11 +17,11 @@
 #pragma once
 
 #include <cuda_runtime_api.h>
-#include <cuml/explainer/tree_shap.hpp>
 #include <tl_model.h>
 #include <treeshap_model.h>
 
 #include <cstddef>
+#include <cuml/explainer/tree_shap.hpp>
 #include <memory>
 #include <raft/handle.hpp>
 #include <rapids_triton/memory/buffer.hpp>
@@ -50,8 +50,7 @@ struct TreeShapModel<rapids::DeviceMemory> {
       std::size_t n_rows, std::size_t n_cols) const
   {
     ML::Explainer::gpu_treeshap(
-        path_info_.get(), input.data(), n_rows,
-        n_cols, output.data());
+        path_info_.get(), input.data(), n_rows, n_cols, output.data());
   }
 
  private:
