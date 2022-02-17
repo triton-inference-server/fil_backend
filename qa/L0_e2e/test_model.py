@@ -29,6 +29,8 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
 from rapids_triton.testing import get_random_seed, arrays_close
+import xgboost as xgb
+from shap import TreeExplainer
 
 TOTAL_SAMPLES = 20
 MODELS = (
@@ -151,15 +153,23 @@ class GroundTruthModel:
                 self._base_model = cuml.ForestInference.load(
                     model_path, output_class=output_class, model_type=model_format
                 )
+            if model_format == 'xgboost':
+                _xgb_model = xgb.Booster()
+                _xgb_model.load_model(model_path)
+                self._run_treeshap = True
+                self._treeshap_model = TreeExplainer(_xgb_model)
 
     def predict(self, inputs):
         if self.predict_proba:
             result = self._base_model.predict_proba(inputs['input__0'])
         else:
             result = self._base_model.predict(inputs['input__0'])
-        return {
-            'output__0': result
-        }
+        output = {'output__0' : result}
+        if self._run_treeshap:
+            treeshap_result = \
+                self._treeshap_model.shap_values(inputs['input__0'])
+            output['treeshap_output'] = treeshap_result
+        return output
 
 
 @pytest.fixture(scope='session', params=MODELS)

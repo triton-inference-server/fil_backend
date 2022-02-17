@@ -17,3 +17,4 @@ dependencies:
   - rapidsai::xgboost
   - scikit-learn
   - treelite
+  - shap
