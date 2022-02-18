@@ -315,8 +315,7 @@ def generate_config(
         threshold=0.5,
         batching_window=100,
         max_batch_size=8192,
-        storage_type="AUTO",
-        treeshap_model=False):
+        storage_type="AUTO"):
     """Return a string with the full Triton config.pbtxt for this model
     """
     if instance_kind == 'gpu':
@@ -335,12 +334,13 @@ def generate_config(
     if model_format == 'pickle':
         model_format = 'treelite_checkpoint'
 
+    # Add treeshap output to xgboost_shap model
     treeshap_output = ""
-    if treeshap_model:
+    if model_name == 'xgboost_shap':
         treeshap_output = f"""
         ,{{
             name: "treeshap_output"
-            data_type: TYPE_F32
+            data_type: TYPE_FP32
             dims: [ {output_dim * (features + 1)} ]
         }}
         """
@@ -427,12 +427,9 @@ def build_model(
             'model_repository'
         )
 
-    treeshap_model = False
     if output_format is None:
         if model_type == 'xgboost':
             output_format = 'xgboost'
-            if instance_kind == 'gpu':
-                treeshap_model = True
         elif model_type == 'lightgbm':
             output_format = 'lightgbm'
         elif model_type in {'sklearn', 'cuml'}:
@@ -491,8 +488,7 @@ def build_model(
         threshold=classification_threshold,
         batching_window=batching_window,
         max_batch_size=max_batch_size,
-        storage_type=storage_type,
-        treeshap_model=treeshap_model
+        storage_type=storage_type
     )
     config_path = os.path.join(config_dir, 'config.pbtxt')
 

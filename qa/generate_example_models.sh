@@ -56,6 +56,19 @@ then
   models+=( $name )
 fi
 
+name=xgboost_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --depth 11 \
+    --trees 2000 \
+    --classes 3 \
+    --features 500 \
+    --storage_type SPARSE
+  models+=( $name )
+fi
+
 name=lightgbm
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then
@@ -124,3 +137,6 @@ fi
 
 find "${CPU_MODEL_REPO}" -name 'config.pbtxt' -exec \
   sed -i s/KIND_GPU/KIND_CPU/g {} +
+
+# delete CPU model of xgboost_shap
+rm -rf "${CPU_MODEL_REPO}/xgboost_shap"
