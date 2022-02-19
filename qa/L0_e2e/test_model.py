@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ast import mod
 import os
 import pickle
 from collections import defaultdict, namedtuple
@@ -34,6 +35,7 @@ import xgboost as xgb
 TOTAL_SAMPLES = 20
 MODELS = (
     'xgboost',
+    'xgboost_shap',
     'xgboost_json',
     'lightgbm',
     'regression',
@@ -125,6 +127,7 @@ class GroundTruthModel:
             model_version=1):
         model_dir = os.path.join(model_repo, name, f'{model_version}')
         self.predict_proba = predict_proba
+        self._run_treeshap = False
 
         if model_format == 'xgboost':
             model_path = os.path.join(model_dir, 'xgboost.model')
@@ -239,7 +242,7 @@ def test_small(client, model_data, hypothesis_data):
                 )
             ) for name, shape in model_data.input_shapes.items()
         }
-        if model_data.name == 'sklearn':
+        if model_data.name == 'sklearn' or model_data.name == 'xgboost_shap':
             for array in model_inputs.values():
                 assume(not np.any(np.isnan(array)))
         model_output_sizes = {
