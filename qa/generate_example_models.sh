@@ -65,7 +65,8 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type SPARSE
+    --storage_type SPARSE \
+    --max_batch_size 4096
   models+=( $name )
 fi
 

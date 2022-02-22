@@ -76,6 +76,11 @@ def model_repo(pytestconfig):
     return pytestconfig.getoption('repo')
 
 
+@pytest.fixture(scope='session')
+def skip_shap(pytestconfig):
+    return pytestconfig.getoption('no_shap')
+
+
 def get_model_parameter(config, param, default=None):
     """Retrieve custom model parameters from config"""
     param_str = config.parameters[param].string_value
@@ -175,10 +180,12 @@ class GroundTruthModel:
 
 
 @pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo):
+def model_data(request, client, model_repo, skip_shap):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
     name = request.param
+    if skip_shap and name == 'xgboost_shap':
+        pytest.skip("Cannot run GPU Treeshap tests for CPU Only")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input
