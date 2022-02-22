@@ -3,11 +3,12 @@ channels:
   - conda-forge
   - nvidia
   - rapidsai
+  - rapidsai-nightly
 dependencies:
   - aws-sdk-cpp<1.9
   - clang-tools=11.1.0
   - cudatoolkit=11.4
-  - cuml=21.12
+  - cuml=22.04
   - flake8
   - hypothesis
   - lightgbm
