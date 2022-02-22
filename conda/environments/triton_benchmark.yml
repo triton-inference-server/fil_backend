@@ -1,23 +1,14 @@
-name: triton_test
+name: triton_benchmark
 channels:
   - conda-forge
   - nvidia
   - rapidsai
 dependencies:
-  - aws-sdk-cpp<1.9
-  - clang-tools=11.1.0
   - cudatoolkit=11.4
-  - cuml=21.12
-  - flake8
-  - hypothesis
-  - lightgbm
+  - cudf=21.12
   - matplotlib
   - pip
-  - pytest
   - python=3.8
-  - rapidsai::xgboost
-  - scikit-learn
-  - treelite
   - pip:
       - tritonclient[all]
       - git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
