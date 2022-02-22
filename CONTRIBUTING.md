@@ -188,6 +188,10 @@ PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.01-py3 ./ci/gitlab/build.sh
 This will build a test image based on this pre-built server image and run it.
 For CPU-only builds, the environment variable `CPU_ONLY` should be set to 1.
 
+### Benchmarks
+To analyze the impact of a change on performance, you may wish to run the
+basic benchmarking script described in the [benchmarking docs](https://github.com/wphicks/triton_fil_backend/blob/main/qa/BENCHMARKS.md).
+
 ## Style
 Contributions to the FIL backend should:
 - Adhere to [Almost-Always-Auto](https://herbsutter.com/2013/08/12/gotw-94-solution-aaa-style-almost-always-auto/) style
