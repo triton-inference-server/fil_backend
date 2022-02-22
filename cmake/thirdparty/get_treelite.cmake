@@ -54,5 +54,5 @@ function(find_and_configure_treelite)
 
 endfunction()
 
-find_and_configure_treelite(VERSION     2.2.2
-                        PINNED_TAG  b2a6a0adb58a8a57239632aaecc93b3b8b1c6ed6)
+find_and_configure_treelite(VERSION     2.3.0
+                        PINNED_TAG  b65bedceef9893c1ad92977dd466f582540ba7ab)
