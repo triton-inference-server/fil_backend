@@ -1,2 +1,0 @@
-qa/benchmark_repo/large.json filter=lfs diff=lfs merge=lfs -text
-qa/benchmark_repo/small.json filter=lfs diff=lfs merge=lfs -text
