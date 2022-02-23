@@ -55,7 +55,7 @@ namespace herring {
           std::logical_or<>(),
           [](auto val) { return std::isnan(val); }
         );
-        result = result && row_has_missing[row_index];
+        result = result || row_has_missing[row_index];
       }
       return result;
     }
