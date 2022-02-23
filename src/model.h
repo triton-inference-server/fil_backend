@@ -21,12 +21,10 @@
 #include <gpu_forest_model.h>
 #ifdef TRITON_FIL_ENABLE_TREESHAP
 #include <gpu_treeshap_model.h>
-#else
-#include <treeshap_model.h>
 #endif
 #else
 #include <forest_model.h>
-
+#include <treeshap_model.h>
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 
