@@ -20,6 +20,13 @@ function(find_and_configure_cuml)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
+    set(CUML_ALGORITHMS "FIL" CACHE STRING "List of algorithms to build in cuml")
+    if(TRITON_FIL_ENABLE_TREESHAP)
+      list(APPEND CUML_ALGORITHMS "TREESHAP")
+    endif()
+
+    message(VERBOSE "RAPIDS_TRITON_BACKEND: Building cuml with: ${CUML_CPP_ALGORITHMS}")
+
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++
       BUILD_EXPORT_SET    rapids_triton-exports
@@ -29,13 +36,17 @@ function(find_and_configure_cuml)
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
+              "BUILD_CUML_C_LIBRARY OFF"
+              "BUILD_CUML_CPP_LIBRARY ON"
               "BUILD_CUML_TESTS OFF"
               "BUILD_PRIMS_TESTS OFF"
               "BUILD_CUML_MG_TESTS OFF"
               "BUILD_CUML_EXAMPLES OFF"
               "BUILD_CUML_BENCH OFF"
               "BUILD_CUML_PRIMS_BENCH OFF"
+              "BUILD_CUML_STD_COMMS OFF"
               "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
+              "USE_CCACHE ON"
               "RAFT_COMPILE_LIBRARIES OFF"
               "RAFT_ENABLE_NN_DEPENDENCIES OFF"
     )
@@ -48,7 +59,7 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
-                        FORK       divyegala
-                        PINNED_TAG unlink-raft-nn
+                        FORK       dantegd
+                        PINNED_TAG 2112-libcuml-configurable
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
