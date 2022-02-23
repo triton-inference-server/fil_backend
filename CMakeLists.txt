@@ -152,6 +152,8 @@ else()
   # add third party dependencies using CPM
   rapids_cpm_init()
 
+  find_package(OpenMP REQUIRED)
+
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_raft.cmake)
     include(cmake/thirdparty/get_cuml.cmake)
@@ -218,6 +220,7 @@ else()
       triton-backend-utils
       "${TRITONSERVER_LIB}"
       $<TARGET_NAME_IF_EXISTS:conda_env>
+      OpenMP::OpenMP_CXX
     )
   else()
     target_link_libraries(${BACKEND_TARGET}
@@ -229,6 +232,7 @@ else()
       triton-backend-utils
       "${TRITONSERVER_LIB}"
       $<TARGET_NAME_IF_EXISTS:conda_env>
+      OpenMP::OpenMP_CXX
     )
   endif()
   
