@@ -27,7 +27,7 @@ then
 fi
 
 echo "Building Docker images..."
-$REPO_DIR/build.sh
+$REPO_DIR/build.sh --treeshap
 
 DOCKER_ARGS="-t -v ${QA_DIR}/logs:/qa/logs"
 

@@ -44,7 +44,8 @@ template <rapids::MemoryType M>
 struct TreeShapModel {
   using device_id_t = int;
 
-  TreeShapModel(std::shared_ptr<TreeliteModel> tl_model)
+  TreeShapModel(device_id_t device_id, cudaStream_t stream,
+    std::shared_ptr<TreeliteModel> tl_model)
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,

@@ -217,10 +217,12 @@ else()
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
 
-  target_compile_definitions(${BACKEND_TARGET}
-    PRIVATE
-      TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_ENABLE_TREESHAP}
-  )
+  if (TRITON_FIL_ENABLE_TREESHAP)
+    target_compile_definitions(${BACKEND_TARGET}
+      PRIVATE
+        TRITON_FIL_ENABLE_TREESHAP=1
+    )
+  endif()
   
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND TREELITE_LIBS treelite::treelite treelite::treelite_runtime)

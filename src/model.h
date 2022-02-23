@@ -147,14 +147,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
           }
         }
 
-
-        // Need to synchronize on the stream because treeshap currently does not
-        // take a stream on its API
-        cudaStreamSynchronize(get_stream());
         // The shape of treeshap output is (, num_classes * (n_cols + 1))
         gpu_treeshap_model.value().predict(
             treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
-        cudaStreamSynchronize(get_stream());
 
         if (treeshap_output_buffer.mem_type() != treeshap_output.mem_type()) {
           rapids::copy(treeshap_output.buffer(), treeshap_output_buffer);
