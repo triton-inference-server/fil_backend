@@ -49,7 +49,7 @@ struct TreeliteModel {
           } catch (herring::unconvertible_model_exception const& herring_err) {
             result = std::nullopt;
             auto log_stream = rapids::log_info(__FILE__, __LINE__);
-            log_stream << "Herring load failed with error\"";
+            log_stream << "Herring load failed with error \"";
             log_stream << herring_err.what();
             log_stream <<"\"; falling back to GTIL";
           }

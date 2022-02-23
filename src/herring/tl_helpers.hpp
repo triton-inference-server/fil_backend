@@ -31,8 +31,11 @@ struct unconvertible_model_exception : std::exception {
   std::string msg_;
 };
 
+// TODO(wphicks): Currently, the model use_inclusive_threshold parameter is
+// changed as a side-effect of this function. This is messy and confusing, and
+// it should be fixed in a later refactor
 template<typename tree_t, typename tl_threshold_t, typename tl_output_t>
-auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree) {
+auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold) {
   auto result = tree_t{};
   result.nodes.reserve(tl_tree.num_nodes);
   result.default_distant.reserve(tl_tree.num_nodes);
@@ -106,10 +109,20 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree) {
       // Hot child is always less-than or in-category condition
       if (!categorical) {
         cur_node.value.value = tl_tree.Threshold(cur_node_id);
-        if (tl_operator == treelite::Operator::kLT) {
+        auto inclusive_threshold_node = (
+          tl_operator == treelite::Operator::kLE || tl_operator == treelite::Operator::kGE
+        );
+        if (!inclusive_threshold_node && use_inclusive_threshold) {
+          throw unconvertible_model_exception{"Inconsistent use of inclusive threshold"};
+        } else {
+          use_inclusive_threshold = inclusive_threshold_node;
+        }
+        if (
+            tl_operator == treelite::Operator::kLT || tl_operator == treelite::Operator::kLE) {
           hot_child = right_id;
           distant_child = left_id;
-        } else if (tl_operator == treelite::Operator::kGT) {
+        } else if (
+            tl_operator == treelite::Operator::kGT || tl_operator == treelite::Operator::kGE) {
           hot_child = left_id;
           distant_child = right_id;
         } else {
@@ -179,13 +192,14 @@ template<std::size_t model_variant_index, typename tl_threshold_t, typename tl_o
 auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model) {
   using model_type = std::variant_alternative_t<model_variant_index, tl_dispatched_model>;
   auto result = model_type{};
+  result.use_inclusive_threshold = false;
 
   result.trees.reserve(tl_model.trees.size());
   std::transform(
     std::begin(tl_model.trees),
     std::end(tl_model.trees),
     std::back_inserter(result.trees),
-    [](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree); }
+    [&result](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree, result.use_inclusive_threshold); }
   );
 
   result.num_class = tl_model.task_param.num_class;

@@ -32,25 +32,33 @@ namespace herring {
     index_type feature; // 1-4 bytes, depending on number of features
   };
 
-  template<typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
   auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, value_t const* row) {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
-    return offset_t{1 + (*(row + node.feature) < node.value.value) * (node.distant_offset - 1)};
+    if constexpr (inclusive_threshold) {
+      return offset_t{1 + (*(row + node.feature) <= node.value.value) * (node.distant_offset - 1)};
+    } else {
+      return offset_t{1 + (*(row + node.feature) < node.value.value) * (node.distant_offset - 1)};
+    }
 #pragma GCC diagnostic pop
   }
 
-  template<typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
   auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, value_t feature_value) {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
-    return offset_t{1 + (feature_value < node.value.value) * (node.distant_offset - 1)};
+    if constexpr (inclusive_threshold) {
+      return offset_t{1 + (feature_value <= node.value.value) * (node.distant_offset - 1)};
+    } else {
+      return offset_t{1 + (feature_value < node.value.value) * (node.distant_offset - 1)};
+    }
 #pragma GCC diagnostic pop
   }
 }

@@ -41,6 +41,7 @@ namespace herring {
     float bias;
     float postproc_constant;
     std::vector<bool> mutable row_has_missing;
+    bool use_inclusive_threshold;
 
     auto precompute_missing(float const* input, std::size_t num_row) const {
       auto result = false;
@@ -62,9 +63,17 @@ namespace herring {
 
     void predict(float const* input, std::size_t num_row, float* output) const {
       if (!precompute_missing(input, num_row)) {
-        predict_<false>(input, output, num_row);
+        if (!use_inclusive_threshold) {
+          predict_<false, false>(input, output, num_row);
+        } else {
+          predict_<false, true>(input, output, num_row);
+        }
       } else {
-        predict_<true>(input, output, num_row);
+        if (!use_inclusive_threshold) {
+          predict_<true, false>(input, output, num_row);
+        } else {
+          predict_<true, true>(input, output, num_row);
+        }
       }
     }
 
@@ -164,7 +173,7 @@ namespace herring {
     }
 
 
-    template<bool missing_value_in_input>
+    template<bool missing_value_in_input, bool inclusive_threshold>
     void predict_(float const* input, float* output, std::size_t num_row) const {
       // "Groves" are groups of trees which are processed together in a single
       // thread. Similarly, "blocks" are groups of rows that are processed
@@ -205,12 +214,12 @@ namespace herring {
             while (tree.nodes[node_index].distant_offset != 0) {
               if constexpr (missing_value_in_input) {
                 if (not row_has_missing[row_index]) {
-                  node_index += tree.template evaluate_tree_node<false>(node_index, input + row_index * num_feature);
+                  node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
                 } else {
-                  node_index += tree.template evaluate_tree_node<true>(node_index, input + row_index * num_feature);
+                  node_index += tree.template evaluate_tree_node<true, inclusive_threshold>(node_index, input + row_index * num_feature);
                 }
               } else {
-                node_index += tree.template evaluate_tree_node<false>(node_index, input + row_index * num_feature);
+                node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
               }
               // std::cout << "NODES: " << node_index << " " << tree.nodes.size() << "\n";
             }

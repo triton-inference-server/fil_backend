@@ -28,7 +28,7 @@ namespace herring {
       return get_leaf_value(nodes[node_index]);
     }
 
-    template<bool missing_values_in_row>
+    template<bool missing_values_in_row, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, value_t const* row) const {
       auto const& node = nodes[node_index];
       if constexpr(missing_values_in_row) {
@@ -36,13 +36,13 @@ namespace herring {
         auto present = !std::isnan(feature_value);
         auto result = offset_t{};
         if(present) {
-          result = evaluate_node(node, feature_value);
+          result = evaluate_node<inclusive_threshold>(node, feature_value);
         } else {
           result = 1 + (node.distant_offset - 1) * default_distant[node_index];
         }
         return result;
       } else {
-        return evaluate_node(node, row);
+        return evaluate_node<inclusive_threshold>(node, row);
       }
     }
   };
@@ -65,19 +65,19 @@ namespace herring {
       return leaf_outputs[nodes[node_id].value.index];
     }
 
-    template<bool missing_values_in_row>
+    template<bool missing_values_in_row, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, value_t const* row) const {
       auto const& node = nodes[node_index];
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
         auto present = !std::isnan(feature_value);
-        if(present) {
-          return evaluate_node(node, feature_value);
+        if (present) {
+          return evaluate_node<inclusive_threshold>(node, feature_value);
         } else {
           return 1 + (node.distant_offset - 1) * default_distant[node_index];
         }
       } else {
-        return evaluate_node(node, row);
+        return evaluate_node<inclusive_threshold>(node, row);
       }
     }
   };
