@@ -25,8 +25,6 @@ function(find_and_configure_cuml)
       list(APPEND CUML_ALGORITHMS "TREESHAP")
     endif()
 
-    message(VERBOSE "RAPIDS_TRITON_BACKEND: Building cuml with: ${CUML_CPP_ALGORITHMS}")
-
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++
       BUILD_EXPORT_SET    rapids_triton-exports
