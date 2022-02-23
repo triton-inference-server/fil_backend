@@ -30,7 +30,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g               - build for debug
    -h               - print this text
    --cpu-only       - build CPU-only versions of targets
-   --treeshap       - build with treeshap in targets (GPU only)
+   --no-treeshap    - build without treeshap in targets (GPU only)
    --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
    --no-cache       - disable Docker cache for build
@@ -62,7 +62,7 @@ HELP="$0 [<target> ...] [<flag> ...]
 
 BUILD_TYPE=Release
 TRITON_ENABLE_GPU=ON
-TRITON_FIL_ENABLE_TREESHAP=OFF
+TRITON_FIL_ENABLE_TREESHAP=ON
 DOCKER_ARGS=""
 BUILDPY=0
 
@@ -122,8 +122,8 @@ do
     --cpu-only )
       TRITON_ENABLE_GPU=OFF
       ;;
-    --treeshap )
-      TRITON_FIL_ENABLE_TREESHAP=ON
+    --no-treeshap )
+      TRITON_FIL_ENABLE_TREESHAP=OFF
       ;;
     --tag-commit )
       [ -z $SERVER_TAG ] \

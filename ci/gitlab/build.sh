@@ -68,7 +68,7 @@ then
   then
     export USE_CLIENT_WHEEL="${USE_CLIENT_WHEEL}"
   fi
-  $REPO_DIR/build.sh $BUILDARGS --treeshap
+  $REPO_DIR/build.sh $BUILDARGS
 else
   export TEST_TAG="$PREBUILT_TEST_TAG"
 fi
