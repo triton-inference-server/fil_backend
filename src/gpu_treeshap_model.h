@@ -51,10 +51,10 @@ struct TreeShapModel<rapids::DeviceMemory> {
   {
     // Need to synchronize on the stream because treeshap currently does not
     // take a stream on its API
-    handle.sync_stream();
+    raft_handle_.sync_stream();
     ML::Explainer::gpu_treeshap(
         path_info_.get(), input.data(), n_rows, n_cols, output.data());
-    handle.sync_stream();
+    raft_handle_.sync_stream();
   }
 
  private:
