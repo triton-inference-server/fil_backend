@@ -185,7 +185,7 @@ def model_data(request, client, model_repo, skip_shap):
     comparing with ground truth results"""
     name = request.param
     if skip_shap and name == 'xgboost_shap':
-        pytest.skip("Cannot run GPU Treeshap tests for CPU Only")
+        pytest.skip("GPU Treeshap tests not enabled")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input
