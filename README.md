@@ -208,7 +208,6 @@ specific to FIL:
 - `instance_group`: This setting determines whether inference will take place
   on the GPU (`KIND_GPU`) or CPU (`KIND_CPU`)
 - `cpu_nthread`: The number of threads to use when running prediction on the CPU.
-  This parameter will be ignored when `instance_group` is set to `KIND_GPU`.
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.
