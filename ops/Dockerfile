@@ -93,7 +93,7 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 ARG RAPIDS_DEPENDENCIES_VERSON=22.04
 ENV RAPIDS_DEPENDENCIES_VERSON=$RAPIDS_DEPENDENCIES_VERSON
 
-ARG TRITON_FIL_USE_TREELITE_STATIC=OFF
+ARG TRITON_FIL_USE_TREELITE_STATIC=ON
 ENV TRITON_FIL_USE_TREELITE_STATIC=$TRITON_FIL_USE_TREELITE_STATIC
 
 ARG TRITON_FIL_ENABLE_TREESHAP=ON
@@ -125,7 +125,9 @@ FROM base as base-test-install
 
 COPY ./conda/environments/triton_test_no_client.yml /environment.yml
 
-RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
+RUN conda install -c conda-forge mamba
+
+RUN --mount=type=cache,target=/root/miniconda3/pkgs mamba env update -f /environment.yml \
     && rm /environment.yml
 
 FROM base-test-install as wheel-install-0
