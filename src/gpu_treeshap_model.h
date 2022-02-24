@@ -36,9 +36,7 @@ struct TreeShapModel<rapids::DeviceMemory> {
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
       : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
-        path_info_{[this]() {
-          return ML::Explainer::extract_path_info(tl_model_->handle());
-        }()}
+        path_info_{ML::Explainer::extract_path_info(tl_model_->handle())}
   {
   }
 
