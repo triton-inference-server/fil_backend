@@ -72,8 +72,12 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
      * tensors. If we determine that it is possible and worthwhile to transfer
      * inputs to device for processing, new buffers will be allocated on-device
      * in place of these. */
-    auto input_buffer = input.buffer();
-    auto output_buffer = output.buffer();
+    auto input_buffer = rapids::Buffer<float const>(
+        input.data(), input.size(), input.mem_type(), input.device(),
+        input.stream());
+    auto output_buffer = rapids::Buffer<float>(
+        output.data(), output.size(), output.mem_type(), output.device(),
+        output.stream());
 
     /* Determine if it is possible and worthwhile to copy data to device
      * before performing inference */
@@ -124,7 +128,10 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
       if (run_gpu_treeshap) {
         auto treeshap_output = get_output<float>(batch, "treeshap_output");
-        auto treeshap_output_buffer = treeshap_output.buffer();
+        auto treeshap_output_buffer = rapids::Buffer<float>(
+            treeshap_output.data(), treeshap_output.size(),
+            treeshap_output.mem_type(), treeshap_output.device(),
+            treeshap_output.stream());
 
         if (gpu_treeshap_model.has_value()) {
           // Always copy input buffer to device memory
