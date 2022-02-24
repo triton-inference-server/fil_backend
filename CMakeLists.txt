@@ -98,7 +98,7 @@ else()
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: RAPIDS projects dependencies version: ${RAPIDS_DEPENDENCIES_VERSION}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Linking Treelite statically: ${FIL_TRITON_USE_TREELITE_STATIC}")
-  message(VERBOSE "RAPIDS_TRITON_BACKEND: Compiling GPU Treeshap in cuml++.so ${TRITON_FIL_ENABLE_TREESHAP}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: Compiling GPU Treeshap in libcuml++.so ${TRITON_FIL_ENABLE_TREESHAP}")
 
   # Set RMM logging level
   set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -110,9 +110,9 @@ else()
 
   if(TRITON_ENABLE_GPU)
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-    project(RAPIDS_TRITON_BACKEND VERSION 22.02.00 LANGUAGES CXX CUDA)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.03.00 LANGUAGES CXX CUDA)
   else()
-    project(RAPIDS_TRITON_BACKEND VERSION 22.02.00 LANGUAGES CXX)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.03.00 LANGUAGES CXX)
   endif()
 
   ##############################################################################
