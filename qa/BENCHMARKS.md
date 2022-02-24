@@ -1,4 +1,9 @@
 # FIL Backend Benchmarks
+
+**WARNING: The models which were used for this benchmarking script have
+temporarily been removed. They will be restored using a storage solution other
+than Git LFS at a later date.**
+
 In order to facilitate performance analysis during development of the FIL
 backend, the `qa/run_benchmarks.sh` scripts can run a simple set of benchmarks
 against standard models. To run this script, first install the benchmarking
