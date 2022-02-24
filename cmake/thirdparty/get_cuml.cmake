@@ -58,6 +58,6 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       dantegd
-                        PINNED_TAG 2112-libcuml-configurable
+                        PINNED_TAG fil-backend-2203
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
