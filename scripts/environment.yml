@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nvidia
   - rapidsai
+  - rapidsai-nightly
 dependencies:
   - cudatoolkit=11.4
   - cuml=22.04

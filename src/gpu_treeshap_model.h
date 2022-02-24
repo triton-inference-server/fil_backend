@@ -35,9 +35,11 @@ struct TreeShapModel<rapids::DeviceMemory> {
   TreeShapModel(
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
-      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model}
+      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
+        path_info_{[this]() {
+          return ML::Explainer::extract_path_info(tl_model_->handle());
+        }()}
   {
-    path_info_ = ML::Explainer::extract_path_info(tl_model_->handle());
   }
 
   TreeShapModel(TreeShapModel const& other) = default;
@@ -51,10 +53,10 @@ struct TreeShapModel<rapids::DeviceMemory> {
   {
     // Need to synchronize on the stream because treeshap currently does not
     // take a stream on its API
-    raft_handle_.sync_stream();
+    input.stream_synchronize();
     ML::Explainer::gpu_treeshap(
         path_info_.get(), input.data(), n_rows, n_cols, output.data());
-    raft_handle_.sync_stream();
+    output.stream_synchronize();
   }
 
  private:

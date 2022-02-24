@@ -41,6 +41,6 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_rapids_triton(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
-                                 FORK       divyegala
-                                 PINNED_TAG input-by-name
+                                 FORK       rapidsai
+                                 PINNED_TAG fil-backend-2203
                                  )

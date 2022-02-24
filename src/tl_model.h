@@ -85,8 +85,7 @@ struct TreeliteModel {
     auto out_result_size = std::size_t{};
     auto gtil_result = TreeliteGTILPredict(
         handle_, input.data(), samples, output_buffer.data(),
-        tl_config_->cpu_nthread, 1,
-        &out_result_size);
+        tl_config_->cpu_nthread, 1, &out_result_size);
     if (gtil_result != 0) {
       throw rapids::TritonException(
           rapids::Error::Internal, TreeliteGetLastError());

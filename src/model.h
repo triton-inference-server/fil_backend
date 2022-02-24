@@ -27,6 +27,7 @@
 #else
 #include <forest_model.h>
 #include <treeshap_model.h>
+
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 
@@ -71,12 +72,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
      * tensors. If we determine that it is possible and worthwhile to transfer
      * inputs to device for processing, new buffers will be allocated on-device
      * in place of these. */
-    auto input_buffer = rapids::Buffer<float const>(
-        input.data(), input.size(), input.mem_type(), input.device(),
-        input.stream());
-    auto output_buffer = rapids::Buffer<float>(
-        output.data(), output.size(), output.mem_type(), output.device(),
-        output.stream());
+    auto input_buffer = input.buffer();
+    auto output_buffer = output.buffer();
 
     /* Determine if it is possible and worthwhile to copy data to device
      * before performing inference */
@@ -127,31 +124,27 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
       if (run_gpu_treeshap) {
         auto treeshap_output = get_output<float>(batch, "treeshap_output");
-        auto treeshap_output_buffer = rapids::Buffer<float>(
-            treeshap_output.data(), treeshap_output.size(),
-            treeshap_output.mem_type(), treeshap_output.device(),
-            treeshap_output.stream());
+        auto treeshap_output_buffer = treeshap_output.buffer();
 
         if (gpu_treeshap_model.has_value()) {
           // Always copy input buffer to device memory
-          if (input.mem_type() == rapids::HostMemory &&
-              input_buffer.mem_type() == rapids::HostMemory) {
+          if (input_buffer.mem_type() == rapids::HostMemory) {
             input_buffer = rapids::Buffer<float const>(
                 input_buffer, rapids::DeviceMemory, get_device_id());
-
-            // This will force a copy of the output buffer to device memory
-            if (input_buffer.mem_type() != treeshap_output_buffer.mem_type()) {
-              // Create output buffer in correct  location
-              treeshap_output_buffer = rapids::Buffer<float>(
-                  treeshap_output.size(), input_buffer.mem_type(),
-                  get_device_id(), get_stream());
-            }
           }
-        }
 
-        // The shape of treeshap output is (, num_classes * (n_cols + 1))
-        gpu_treeshap_model.value().predict(
-            treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
+          // This will force a copy of the output buffer to device memory
+          if (input_buffer.mem_type() != treeshap_output_buffer.mem_type()) {
+            // Create output buffer in correct  location
+            treeshap_output_buffer = rapids::Buffer<float>(
+                treeshap_output.size(), input_buffer.mem_type(),
+                get_device_id(), get_stream());
+          }
+
+          // The shape of treeshap output is (, num_classes * (n_cols + 1))
+          gpu_treeshap_model->predict(
+              treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
+        }
 
         if (treeshap_output_buffer.mem_type() != treeshap_output.mem_type()) {
           rapids::copy(treeshap_output.buffer(), treeshap_output_buffer);

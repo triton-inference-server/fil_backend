@@ -224,12 +224,12 @@ else()
     )
   endif()
   
-  if(NOT TRITON_FIL_USE_TREELITE_STATIC)
-    list(APPEND TREELITE_LIBS treelite::treelite treelite::treelite_runtime)
-    list(APPEND TREELITE_LIBS_NO_PREFIX treelite treelite_runtime)
-  else()
+  if(TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND TREELITE_LIBS treelite::treelite_static treelite::treelite_runtime_static)
     list(APPEND TREELITE_LIBS_NO_PREFIX treelite_static treelite_runtime_static)
+  else()
+    list(APPEND TREELITE_LIBS treelite::treelite treelite::treelite_runtime)
+    list(APPEND TREELITE_LIBS_NO_PREFIX treelite treelite_runtime)
   endif()
 
   target_link_libraries(${BACKEND_TARGET}
