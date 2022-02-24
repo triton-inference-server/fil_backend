@@ -77,8 +77,12 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
       cur_node.distant_offset = typename tree_t::node_type::offset_type{};  // 0 offset means no child
 
       if constexpr (std::is_same_v<typename tree_t::output_type, decltype(tl_tree.LeafVector(0))>) {
-        cur_node.value.index = result.leaf_outputs.size();
-        result.leaf_outputs.push_back(tl_tree.LeafVector(cur_node_id));
+        if (tl_tree.HasLeafVector(cur_node_id)) {
+          cur_node.value.index = result.leaf_outputs.size();
+          result.leaf_outputs.push_back(tl_tree.LeafVector(cur_node_id));
+        } else {
+          throw unconvertible_model_exception{"Leaf vector expected"};
+        }
       } else {
         if constexpr (std::is_same_v<typename tree_t::node_type::value_type, typename tree_t::output_type>) {
           // Threshold and output values are the same type; store in same union
