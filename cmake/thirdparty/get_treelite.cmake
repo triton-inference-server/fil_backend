@@ -92,4 +92,4 @@ endfunction()
 
 find_and_configure_treelite(VERSION     2.3.0
                         PINNED_TAG  b65bedceef9893c1ad92977dd466f582540ba7ab
-                        BUILD_STATIC_LIBS ${FIL_TRITON_USE_TREELITE_STATIC})
+                        BUILD_STATIC_LIBS ${TRITON_FIL_USE_TREELITE_STATIC})

@@ -121,6 +121,7 @@ do
       ;;
     --cpu-only )
       TRITON_ENABLE_GPU=OFF
+      TRITON_FIL_ENABLE_TREESHAP=OFF
       ;;
     --no-treeshap )
       TRITON_FIL_ENABLE_TREESHAP=OFF
