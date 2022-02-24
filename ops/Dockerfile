@@ -125,9 +125,7 @@ FROM base as base-test-install
 
 COPY ./conda/environments/triton_test_no_client.yml /environment.yml
 
-RUN conda install -c conda-forge mamba
-
-RUN --mount=type=cache,target=/root/miniconda3/pkgs mamba env update -f /environment.yml \
+RUN --mount=type=cache,target=/root/miniconda3/pkgs conda env update -f /environment.yml \
     && rm /environment.yml
 
 FROM base-test-install as wheel-install-0
