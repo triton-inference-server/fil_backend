@@ -210,7 +210,7 @@ output [
 
 **NOTE:** The dimensions of Shapley value outputs for a multi-class problem
 are of the form `[ n_classes, (n_features + 1) ]`, while for a binary-class problem
-they are of the form `[n_features + 1]`. The additional column in the output stores 
+they are of the form `[ n_features + 1 ]`. The additional column in the output stores 
 the bias term. At this moment, Shapley value support is only enabled for configurations
 where `instance_group [{ kind: KIND_GPU }]`.
 
