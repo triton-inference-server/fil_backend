@@ -334,6 +334,22 @@ def generate_config(
     if model_format == 'pickle':
         model_format = 'treelite_checkpoint'
 
+    # Add treeshap output to xgboost_shap model
+    treeshap_output_dim = num_classes if num_classes > 2 else 1
+    if treeshap_output_dim == 1:
+        treeshap_output_str = f"{features + 1}"
+    else:
+        treeshap_output_str = f"{treeshap_output_dim}, {features + 1}"
+    treeshap_output = ""
+    if model_name == 'xgboost_shap':
+        treeshap_output = f"""
+        ,{{
+            name: "treeshap_output"
+            data_type: TYPE_FP32
+            dims: [ {treeshap_output_str} ]
+        }}
+        """
+
     return f"""name: "{model_name}"
 backend: "fil"
 max_batch_size: {max_batch_size}
@@ -350,6 +366,7 @@ output [
     data_type: TYPE_FP32
     dims: [ {output_dim} ]
   }}
+ {treeshap_output}
 ]
 instance_group [{{ kind: {instance_kind} }}]
 parameters [

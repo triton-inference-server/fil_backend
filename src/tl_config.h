@@ -29,6 +29,7 @@ struct treelite_config {
   std::string storage_type;
   int blocks_per_sm;
   int threads_per_tree;
+  int cpu_nthread;
 };
 
 }}}  // namespace triton::backend::NAMESPACE
