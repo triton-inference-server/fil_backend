@@ -9,6 +9,7 @@ dependencies:
   - matplotlib
   - pip
   - python=3.8
+  - scipy
   - pip:
       - tritonclient[all]
       - git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
