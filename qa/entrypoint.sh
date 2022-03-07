@@ -23,7 +23,7 @@ then
   echo 'Running tests for GPU models...'
   MODEL_REPO="${QA_DIR}/L0_e2e/model_repository" "$TEST_SCRIPT"
   echo 'Running tests for CPU models...'
-  MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository" "$TEST_SCRIPT"
+  TRITON_FIL_ENABLE_TREESHAP=OFF MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository" "$TEST_SCRIPT"
 fi
 
 echo 'Running tests without visible GPUs...'

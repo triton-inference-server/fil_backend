@@ -29,10 +29,12 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
 from rapids_triton.testing import get_random_seed, arrays_close
+import xgboost as xgb
 
 TOTAL_SAMPLES = 20
 MODELS = (
     'xgboost',
+    'xgboost_shap',
     'xgboost_json',
     'lightgbm',
     'regression',
@@ -71,6 +73,11 @@ def client():
 def model_repo(pytestconfig):
     """The path to the model repository directory"""
     return pytestconfig.getoption('repo')
+
+
+@pytest.fixture(scope='session')
+def skip_shap(pytestconfig):
+    return pytestconfig.getoption('no_shap')
 
 
 def get_model_parameter(config, param, default=None):
@@ -124,6 +131,7 @@ class GroundTruthModel:
             model_version=1):
         model_dir = os.path.join(model_repo, name, f'{model_version}')
         self.predict_proba = predict_proba
+        self._run_treeshap = False
 
         if model_format == 'xgboost':
             model_path = os.path.join(model_dir, 'xgboost.model')
@@ -151,22 +159,32 @@ class GroundTruthModel:
                 self._base_model = cuml.ForestInference.load(
                     model_path, output_class=output_class, model_type=model_format
                 )
+            if name == 'xgboost_shap':
+                self._xgb_model = xgb.Booster()
+                self._xgb_model.load_model(model_path)
+                self._run_treeshap = True
 
     def predict(self, inputs):
         if self.predict_proba:
             result = self._base_model.predict_proba(inputs['input__0'])
         else:
             result = self._base_model.predict(inputs['input__0'])
-        return {
-            'output__0': result
-        }
+        output = {'output__0' : result}
+        if self._run_treeshap:
+            treeshap_result = \
+                self._xgb_model.predict(xgb.DMatrix(inputs['input__0']),
+                                        pred_contribs=True)
+            output['treeshap_output'] = treeshap_result
+        return output
 
 
 @pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo):
+def model_data(request, client, model_repo, skip_shap):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
     name = request.param
+    if skip_shap and name == 'xgboost_shap':
+        pytest.skip("GPU Treeshap tests not enabled")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input
@@ -230,7 +248,7 @@ def test_small(client, model_data, hypothesis_data):
                 )
             ) for name, shape in model_data.input_shapes.items()
         }
-        if model_data.name == 'sklearn':
+        if model_data.name == 'sklearn' or model_data.name == 'xgboost_shap':
             for array in model_inputs.values():
                 assume(not np.any(np.isnan(array)))
         model_output_sizes = {

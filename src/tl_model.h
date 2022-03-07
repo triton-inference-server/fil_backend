@@ -61,9 +61,9 @@ struct TreeliteModel {
     auto* handle_model = static_cast<treelite::Model*>(handle_);
 
     // Create non-owning Buffer to same memory as `output`
-    auto output_buffer =
-        rapids::Buffer<float>{output.data(), output.size(), output.mem_type(),
-                              output.device(), output.stream()};
+    auto output_buffer = rapids::Buffer<float>{
+        output.data(), output.size(), output.mem_type(), output.device(),
+        output.stream()};
 
     auto gtil_output_size = output.size();
     // GTIL expects buffer of size samples * num_classes_ for multi-class
@@ -84,8 +84,8 @@ struct TreeliteModel {
     // Actually perform inference
     auto out_result_size = std::size_t{};
     auto gtil_result = TreeliteGTILPredict(
-        handle_, input.data(), samples, output_buffer.data(), 1,
-        &out_result_size);
+        handle_, input.data(), samples, output_buffer.data(),
+        tl_config_->cpu_nthread, 1, &out_result_size);
     if (gtil_result != 0) {
       throw rapids::TritonException(
           rapids::Error::Internal, TreeliteGetLastError());
