@@ -25,6 +25,7 @@ run_benchmark() {
 
   output_file="$output_dir/$batch.csv"
   perf_analyzer \
+    -a \
     -i GRPC \
     --shared-memory $SHARED_MEM \
     --percentile 99 \
