@@ -4,6 +4,7 @@ import re
 import sys
 
 import cudf
+import numpy as np
 
 from scipy.spatial import ConvexHull
 
@@ -52,10 +53,7 @@ def scatter_to_hull(pts):
     pts = pts[pts[:, 0].argsort(), :]
     slope, intercept = pts_to_line(pts[0, :], pts[-1, :])
     filtered_pts = pts[pts[:, 1] >= slope * pts[:, 0] + intercept]
-    if len(filtered_pts) < 2 and len(pts) >= 2:
-        return pts[(0, -1), :]
-    else:
-        return filtered_pts
+    return np.concatenate((pts[(0,), :], filtered_pts, pts[(-1,), :]))
 
 
 def plot_lat_tp(data, latency_percentile=99):
