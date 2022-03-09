@@ -71,14 +71,52 @@ def plot_lat_tp(data, latency_percentile=99):
     plt.ylabel('Throughput (samples/s)')
     plt.legend(all_models)
 
+def plot_througput(data, budget, output_dir):
+    filtered_data = data[data['p99 latency'] <= budget][
+        ['Model', 'Inferences/Second']
+    ]
+    maximums = filtered_data.groupby('Model').max()
+    maximums.sort_index(inplace=True)
+
+    budget_ms = round(budget / 1000)
+
+    raw_data.to_csv(os.path.join(output_dir, f'{budget_ms}.csv'))
+
+    if plt is not None:
+        plt.bar(
+            maximums.index.values_host,
+            maximums['Inferences/Second'].values_host
+        )
+        plt.xticks(rotation=90)
+        plt.title(
+            f'Throughput for p99 latency budget of {budget_ms} ms'
+        )
+        plt.subplots_adjust(bottom=0.35)
+        plt.savefig(os.path.join(output_dir, f'{budget_ms}.png'))
+        plt.close()
 
 
 if __name__ == '__main__':
     benchmark_dir = sys.argv[1]
     raw_data = collate_raw_data(benchmark_dir)
     summary_dir = os.path.join(benchmark_dir, SUMMARY_DIR_NAME)
-    os.makedirs(summary_dir, exist_ok=True)
+    throughput_dir = os.path.join(summary_dir, 'throughput')
+    os.makedirs(throughput_dir, exist_ok=True)
     raw_data.to_csv(os.path.join(summary_dir, "raw_data.csv"))
+
+    try:
+        latency_cutoff = float(os.environ['MAX_LATENCY'])
+        raw_data = raw_data[
+            raw_data['p99 latency'] <= (latency_cutoff * 1000)
+        ]
+    except KeyError:
+        pass  # No latency cutoff specified
+
+    raw_data.to_csv(os.path.join(summary_dir, "filtered_data.csv"))
+
+    plot_througput(raw_data, 1000, throughput_dir)
+    plot_througput(raw_data, 5000, throughput_dir)
+    plot_througput(raw_data, 20000, throughput_dir)
 
     if plt is not None:
         plot_lat_tp(raw_data)
