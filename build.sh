@@ -190,6 +190,7 @@ if completeBuild || hasArg tests
 then
   TESTS=1
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_MICROBENCHMARK=ON"
 fi
 
 buildpy () {

@@ -92,6 +92,7 @@ else()
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling nvtx markers: ${NVTX}")
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
+  message(VERBOSE "RAPIDS_TRITON_BACKEND: Build microbenchmark of underlying libraries: ${BUILD_MICROBENCHMARK}")
 
   # Set RMM logging level
   set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -164,6 +165,10 @@ else()
 
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)
+  endif()
+
+  if(BUILD_MICROBENCHMARK)
+    include(cmake/thirdparty/get_xgboost.cmake)
   endif()
 
   ##############################################################################
@@ -255,4 +260,11 @@ else()
   # if(BUILD_TESTS)
   #   include(test/CMakeLists.txt)
   # endif()
+
+  ##############################################################################
+  # - build microbenchmark executable ------------------------------------------
+  
+  if(BUILD_MICROBENCHMARK)
+    include(microbenchmark/CMakeLists.txt)
+  endif()
 endif() # TRITON_FIL_DOCKER_BUILD
