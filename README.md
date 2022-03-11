@@ -40,6 +40,13 @@ for fast GPU-based inference. Using this backend, forest models can be deployed
 seamlessly alongside deep learning models for fast, unified inference
 pipelines.
 
+## Shapley Value Support
+
+This backend also provides the support to enable Shapley values for forest
+models. Shapley values provide an estimate of feature contribution and
+importance to explain inference. To enable Shapley value outputs, please see
+the section on [Configuration](#configuration) for instructions.
+
 ## Getting Started
 
 ### Prerequisites
@@ -54,7 +61,7 @@ pipelines.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:21.12-py3
+docker pull nvcr.io/nvidia/tritonserver:22.02-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -183,6 +190,30 @@ dynamic_batching {
 **NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
 and output. Attempting to use any other type will result in an error.
 
+To enable Shapley value outputs, modify the `output` section of the above example
+to look like:
+
+```
+output [
+ {
+    name: "output__0"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  },
+ {
+    name: "treeshap_output"
+    data_type: TYPE_FP32
+    dims: [ 501 ]
+  }
+]
+```
+
+**NOTE:** The dimensions of Shapley value outputs for a multi-class problem
+are of the form `[ n_classes, (n_features + 1) ]`, while for a binary-class problem
+they are of the form `[ n_features + 1 ]`. The additional column in the output stores 
+the bias term. At this moment, Shapley value support is only available when this
+backend is GPU enabled.
+
 For a full description of the configuration schema, see the Triton [server
 docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).
 Here, we will simply summarize the most commonly-used options and those
@@ -207,6 +238,7 @@ specific to FIL:
   indicating that the model returns a single class ID for each sample.
 - `instance_group`: This setting determines whether inference will take place
   on the GPU (`KIND_GPU`) or CPU (`KIND_CPU`)
+- `cpu_nthread`: The number of threads to use when running prediction on the CPU.
 - `parameters`: This block contains FIL-specific configuration details. Note
   that all parameters are input as strings and should be formatted with `key`
   and `value` fields as shown in the example.

@@ -16,9 +16,14 @@
 
 function(find_and_configure_cuml)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG)
+    set(oneValueArgs VERSION FORK PINNED_TAG USE_TREELITE_STATIC)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
+
+    set(CUML_ALGORITHMS "FIL" CACHE STRING "List of algorithms to build in cuml")
+    if(TRITON_FIL_ENABLE_TREESHAP)
+      list(APPEND CUML_ALGORITHMS "TREESHAP")
+    endif()
 
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++
@@ -28,6 +33,20 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            OPTIONS
+              "BUILD_CUML_C_LIBRARY OFF"
+              "BUILD_CUML_CPP_LIBRARY ON"
+              "BUILD_CUML_TESTS OFF"
+              "BUILD_PRIMS_TESTS OFF"
+              "BUILD_CUML_MG_TESTS OFF"
+              "BUILD_CUML_EXAMPLES OFF"
+              "BUILD_CUML_BENCH OFF"
+              "BUILD_CUML_PRIMS_BENCH OFF"
+              "BUILD_CUML_STD_COMMS OFF"
+              "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
+              "USE_CCACHE ON"
+              "RAFT_COMPILE_LIBRARIES OFF"
+              "RAFT_ENABLE_NN_DEPENDENCIES OFF"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using CUML located in ${cuml_SOURCE_DIR}")
@@ -37,7 +56,8 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_cuml(VERSION    21.12
-                        FORK       rapidsai
-                        PINNED_TAG branch-21.12
+find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
+                        FORK       dantegd
+                        PINNED_TAG fil-backend-2203
+                        USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )

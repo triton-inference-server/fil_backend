@@ -30,6 +30,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g               - build for debug
    -h               - print this text
    --cpu-only       - build CPU-only versions of targets
+   --no-treeshap    - build without treeshap in targets (GPU only)
    --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
    --no-cache       - disable Docker cache for build
@@ -56,10 +57,12 @@ HELP="$0 [<target> ...] [<flag> ...]
                       backend repo, use this branch when building with
                       build.py. For all other build methods, the backend will
                       simply be built with the current version of the code
+   TREELITE_STATIC  - If ON, Treelite will be statically linked into the binaries
 "
 
 BUILD_TYPE=Release
 TRITON_ENABLE_GPU=ON
+TRITON_FIL_ENABLE_TREESHAP=ON
 DOCKER_ARGS=""
 BUILDPY=0
 
@@ -87,6 +90,7 @@ fi
 # Long arguments
 LONG_ARGUMENT_LIST=(
     "cpu-only"
+    "treeshap"
     "tag-commit"
     "buildpy"
     "no-cache"
@@ -117,6 +121,10 @@ do
       ;;
     --cpu-only )
       TRITON_ENABLE_GPU=OFF
+      TRITON_FIL_ENABLE_TREESHAP=OFF
+      ;;
+    --no-treeshap )
+      TRITON_FIL_ENABLE_TREESHAP=OFF
       ;;
     --tag-commit )
       [ -z $SERVER_TAG ] \
@@ -151,6 +159,7 @@ fi
 
 DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
+DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_ENABLE_TREESHAP}"
 
 if [ -z $BASE_IMAGE ]
 then
@@ -181,12 +190,21 @@ then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg USE_CLIENT_WHEEL=${USE_CLIENT_WHEEL}"
 fi
 
-if completeBuild || hasArg server
+if [ ! -z $TREELITE_STATIC ]
 then
-  BACKEND=1
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_USE_TREELITE_STATIC=${TREELITE_STATIC}"
 fi
 
-if completeBuild || hasArg tests
+TESTS=0
+BACKEND=0
+if completeBuild
+then
+  TESTS=1
+  BACKEND=1
+elif hasArg server
+then
+  BACKEND=1
+elif hasArg tests
 then
   TESTS=1
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
