@@ -167,9 +167,9 @@ else()
     include(cmake/thirdparty/get_gtest.cmake)
   endif()
 
-  if(BUILD_MICROBENCHMARK)
-    include(cmake/thirdparty/get_xgboost.cmake)
-  endif()
+  # if(BUILD_MICROBENCHMARK)
+  #   include(cmake/thirdparty/get_xgboost.cmake)
+  # endif()
 
   ##############################################################################
   # - install targets-----------------------------------------------------------
