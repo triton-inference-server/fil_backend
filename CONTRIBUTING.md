@@ -127,13 +127,7 @@ $ cmake \
     -DTRITON_BACKEND_REPO_TAG=main \
     -DTRITON_ENABLE_GPU=ON \
     -DTRITON_ENABLE_STATS=ON \
-    -DBUILD_CUML_TESTS=OFF \
-    -DBUILD_PRIMS_TESTS=OFF \
-    -DBUILD_CUML_MG_TESTS=OFF \
-    -DBUILD_CUML_EXAMPLES=OFF \
-    -DBUILD_CUML_BENCH=OFF \
-    -DBUILD_CUML_PRIMS_BENCH=OFF \
-    -DCUML_CPP_ALGORITHMS=FIL \
+    -DTRITON_FIL_ENABLE_TREESHAP=ON \
     -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
     ..;
 $ ninja install
@@ -183,7 +177,7 @@ script, which is used for building and testing individual configurations in CI.
 To run tests on a pre-built image, use the environment variable
 `PREBUILT_SERVER_TAG`:
 ```bash
-PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.01-py3 ./ci/gitlab/build.sh
+PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.02-py3 ./ci/gitlab/build.sh
 ```
 This will build a test image based on this pre-built server image and run it.
 For CPU-only builds, the environment variable `CPU_ONLY` should be set to 1.

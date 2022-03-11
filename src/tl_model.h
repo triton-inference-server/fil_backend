@@ -72,9 +72,9 @@ struct TreeliteModel {
       std::size_t samples, bool predict_proba) const
   {
     // Create non-owning Buffer to same memory as `output`
-    auto output_buffer =
-        rapids::Buffer<float>{output.data(), output.size(), output.mem_type(),
-                              output.device(), output.stream()};
+    auto output_buffer = rapids::Buffer<float>{
+        output.data(), output.size(), output.mem_type(), output.device(),
+        output.stream()};
 
     if (base_herring_model_ && base_herring_model_->index() == 2) {
       std::get<2>(*base_herring_model_).predict(input.data(), samples, output_buffer.data());

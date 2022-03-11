@@ -17,13 +17,11 @@
 #pragma once
 
 #include <cuda_runtime_api.h>
-#include <cuml/fil/fil.h>
-#include <fil_config.h>
-#include <forest_model.h>
-#include <names.h>
 #include <tl_model.h>
+#include <treeshap_model.h>
 
 #include <cstddef>
+#include <cuml/explainer/tree_shap.hpp>
 #include <memory>
 #include <raft/handle.hpp>
 #include <rapids_triton/memory/buffer.hpp>
@@ -32,43 +30,38 @@
 namespace triton { namespace backend { namespace NAMESPACE {
 
 template <>
-struct ForestModel<rapids::DeviceMemory> {
+struct TreeShapModel<rapids::DeviceMemory> {
   using device_id_t = int;
-  ForestModel(
+  TreeShapModel(
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
       : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
-        fil_forest_{[this]() {
-          auto result = ML::fil::forest_t{};
-          auto config = tl_to_fil_config(tl_model_->config());
-          ML::fil::from_treelite(
-              raft_handle_, &result, tl_model_->handle(), &config);
-          return result;
-        }()}
+        path_info_{ML::Explainer::extract_path_info(tl_model_->handle())}
   {
   }
 
-  ForestModel(ForestModel const& other) = default;
-  ForestModel& operator=(ForestModel const& other) = default;
-  ForestModel(ForestModel&& other) = default;
-  ForestModel& operator=(ForestModel&& other) = default;
-
-  ~ForestModel() noexcept { ML::fil::free(raft_handle_, fil_forest_); }
+  TreeShapModel(TreeShapModel const& other) = default;
+  TreeShapModel& operator=(TreeShapModel const& other) = default;
+  TreeShapModel(TreeShapModel&& other) = default;
+  TreeShapModel& operator=(TreeShapModel&& other) = default;
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t samples, bool predict_proba) const
+      std::size_t n_rows, std::size_t n_cols) const
   {
-    ML::fil::predict(
-        raft_handle_, fil_forest_, output.data(), input.data(), samples,
-        predict_proba);
+    // Need to synchronize on the stream because treeshap currently does not
+    // take a stream on its API
+    input.stream_synchronize();
+    ML::Explainer::gpu_treeshap(
+        path_info_.get(), input.data(), n_rows, n_cols, output.data());
+    output.stream_synchronize();
   }
 
  private:
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
-  ML::fil::forest_t fil_forest_;
   device_id_t device_id_;
+  std::unique_ptr<ML::Explainer::TreePathInfo> path_info_;
 };
 
 }}}  // namespace triton::backend::NAMESPACE
