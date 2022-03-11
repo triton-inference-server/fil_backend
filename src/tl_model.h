@@ -97,7 +97,9 @@ struct TreeliteModel {
 
       // Actually perform inference
       try {
-        treelite::gtil::Predict(base_tl_model_.get(), input.data(), samples, output_buffer.data());
+        treelite::gtil::Predict(
+          base_tl_model_.get(), input.data(), samples, output_buffer.data(),
+          tl_config_->cpu_nthread, true);
       } catch (treelite::Error const& tl_err) {
         throw rapids::TritonException(rapids::Error::Internal, tl_err.what());
       }
