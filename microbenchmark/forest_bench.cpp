@@ -2,7 +2,7 @@
 #include <treelite/tree.h>
 #include <treelite/gtil.h>
 #include <treelite/frontend.h>
-// #include <xgboost/c_api.h>
+#include <xgboost/c_api.h>
 
 #include <cstddef>
 #include <exception>
@@ -17,11 +17,11 @@
 #include <chrono>
 #include <algorithm>
 
-/* void xgb_check(int err) {
+void xgb_check(int err) {
   if (err != 0) {
     throw std::runtime_error(std::string{XGBGetLastError()});
   }
-} */
+}
 
 struct matrix {
   float* data;
@@ -47,7 +47,7 @@ void run_herring(model_t& final_model, matrix& input, std::vector<float>& output
   final_model.predict(input.data, input.rows, output.data());
 }
 
-/* template <typename model_t>
+template <typename model_t>
 void run_xgb(model_t& bst, matrix& input, std::vector<float>& output) {
   auto dmat = DMatrixHandle{};
   auto const* out_result = static_cast<float*>(nullptr);
@@ -58,7 +58,7 @@ void run_xgb(model_t& bst, matrix& input, std::vector<float>& output) {
   ));
   xgb_check(XGBoosterPredict(bst, dmat, 0, 0, 0, &out_size, &out_result));
   xgb_check(XGDMatrixFree(dmat));
-} */
+}
 
 int main(int argc, char** argv) {
   if (argc != 5) {
@@ -73,9 +73,9 @@ int main(int argc, char** argv) {
 
   auto buffer = load_array(data_path, rows, features);
   auto input = matrix{buffer.data(), rows, features};
-  /* auto bst = BoosterHandle{};
+  auto bst = BoosterHandle{};
   xgb_check(XGBoosterCreate(nullptr, 0, &bst));
-  xgb_check(XGBoosterLoadModel(bst, model_path.c_str())); */
+  xgb_check(XGBoosterLoadModel(bst, model_path.c_str()));
 
   auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
   auto converted_model = tl_model->Dispatch([](auto const& concrete_model) {
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
   end = std::chrono::high_resolution_clock::now();
   auto herring_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-  /* start = std::chrono::high_resolution_clock::now();
+  start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
     auto batch = batch_sizes[i];
     auto total_batches = rows / batch;
@@ -127,13 +127,12 @@ int main(int argc, char** argv) {
   end = std::chrono::high_resolution_clock::now();
   auto xgb_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-  xgb_check(XGBoosterFree(bst)); */
+  xgb_check(XGBoosterFree(bst));
 
   std::cout << "GTIL,Herring,XGBoost\n";
   std::cout << gtil_elapsed << ",";
   std::cout << herring_elapsed << ",";
-  // std::cout << xgb_elapsed << "\n";
-  std::cout << "\n";
+  std::cout << xgb_elapsed << "\n";
 
   return 0;
 }
