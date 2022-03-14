@@ -67,7 +67,7 @@ RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
     fi
 
 # Stage where build actually takes place
-FROM build-prep as build-stage
+FROM build-prep as cmake-stage
 
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
@@ -117,8 +117,9 @@ RUN cmake \
     -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
     ..;
 
-ENV CCACHE_DIR=/ccache
+FROM cmake-stage as build-stage
 
+ENV CCACHE_DIR=/ccache
 RUN --mount=type=cache,target=/ccache/ ninja install
 
 # Stage for installing test dependencies

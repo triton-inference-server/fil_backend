@@ -40,7 +40,7 @@ if(TRITON_ENABLE_GPU)
       cuml++
       $<TARGET_NAME_IF_EXISTS:conda_env>
       OpenMP::OpenMP_CXX
-      xgboost::xgboost
+      xgboost
   )
 else()
   target_link_libraries(forest_bench
@@ -49,6 +49,6 @@ else()
       treelite::treelite_runtime_static
       $<TARGET_NAME_IF_EXISTS:conda_env>
       OpenMP::OpenMP_CXX
-      xgboost::xgboost
+      xgboost
   )
 endif()
