@@ -30,4 +30,4 @@ endfunction()
 
 find_and_configure_xgboost(VERSION     1.5.0
                            PINNED_TAG  v1.5.0)
-find_package(xgboost REQUIRED)
+find_package(XGBoost REQUIRED)
