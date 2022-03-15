@@ -1,5 +1,5 @@
 add_executable(forest_bench
-  microbenchmark/forest_bench.cpp
+  microbenchmark/src/forest_bench.cpp
 )
 
 if(TRITON_ENABLE_GPU)
@@ -29,6 +29,7 @@ target_compile_options(forest_bench
 target_include_directories(forest_bench
   PRIVATE "${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include"
           "${CMAKE_CURRENT_SOURCE_DIR}/src"
+          "${CMAKE_CURRENT_SOURCE_DIR}/microbenchmark/include"
 )
 
 if(TRITON_ENABLE_GPU)

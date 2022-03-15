@@ -281,7 +281,6 @@ then
     buildpy
   else
     docker build \
-      --progress=plain \
       $DOCKER_ARGS \
       -t "$SERVER_TAG" \
       -f ops/Dockerfile \
@@ -300,7 +299,6 @@ fi
 if [ $TESTS -eq 1 ]
 then
   docker build \
-    --progress=plain \
     $DOCKER_ARGS \
     --target test-stage \
     -t "$TEST_TAG" \

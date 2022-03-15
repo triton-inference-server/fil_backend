@@ -23,11 +23,11 @@ function(find_and_configure_xgboost)
     rapids_cpm_find(XGBoost ${PKG_VERSION}
         GLOBAL_TARGETS  xgboost::xgboost
         CPM_ARGS
-            GIT_REPOSITORY  https://github.com/dmlc/xgboost.git
+            GIT_REPOSITORY  https://github.com/wphicks/xgboost.git
             GIT_TAG         ${PKG_PINNED_TAG}
     )
 endfunction()
 
 find_and_configure_xgboost(VERSION     1.5.0
-                           PINNED_TAG  v1.5.0)
+                           PINNED_TAG  035b7047c593678ef636e9adcc618e84c5756f30)
 find_package(XGBoost REQUIRED)
