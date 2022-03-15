@@ -116,6 +116,9 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         auto inclusive_threshold_node = (
           tl_operator == treelite::Operator::kLE || tl_operator == treelite::Operator::kGE
         );
+        if (inclusive_threshold_node) {
+          throw unconvertible_model_exception{"Inclusive models temporarily disabled"};
+        }
         if (!inclusive_threshold_node && use_inclusive_threshold) {
           throw unconvertible_model_exception{"Inconsistent use of inclusive threshold"};
         } else {
@@ -287,7 +290,9 @@ auto convert_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_mo
   auto const large_num_feature = std::size_t{tl_model.num_feature >= std::numeric_limits<std::uint16_t>::max()};
   auto const large_max_offset = std::size_t{max_offset >= std::numeric_limits<std::uint16_t>::max()};
   auto constexpr non_integer_output = std::size_t{!std::is_same_v<tl_output_t, std::uint32_t>};
-  auto const has_vector_leaves = std::size_t{tl_model.task_param.num_class > 1};
+  auto const has_vector_leaves = std::size_t{
+    tl_model.task_type == treelite::TaskType::kMultiClfProbDistLeaf
+  };
 
   auto variant_index = std::size_t{
     (large_threshold << 4) +
