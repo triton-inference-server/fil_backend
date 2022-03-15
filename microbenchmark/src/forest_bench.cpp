@@ -148,9 +148,9 @@ int main(int argc, char** argv) {
   xgb_check(XGBoosterFree(bst));
 
 //  #ifdef TRITON_ENABLE_GPU
-  auto gpu_buffer = rmm::device_buffer{buffer.size() * sizeof(float), rmm::cuda_stream_view{}};
+  auto gpu_buffer = rmm::device_buffer{buffer.size() * sizeof(float), fil_model.get_stream()};
   cudaMemcpy(gpu_buffer.data(), buffer.data(), buffer.size() * sizeof(float), cudaMemcpyHostToDevice);
-  auto gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), rmm::cuda_stream_view{}};
+  auto gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
 
   start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {

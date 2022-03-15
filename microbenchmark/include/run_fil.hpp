@@ -44,6 +44,11 @@ struct ForestModel {
     ML::fil::predict(
         raft_handle_, fil_forest_, output, input.data, input.rows,
         predict_proba);
+    raft_handle_.sync_stream();
+  }
+
+  auto get_stream() {
+    return raft_handle_.get_stream();
   }
 
  private:
