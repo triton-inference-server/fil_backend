@@ -84,7 +84,7 @@ namespace herring {
         std::size_t num_grove) const {
 
       // TODO(wphicks): Precompute this
-      static auto const postprocess_element = [this]() -> std::function<void(output_t, float*)> {
+      auto const postprocess_element = [this]() -> std::function<void(output_t, float*)> {
         switch(element_postproc) {
           case element_op::signed_square:
             return [this](output_t elem, float* out) {
@@ -134,18 +134,20 @@ namespace herring {
             auto const row_begin = output + row_index;
             auto const row_end = row_begin + num_class;
             auto const max_value = *std::max_element(row_begin, row_end);
-            auto const normalization = std::transform_reduce(
+            std::transform(
               row_begin,
               row_end,
-              output_t{},
-              std::plus<>(),
+              row_begin,
               [&max_value](auto const& val) { return std::exp(val - max_value); }
             );
+            auto const normalization = std::reduce(row_begin, row_end);
             std::transform(
               row_begin,
               row_end,
               output + row_index,
-              [&normalization](auto const& val) { return val / normalization; }
+              [&normalization](auto const& val) {
+                return val / normalization;
+              }
             );
           }
         }
@@ -201,12 +203,10 @@ namespace herring {
         auto const starting_row = block_index * block_size;
         auto const max_row = std::min(starting_row + block_size, num_row);
         for (auto row_index = starting_row; row_index < max_row; ++row_index) {
-          // std::cout << "ROWS: " << row_index << " " << num_row << "\n";
 
           auto const starting_tree = grove_index * grove_size;
           auto const max_tree = std::min(starting_tree + grove_size, num_tree);
           for (auto tree_index = starting_tree; tree_index < max_tree; ++tree_index) {
-            // std::cout << "TREES: " << tree_index << " " << trees.size() << "\n";
             auto const& tree = trees[tree_index];
 
             // Find leaf node
@@ -221,7 +221,6 @@ namespace herring {
               } else {
                 node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
               }
-              // std::cout << "NODES: " << node_index << " " << tree.nodes.size() << "\n";
             }
 
             // Add leaf contribution to output
@@ -237,8 +236,6 @@ namespace herring {
             } else {
                 auto class_index = tree_index % num_class;
                 auto cur_index = row_index * num_class * num_grove + class_index * num_grove + grove_index;
-                // std::cout << "SUM: " << cur_index << " " << forest_sum.size() << "\n";
-                // std::cout << "LEAF: " << tree.get_leaf_value(node_index) << "\n";
                 forest_sum[
                   row_index * num_class * num_grove +
                   class_index * num_grove
