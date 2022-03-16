@@ -116,9 +116,6 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         auto inclusive_threshold_node = (
           tl_operator == treelite::Operator::kLE || tl_operator == treelite::Operator::kGE
         );
-        if (inclusive_threshold_node) {
-          throw unconvertible_model_exception{"Inclusive models temporarily disabled"};
-        }
         if (!inclusive_threshold_node && use_inclusive_threshold) {
           throw unconvertible_model_exception{"Inconsistent use of inclusive threshold"};
         } else {

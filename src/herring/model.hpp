@@ -155,7 +155,7 @@ namespace herring {
 #pragma omp parallel for
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto grove_output_index = row_index * num_class * num_grove;
-          auto row_output = std::vector<output_t>(num_class, 0);
+          auto row_output = std::vector<float>(num_class, 0);
 
           for (auto class_index = std::size_t{}; class_index < num_class; ++class_index) {
             auto class_output_index = grove_output_index + class_index * num_grove;

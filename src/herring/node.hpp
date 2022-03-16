@@ -33,7 +33,7 @@ namespace herring {
   };
 
   template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, value_t const* row) {
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float const* row) {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
@@ -48,7 +48,7 @@ namespace herring {
   }
 
   template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, value_t feature_value) {
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types

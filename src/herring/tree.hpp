@@ -29,7 +29,7 @@ namespace herring {
     }
 
     template<bool missing_values_in_row, bool inclusive_threshold>
-    auto evaluate_tree_node(std::size_t node_index, value_t const* row) const {
+    auto evaluate_tree_node(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
@@ -66,7 +66,7 @@ namespace herring {
     }
 
     template<bool missing_values_in_row, bool inclusive_threshold>
-    auto evaluate_tree_node(std::size_t node_index, value_t const* row) const {
+    auto evaluate_tree_node(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
