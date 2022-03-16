@@ -80,7 +80,7 @@ def plot_througput(data, budget, output_dir):
 
     budget_ms = round(budget / 1000)
 
-    raw_data.to_csv(os.path.join(output_dir, f'{budget_ms}.csv'))
+    maximums.to_csv(os.path.join(output_dir, f'{budget_ms}.csv'))
 
     if plt is not None:
         plt.bar(
