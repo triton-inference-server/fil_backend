@@ -36,9 +36,17 @@ namespace triton { namespace backend { namespace NAMESPACE {
 struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
-      std::shared_ptr<treelite_config> tl_config)
-      : base_tl_model_{load_tl_base_model(model_file, format)},
-        num_classes_{tl_get_num_classes(*base_tl_model_)}, tl_config_{tl_config},
+      std::shared_ptr<treelite_config> tl_config, bool predict_proba)
+      : tl_config_{tl_config},
+        base_tl_model_{[&model_file, &format, predict_proba, this](){
+          auto result = load_tl_base_model(model_file, format);
+          auto num_classes = tl_get_num_classes(*base_tl_model_);
+          if (!predict_proba && tl_config_->output_class && num_classes > 1) {
+            std::strcpy(result->param.pred_transform, "max_index");
+          }
+          return result;
+        }()},
+        num_classes_{tl_get_num_classes(*base_tl_model_)},
         base_herring_model_{[this]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
           try {
@@ -77,6 +85,7 @@ struct TreeliteModel {
         output.stream()};
 
     if (base_herring_model_ && base_herring_model_->index() == 2) {
+      // TODO(whicks): std::visit or recursive or cached
       std::get<2>(*base_herring_model_).predict(input.data(), samples, output_buffer.data());
     } else {
       auto gtil_output_size = output.size();
@@ -85,7 +94,6 @@ struct TreeliteModel {
       // temporary buffer
       if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
         gtil_output_size = samples * num_classes_;
-        std::strcpy(base_tl_model_->param.pred_transform, "max_index");
       }
 
       // If expected GTIL size is not the same as the size of `output`, create
@@ -130,9 +138,9 @@ struct TreeliteModel {
   }
 
  private:
+  std::shared_ptr<treelite_config> tl_config_;
   std::unique_ptr<treelite::Model> base_tl_model_;
   std::size_t num_classes_;
-  std::shared_ptr<treelite_config> tl_config_;
   std::optional<herring::tl_dispatched_model> base_herring_model_;
 };
 
