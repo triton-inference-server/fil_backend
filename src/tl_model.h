@@ -84,9 +84,14 @@ struct TreeliteModel {
         output.data(), output.size(), output.mem_type(), output.device(),
         output.stream()};
 
-    if (base_herring_model_ && base_herring_model_->index() == 2) {
+    if (base_herring_model_) {
       // TODO(whicks): std::visit or recursive or cached
-      std::get<2>(*base_herring_model_).predict(input.data(), samples, output_buffer.data());
+      std::visit(
+        [&input, &samples, &output_buffer](auto&& concrete_model) {
+          concrete_model.predict(input.data(), samples, output_buffer.data());
+        },
+        *base_herring_model_
+      );
     } else {
       auto gtil_output_size = output.size();
       // GTIL expects buffer of size samples * num_classes_ for multi-class

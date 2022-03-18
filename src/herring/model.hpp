@@ -31,6 +31,7 @@ namespace herring {
       simple_tree_t,
       lookup_tree_t
     >;
+    using sum_elem_type = typename is_container_specialization<output_t, std::vector>::value_type;
 
     std::vector<tree_type> trees;
     std::size_t num_class;
@@ -78,40 +79,40 @@ namespace herring {
     }
 
     void apply_postprocessing(
-        std::vector<output_t> const& grove_sum,
+        std::vector<sum_elem_type> const& grove_sum,
         float* output,
         std::size_t num_row,
         std::size_t num_grove) const {
 
       // TODO(wphicks): Precompute this
-      auto const postprocess_element = [this]() -> std::function<void(output_t, float*)> {
+      auto const postprocess_element = [this]() -> std::function<void(sum_elem_type, float*)> {
         switch(element_postproc) {
           case element_op::signed_square:
-            return [this](output_t elem, float* out) {
+            return [this](sum_elem_type elem, float* out) {
               *out = std::copysign(elem * elem, elem);
             };
           case element_op::hinge:
-            return [this](output_t elem, float* out) {
-              *out = elem > output_t{} ? output_t{1} : output_t{0};
+            return [this](sum_elem_type elem, float* out) {
+              *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
             };
           case element_op::sigmoid:
-            return [this](output_t elem, float* out) {
-              *out = output_t{1} / (output_t{1} + std::exp(-postproc_constant * elem));
+            return [this](sum_elem_type elem, float* out) {
+              *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-postproc_constant * elem));
             };
           case element_op::exponential:
-            return [this](output_t elem, float* out) {
+            return [this](sum_elem_type elem, float* out) {
               *out = std::exp(elem);
             };
           case element_op::exponential_standard_ratio:
-            return [this](output_t elem, float* out) {
+            return [this](sum_elem_type elem, float* out) {
               *out = std::exp(-elem / postproc_constant);
             };
           case element_op::logarithm_one_plus_exp:
-            return [this](output_t elem, float* out) {
+            return [this](sum_elem_type elem, float* out) {
               *out = std::log1p(std::exp(elem));
             };
           default:
-            return [this](output_t elem, float* out) {
+            return [this](sum_elem_type elem, float* out) {
               *out = elem;
             };
         }
@@ -190,9 +191,9 @@ namespace herring {
       auto const num_grove = (num_tree / grove_size + (num_tree % grove_size != 0));
       auto const num_block = (num_row / block_size + (num_row % block_size != 0));
 
-      auto forest_sum = std::vector<output_t>(
+      auto forest_sum = std::vector<sum_elem_type>(
         num_row * num_class * num_grove,
-        output_t{}
+        sum_elem_type{}
       );
 
 #pragma omp parallel for
@@ -224,7 +225,7 @@ namespace herring {
             }
 
             // Add leaf contribution to output
-            if constexpr (is_specialization<output_t, std::vector>::value) {
+            if constexpr (is_container_specialization<output_t, std::vector>::value) {
               auto leaf_output = tree.get_leaf_value(node_index);
               for(auto class_index = std::size_t{}; class_index < num_class; ++class_index){
                 forest_sum[

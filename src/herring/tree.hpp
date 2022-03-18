@@ -38,7 +38,13 @@ namespace herring {
         if(present) {
           result = evaluate_node<inclusive_threshold>(node, feature_value);
         } else {
+    // This narrowing conversion is guaranteed safe because distant_offset
+    // cannot be 0
+    // TODO(wphicks): Guarantee this with custom types
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
           result = 1 + (node.distant_offset - 1) * default_distant[node_index];
+#pragma GCC diagnostic pop
         }
         return result;
       } else {
@@ -68,17 +74,25 @@ namespace herring {
     template<bool missing_values_in_row, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
+      auto result = offset_t{};
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
         auto present = !std::isnan(feature_value);
         if (present) {
-          return evaluate_node<inclusive_threshold>(node, feature_value);
+          result = evaluate_node<inclusive_threshold>(node, feature_value);
         } else {
-          return 1 + (node.distant_offset - 1) * default_distant[node_index];
+    // This narrowing conversion is guaranteed safe because distant_offset
+    // cannot be 0
+    // TODO(wphicks): Guarantee this with custom types
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
+          result = 1 + (node.distant_offset - 1) * default_distant[node_index];
+#pragma GCC diagnostic pop
         }
       } else {
-        return evaluate_node<inclusive_threshold>(node, row);
+        result = evaluate_node<inclusive_threshold>(node, row);
       }
+      return result;
     }
   };
 }
