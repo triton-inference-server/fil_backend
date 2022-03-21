@@ -8,6 +8,7 @@
 #include<type_traits>
 #include<vector>
 
+#include<herring/omp_helpers.hpp>
 #include<herring/output_ops.hpp>
 #include<herring/tree.hpp>
 #include<herring/type_helpers.hpp>
@@ -62,18 +63,18 @@ namespace herring {
       return result;
     }
 
-    void predict(float const* input, std::size_t num_row, float* output) const {
+    void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
       if (!precompute_missing(input, num_row)) {
         if (!use_inclusive_threshold) {
-          predict_<false, false>(input, output, num_row);
+          predict_<false, false>(input, output, num_row, nthread);
         } else {
-          predict_<false, true>(input, output, num_row);
+          predict_<false, true>(input, output, num_row, nthread);
         }
       } else {
         if (!use_inclusive_threshold) {
-          predict_<true, false>(input, output, num_row);
+          predict_<true, false>(input, output, num_row, nthread);
         } else {
-          predict_<true, true>(input, output, num_row);
+          predict_<true, true>(input, output, num_row, nthread);
         }
       }
     }
@@ -82,7 +83,8 @@ namespace herring {
         std::vector<sum_elem_type> const& grove_sum,
         float* output,
         std::size_t num_row,
-        std::size_t num_grove) const {
+        std::size_t num_grove,
+        thread_count<int> nthread) const {
 
       // TODO(wphicks): Precompute this
       auto const postprocess_element = [this]() -> std::function<void(sum_elem_type, float*)> {
@@ -119,7 +121,7 @@ namespace herring {
       }();
 
       if (row_postproc != row_op::max_index) {
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto const grove_output_index = row_index * num_class * num_grove;
           for (auto class_index = std::size_t{}; class_index < num_class; ++class_index) {
@@ -153,7 +155,7 @@ namespace herring {
           }
         }
       } else {
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto grove_output_index = row_index * num_class * num_grove;
           auto row_output = std::vector<float>(num_class, 0);
@@ -177,7 +179,7 @@ namespace herring {
 
 
     template<bool missing_value_in_input, bool inclusive_threshold>
-    void predict_(float const* input, float* output, std::size_t num_row) const {
+    void predict_(float const* input, float* output, std::size_t num_row, thread_count<int> nthread) const {
       // "Groves" are groups of trees which are processed together in a single
       // thread. Similarly, "blocks" are groups of rows that are processed
       // together
@@ -196,7 +198,7 @@ namespace herring {
         sum_elem_type{}
       );
 
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
       for (auto task_index = std::size_t{}; task_index < num_grove * num_block; ++task_index) {
         auto const grove_index = task_index / num_block;
         auto const block_index = task_index % num_block;
@@ -247,7 +249,7 @@ namespace herring {
         } // Rows in block
       } // Tasks (groves x blocks)
 
-      apply_postprocessing(forest_sum, output, num_row, num_grove);
+      apply_postprocessing(forest_sum, output, num_row, num_grove, nthread);
     }
   };
 }

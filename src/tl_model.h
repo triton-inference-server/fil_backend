@@ -47,7 +47,7 @@ struct TreeliteModel {
           return result;
         }()},
         num_classes_{tl_get_num_classes(*base_tl_model_)},
-        base_herring_model_{[this]() {
+        base_herring_model_{[this, use_herring]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
           if (use_herring) {
             try {
@@ -87,10 +87,14 @@ struct TreeliteModel {
         output.stream()};
 
     if (base_herring_model_) {
-      // TODO(whicks): std::visit or recursive or cached
       std::visit(
-        [&input, &samples, &output_buffer](auto&& concrete_model) {
-          concrete_model.predict(input.data(), samples, output_buffer.data());
+        [this, &input, &samples, &output_buffer](auto&& concrete_model) {
+          concrete_model.predict(
+            input.data(),
+            samples,
+            output_buffer.data(),
+            tl_config_->cpu_nthread
+          );
         },
         *base_herring_model_
       );
