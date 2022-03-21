@@ -311,9 +311,9 @@ def generate_config(
         features=32,
         num_classes=2,
         predict_proba=False,
+        use_experimental_optimizations=True,
         task='classification',
         threshold=0.5,
-        batching_window=100,
         max_batch_size=8192,
         storage_type="AUTO"):
     """Return a string with the full Triton config.pbtxt for this model
@@ -329,6 +329,7 @@ def generate_config(
     else:
         output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
+    use_experimental_optimizations = str(bool(use_experimental_optimizations)).lower()
     output_class = str(task == 'classification').lower()
 
     if model_format == 'pickle':
@@ -397,12 +398,14 @@ parameters [
   {{
     key: "blocks_per_sm"
     value: {{ string_value: "0" }}
+  }},
+  {{
+    key: "use_experimental_optimizations"
+    value: {{ string_value: "{use_experimental_optimizations}" }}
   }}
 ]
 
-dynamic_batching {{
-  max_queue_delay_microseconds: {batching_window}
-}}"""
+dynamic_batching {{ }}"""
 
 
 def build_model(
@@ -420,7 +423,7 @@ def build_model(
         model_name=None,
         classification_threshold=0.5,
         predict_proba=False,
-        batching_window=100,
+        use_experimental_optimizations=True,
         max_batch_size=8192,
         storage_type="AUTO"):
     """Train a model with given parameters, create a config file, and add it to
@@ -489,9 +492,9 @@ def build_model(
         features=features,
         num_classes=classes,
         predict_proba=predict_proba,
+        use_experimental_optimizations=use_experimental_optimizations,
         task=task,
         threshold=classification_threshold,
-        batching_window=batching_window,
         max_batch_size=max_batch_size,
         storage_type=storage_type
     )
@@ -588,10 +591,9 @@ def parse_args():
         help='for classifiers, output class scores',
     )
     parser.add_argument(
-        '--batching_window',
-        type=int,
-        help='window (in microseconds) for gathering batches',
-        default=100
+        '--disable_experimental_optimizations',
+        action='store_true',
+        help='for classifiers, output class scores',
     )
     parser.add_argument(
         '--max_batch_size',
@@ -627,7 +629,9 @@ if __name__ == '__main__':
         model_name=args.name,
         classification_threshold=args.threshold,
         predict_proba=args.predict_proba,
-        batching_window=args.batching_window,
+        use_experimental_optimizations=(
+            not args.disable_experimental_optimizations
+        ),
         max_batch_size=args.max_batch_size,
         storage_type=args.storage_type
     ))

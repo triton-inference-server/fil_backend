@@ -179,12 +179,14 @@ parameters [
   {
     key: "transfer_threshold"
     value: { string_value: "0" }
+  },
+  {
+    key: "use_experimental_optimizations"
+    value: { string_value: "false" }
   }
 ]
 
-dynamic_batching {
-  max_queue_delay_microseconds: 100
-}
+dynamic_batching { }
 ```
 
 **NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
@@ -280,9 +282,17 @@ specific to FIL:
     memory with a number of samples less than or equal to this threshold.  For
     most models and systems, the default transfer threshold of 0 (meaning that
     data is always transferred to the GPU for processing) will provide optimal
-    latency and throughput, but for models with many features on systems where
-    host-to-device transfers may be a bottleneck and most requests will contain
-    small batches, adjusting this parameter may be useful.
+    latency and throughput, but for low-latency deployments with the
+    `use_experimental_optimizations` flag set to `true`, higher values may be
+    desirable.
+  * `use_experimental_optimizations`: Triton 22.04 introduces a new CPU
+    optimization mode which can significantly improve both latency and
+    throughput. For low-latency deployments in particular, the throughput
+    improvement may be substantial. Due to the relatively recent development of
+    this approach, it is still considered experimental, but it can be enabled
+    by setting this flag to `true`. Later releases will likely make this
+    execution mode the default and deprecate this flag. See below for more
+    information.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
@@ -411,6 +421,27 @@ features, so some record must be made of the complete set of categories used
 during training. With that record, categorical columns can be appropriately
 converted to float32 columns, and the data can be sent to the server as shown
 in the above client example.
+
+##### Experimental CPU Optimizations in 22.04
+As described above in configuration options, a new CPU execution mode was
+introduced in Triton 22.04. This mode offers significantly improved latency and
+throughput for CPU evaluation, especially for low-latency deployment
+configurations. When a model is deployed on GPU, turning on this execution mode
+can still provide some benefit if `transfer_threshold` is set to any value
+other than 0. In this case, when the server is under a light enough load to
+keep server-side batch sizes under this threshold, it will take advantage of
+the newly-optimized CPU execution mode to keep latency as low as possible while
+maximizing throughput. If server load increases, the FIL backend will
+automatically scale up onto the GPU to maintain optimal performance. The
+optimal value of `transfer_threshold` will depend on the available hardware and
+the size of the model, so some testing may be required to find the best
+configuration.
+
+This mode is still considered experimental in release 22.04, so it must be
+explicitly turned on by setting `use_experimental_optimizations` to `true` in
+the model's `config.pbtxt`. Currently, this mode does not support models with
+categorical features, but the FIL backend will automatically fall back to the
+older CPU execution mode for such models.
 
 ## Modifications and Code Contributions
 For full implementation details as well as information on modifying the FIL
