@@ -234,8 +234,7 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
     result.element_postproc = element_op::exponential;
   } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
     result.element_postproc = element_op::exponential_standard_ratio;
-    // TODO (wphicks): Update with Treelite 2.3.0
-    // result.postproc_constant = tl_model.param.ratio_c;
+    result.postproc_constant = tl_model.param.ratio_c;
     result.postproc_constant = 1;
   } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
     result.element_postproc = element_op::logarithm_one_plus_exp;

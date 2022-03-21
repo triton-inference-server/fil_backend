@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <herring/node.hpp>
+#include "herring/type_helpers.hpp"
 
 namespace herring {
   /* A tree that can just return the stored value of nodes as its output */
@@ -63,10 +64,20 @@ namespace herring {
     std::vector<output_type> leaf_outputs;
     std::vector<offset_t> default_distant;
 
-    // TODO (wphicks): return const& for vector leaves
+    template <
+      typename tree_output_type = output_t,
+      std::enable_if_t<is_container_specialization<tree_output_type, std::vector>::value, bool> = true>
+    auto const& get_leaf_value(node_type const& node) const {
+      return leaf_outputs[node.value.index];
+    }
+
+    template <
+      typename tree_output_type = output_t,
+      std::enable_if_t<!is_container_specialization<tree_output_type, std::vector>::value, bool> = true>
     auto get_leaf_value(node_type const& node) const {
       return leaf_outputs[node.value.index];
     }
+
     auto get_leaf_value(std::size_t node_id) const {
       return leaf_outputs[nodes[node_id].value.index];
     }
