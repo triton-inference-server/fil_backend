@@ -242,7 +242,7 @@ else()
     triton-backend-utils
     "${TRITONSERVER_LIB}"
     $<TARGET_NAME_IF_EXISTS:conda_env>
-    OpenMP::OpenMP_CXX
+    ${OpenMP_CXX_LIB_NAMES}
   )
 
   if(TRITON_ENABLE_GPU)
