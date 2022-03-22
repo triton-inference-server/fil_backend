@@ -53,13 +53,67 @@ namespace herring {
     std::vector<tree_type> trees;
     std::size_t num_class;
     std::size_t num_feature;
-    element_op element_postproc;
     row_op row_postproc;
     float average_factor;
     float bias;
     float postproc_constant;
     std::vector<bool> mutable row_has_missing;
     bool use_inclusive_threshold;
+
+    void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
+      if (!precompute_missing(input, num_row)) {
+        if (!use_inclusive_threshold) {
+          predict_<false, false>(input, output, num_row, nthread);
+        } else {
+          predict_<false, true>(input, output, num_row, nthread);
+        }
+      } else {
+        if (!use_inclusive_threshold) {
+          predict_<true, false>(input, output, num_row, nthread);
+        } else {
+          predict_<true, true>(input, output, num_row, nthread);
+        }
+      }
+    }
+
+    void set_element_postproc(element_op element_postproc) {
+      postprocess_element = [this, element_postproc]() -> std::function<void(sum_elem_type, float*)> {
+        auto constant = postproc_constant;
+        switch(element_postproc) {
+          case element_op::signed_square:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::copysign(elem * elem, elem);
+            };
+          case element_op::hinge:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
+            };
+          case element_op::sigmoid:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-constant * elem));
+            };
+          case element_op::exponential:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::exp(elem);
+            };
+          case element_op::exponential_standard_ratio:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = std::exp(-elem / constant);
+            };
+          case element_op::logarithm_one_plus_exp:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::log1p(std::exp(elem));
+            };
+          default:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem;
+            };
+        }
+      }();
+    }
+
+   private:
+    std::function<void(sum_elem_type, float*)> postprocess_element;
 
     auto precompute_missing(float const* input, std::size_t num_row) const {
       auto result = false;
@@ -79,62 +133,12 @@ namespace herring {
       return result;
     }
 
-    void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
-      if (!precompute_missing(input, num_row)) {
-        if (!use_inclusive_threshold) {
-          predict_<false, false>(input, output, num_row, nthread);
-        } else {
-          predict_<false, true>(input, output, num_row, nthread);
-        }
-      } else {
-        if (!use_inclusive_threshold) {
-          predict_<true, false>(input, output, num_row, nthread);
-        } else {
-          predict_<true, true>(input, output, num_row, nthread);
-        }
-      }
-    }
-
     void apply_postprocessing(
         std::vector<sum_elem_type> const& grove_sum,
         float* output,
         std::size_t num_row,
         std::size_t num_grove,
         thread_count<int> nthread) const {
-
-      // TODO(wphicks): Precompute this
-      auto const postprocess_element = [this]() -> std::function<void(sum_elem_type, float*)> {
-        switch(element_postproc) {
-          case element_op::signed_square:
-            return [this](sum_elem_type elem, float* out) {
-              *out = std::copysign(elem * elem, elem);
-            };
-          case element_op::hinge:
-            return [this](sum_elem_type elem, float* out) {
-              *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
-            };
-          case element_op::sigmoid:
-            return [this](sum_elem_type elem, float* out) {
-              *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-postproc_constant * elem));
-            };
-          case element_op::exponential:
-            return [this](sum_elem_type elem, float* out) {
-              *out = std::exp(elem);
-            };
-          case element_op::exponential_standard_ratio:
-            return [this](sum_elem_type elem, float* out) {
-              *out = std::exp(-elem / postproc_constant);
-            };
-          case element_op::logarithm_one_plus_exp:
-            return [this](sum_elem_type elem, float* out) {
-              *out = std::log1p(std::exp(elem));
-            };
-          default:
-            return [this](sum_elem_type elem, float* out) {
-              *out = elem;
-            };
-        }
-      }();
 
       if (row_postproc != row_op::max_index) {
 #pragma omp parallel for num_threads(static_cast<int>(nthread))

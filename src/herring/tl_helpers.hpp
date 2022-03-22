@@ -235,25 +235,24 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
   }
   result.bias = tl_model.param.global_bias;
 
-  result.element_postproc = element_op::disable;
+  result.set_element_postproc(element_op::disable);
   result.row_postproc = row_op::disable;
 
   auto tl_pred_transform = std::string{tl_model.param.pred_transform};
   if (tl_pred_transform == std::string{"signed_square"}) {
-    result.element_postproc = element_op::signed_square;
+    result.set_element_postproc(element_op::signed_square);
   } else if (tl_pred_transform == std::string{"hinge"}) {
-    result.element_postproc = element_op::hinge;
+    result.set_element_postproc(element_op::hinge);
   } else if (tl_pred_transform == std::string{"sigmoid"}) {
-    result.element_postproc = element_op::sigmoid;
     result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.set_element_postproc(element_op::sigmoid);
   } else if (tl_pred_transform == std::string{"exponential"}) {
-    result.element_postproc = element_op::exponential;
+    result.set_element_postproc(element_op::exponential);
   } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
-    result.element_postproc = element_op::exponential_standard_ratio;
     result.postproc_constant = tl_model.param.ratio_c;
-    result.postproc_constant = 1;
+    result.set_element_postproc(element_op::exponential_standard_ratio);
   } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
-    result.element_postproc = element_op::logarithm_one_plus_exp;
+    result.set_element_postproc(element_op::logarithm_one_plus_exp);
   } else if (tl_pred_transform == std::string{"max_index"}) {
     result.row_postproc = row_op::max_index;
   } else if (tl_pred_transform == std::string{"softmax"}) {
