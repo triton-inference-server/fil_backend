@@ -53,6 +53,7 @@ namespace herring {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
+    // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
     if constexpr (inclusive_threshold) {
@@ -68,6 +69,7 @@ namespace herring {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
+    // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
     if constexpr (inclusive_threshold) {

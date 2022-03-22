@@ -50,6 +50,7 @@ struct unconvertible_model_exception : std::exception {
 // TODO(wphicks): Currently, the model use_inclusive_threshold parameter is
 // changed as a side-effect of this function. This is messy and confusing, and
 // it should be fixed in a later refactor
+// https://github.com/triton-inference-server/fil_backend/issues/205
 template<typename tree_t, typename tl_threshold_t, typename tl_output_t>
 auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold) {
   auto result = tree_t{};
@@ -69,6 +70,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
   auto parent_stack = std::stack<std::size_t, std::vector<std::size_t>>{};
   // TODO(wphicks): Just store a reference to the parent directly rather than
   // an index
+  // https://github.com/triton-inference-server/fil_backend/issues/205
 
   // Start at TL node id 0
   node_stack.push(cur_node_id);
@@ -296,6 +298,7 @@ auto convert_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_mo
   // are just always using std::uint32_t for offset_t because using
   // std::uint16_t or lower will not reduce the overall size of the node with
   // padding.
+  // https://github.com/triton-inference-server/fil_backend/issues/206
 
   auto constexpr large_threshold = std::size_t{std::is_same_v<tl_threshold_t, double>};
   auto const large_num_feature = std::size_t{tl_model.num_feature >= std::numeric_limits<std::uint16_t>::max()};

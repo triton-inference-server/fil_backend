@@ -58,6 +58,7 @@ namespace herring {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
+    // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
           result = 1 + (node.distant_offset - 1) * default_distant[node_index];
@@ -111,6 +112,7 @@ namespace herring {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
+    // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
           result = 1 + (node.distant_offset - 1) * default_distant[node_index];
