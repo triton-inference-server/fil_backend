@@ -290,9 +290,9 @@ specific to FIL:
     throughput. For low-latency deployments in particular, the throughput
     improvement may be substantial. Due to the relatively recent development of
     this approach, it is still considered experimental, but it can be enabled
-    by setting this flag to `true`. Later releases will likely make this
-    execution mode the default and deprecate this flag. See below for more
-    information.
+    by setting this flag to `true`. Later releases will make this execution
+    mode the default and deprecate this flag. See
+    [below](#experimental-cpu-optimizations-in-2204) for more information.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
