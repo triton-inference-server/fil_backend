@@ -274,7 +274,8 @@ then
   if [ $BUILDPY -eq 1 ]
   then
     buildpy
-  else
+  elif [ -z $PREBUILT_IMAGE ]
+  then
     docker build \
       $DOCKER_ARGS \
       -t "$SERVER_TAG" \
