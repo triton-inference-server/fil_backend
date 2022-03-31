@@ -4,6 +4,6 @@ channels:
   - conda-forge
 dependencies:
   - ccache
-  - cmake>=3.21
+  - cmake>=3.21,<3.23
   - ninja
   - rapidjson
