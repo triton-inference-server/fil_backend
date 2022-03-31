@@ -107,6 +107,35 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     return model
 
 
+def train_lightgbm_rf_classifier(data, labels, depth=25, trees=100, classes=2):
+    """Train LightGBM classification model"""
+    if lgb is None:
+        raise RuntimeError('LightGBM could not be imported')
+    lgb_data = lgb.Dataset(data, label=labels)
+
+    if classes <= 2:
+        classes = 1
+        objective = 'binary'
+        metric = 'binary_logloss'
+    else:
+        objective = 'multiclass'
+        metric = 'multi_logloss'
+
+    training_params = {
+        'bagging_fraction': 0.8,
+        'bagging_freq': 1,
+        'boosting': 'rf',
+        'metric': metric,
+        'objective': objective,
+        'num_class': classes,
+        'max_depth': depth,
+        'verbose': -1
+    }
+    model = lgb.train(training_params, lgb_data, trees)
+
+    return model
+
+
 def train_sklearn_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
     if skRFC is None:
@@ -141,6 +170,10 @@ def train_classifier(
         )
     if model_type == 'lightgbm':
         return train_lightgbm_classifier(
+            data, labels, depth=depth, trees=trees, classes=classes
+        )
+    if model_type == 'lightgbm_rf':
+        return train_lightgbm_rf_classifier(
             data, labels, depth=depth, trees=trees, classes=classes
         )
     if model_type == 'cuml':
@@ -200,6 +233,24 @@ def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     return model
 
 
+def train_lightgbm_rf_regressor(data, targets, depth=25, trees=100):
+    """Train LightGBM regression model"""
+    if lgb is None:
+        raise RuntimeError('LightGBM could not be imported')
+    lgb_data = lgb.Dataset(data, targets)
+
+    training_params = {
+        'boosting': 'rf',
+        'metric': 'l2',
+        'objective': 'regression',
+        'max_depth': depth,
+        'verbose': -1
+    }
+    model = lgb.train(training_params, lgb_data, trees)
+
+    return model
+
+
 def train_sklearn_regressor(data, targets, depth=25, trees=100):
     """Train SKLearn regression model"""
     if skRFR is None:
@@ -234,6 +285,10 @@ def train_regressor(
     if model_type == 'lightgbm':
         return train_lightgbm_regressor(
             data, targets, depth=depth, trees=trees
+        )
+    if model_type == 'lightgbm_rf':
+        return train_lightgbm_rf_regressor(
+            data, labels, depth=depth, trees=trees
         )
     if model_type == 'sklearn':
         return train_sklearn_regressor(
@@ -511,7 +566,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--type',
-        choices=('lightgbm', 'xgboost', 'sklearn', 'cuml'),
+        choices=('lightgbm', 'lightgbm_rf', 'xgboost', 'sklearn', 'cuml'),
         default='xgboost',
         help='type of model',
     )
