@@ -36,7 +36,7 @@ COPY ./ops/gpuci_conda_retry /usr/bin/gpuci_conda_retry
 COPY ./ops/gpuci_mamba_retry /usr/bin/gpuci_mamba_retry
 RUN chmod +x /usr/bin/gpuci_conda_retry /usr/bin/gpuci_mamba_retry
 
-RUN --mount=type=cache,target=/root/miniconda3/pkgs gpuci_conda_retry install -c conda-forge mamba
+RUN --mount=type=cache,target=/root/miniconda3/pkgs gpuci_conda_retry install -c conda-forge mamba>=0.22
 
 COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 RUN --mount=type=cache,target=/root/miniconda3/pkgs gpuci_mamba_retry env update -f /environment.yml \
