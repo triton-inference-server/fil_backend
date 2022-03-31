@@ -238,7 +238,9 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
   result.bias = tl_model.param.global_bias;
 
   auto tl_pred_transform = std::string{tl_model.param.pred_transform};
-  if (tl_pred_transform == std::string{"identity"}) {
+  if (
+      tl_pred_transform == std::string{"identity"} ||
+      tl_pred_transform == std::string{"identity_multiclass"}) {
     result.set_element_postproc(element_op::disable);
     result.row_postproc = row_op::disable;
   } else if (tl_pred_transform == std::string{"signed_square"}) {
