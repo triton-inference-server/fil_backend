@@ -91,6 +91,7 @@ finally() {
       docker rm -f $CONTAINER_NAME > /dev/null 2>&1
     else
       kill -15 $TRITON_PID
+      wait
     fi
   fi
 }
