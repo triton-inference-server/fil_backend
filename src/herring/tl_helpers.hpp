@@ -237,6 +237,9 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
   }
   result.bias = tl_model.param.global_bias;
 
+  result.set_element_postproc(element_op::disable);
+  result.row_postproc = row_op::disable;
+
   auto tl_pred_transform = std::string{tl_model.param.pred_transform};
   if (
       tl_pred_transform == std::string{"identity"} ||
