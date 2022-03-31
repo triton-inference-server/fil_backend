@@ -237,11 +237,11 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
   }
   result.bias = tl_model.param.global_bias;
 
-  result.set_element_postproc(element_op::disable);
-  result.row_postproc = row_op::disable;
-
   auto tl_pred_transform = std::string{tl_model.param.pred_transform};
-  if (tl_pred_transform == std::string{"signed_square"}) {
+  if (tl_pred_transform == std::string{"identity"}) {
+    result.set_element_postproc(element_op::disable);
+    result.row_postproc = row_op::disable;
+  } else if (tl_pred_transform == std::string{"signed_square"}) {
     result.set_element_postproc(element_op::signed_square);
   } else if (tl_pred_transform == std::string{"hinge"}) {
     result.set_element_postproc(element_op::hinge);
@@ -259,6 +259,11 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
     result.row_postproc = row_op::max_index;
   } else if (tl_pred_transform == std::string{"softmax"}) {
     result.row_postproc = row_op::softmax;
+  } else if (tl_pred_transform == std::string{"multiclass_ova"}) {
+    result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.set_element_postproc(element_op::sigmoid);
+  } else {
+    throw unconvertible_model_exception{"Unrecognized Treelite pred_transform string"};
   }
 
   return result;
