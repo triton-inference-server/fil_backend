@@ -77,37 +77,39 @@ namespace herring {
     }
 
     void set_element_postproc(element_op element_postproc) {
-      auto constant = postproc_constant;
-      switch(element_postproc) {
-        case element_op::signed_square:
-          postprocess_element = [](sum_elem_type elem, float* out) {
-            *out = std::copysign(elem * elem, elem);
-          };
-        case element_op::hinge:
-          postprocess_element = [](sum_elem_type elem, float* out) {
-            *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
-          };
-        case element_op::sigmoid:
-          postprocess_element = [constant](sum_elem_type elem, float* out) {
-            *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-constant * elem));
-          };
-        case element_op::exponential:
-          postprocess_element = [](sum_elem_type elem, float* out) {
-            *out = std::exp(elem);
-          };
-        case element_op::exponential_standard_ratio:
-          postprocess_element = [constant](sum_elem_type elem, float* out) {
-            *out = std::exp(-elem / constant);
-          };
-        case element_op::logarithm_one_plus_exp:
-          postprocess_element = [](sum_elem_type elem, float* out) {
-            *out = std::log1p(std::exp(elem));
-          };
-        default:
-          postprocess_element = [](sum_elem_type elem, float* out) {
-            *out = elem;
-          };
-      }
+      postprocess_element = [this, element_postproc]() -> std::function<void(sum_elem_type, float*)> {
+        auto constant = postproc_constant;
+        switch(element_postproc) {
+          case element_op::signed_square:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::copysign(elem * elem, elem);
+            };
+          case element_op::hinge:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
+            };
+          case element_op::sigmoid:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-constant * elem));
+            };
+          case element_op::exponential:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::exp(elem);
+            };
+          case element_op::exponential_standard_ratio:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = std::exp(-elem / constant);
+            };
+          case element_op::logarithm_one_plus_exp:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::log1p(std::exp(elem));
+            };
+          default:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem;
+            };
+        }
+      }();
     }
 
    private:
