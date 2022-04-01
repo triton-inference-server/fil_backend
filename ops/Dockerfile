@@ -158,7 +158,7 @@ RUN if ! command -v conda; then \
         apt-get update \
         && apt-get install --no-install-recommends -y wget \
         && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
+        && rm -rf /var/lib/apt/lists/*; \
       fi; \
       wget \
       https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
