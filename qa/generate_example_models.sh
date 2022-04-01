@@ -84,6 +84,19 @@ then
   models+=( $name )
 fi
 
+name=lightgbm_rf
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format lightgbm \
+    --type lightgbm_rf \
+    --depth 10 \
+    --trees 20 \
+    --classes 10
+  models+=( $name )
+fi
+
 name=regression
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then

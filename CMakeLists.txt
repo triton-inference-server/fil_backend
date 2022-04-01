@@ -158,6 +158,7 @@ else()
 
   # add third party dependencies using CPM
   rapids_cpm_init()
+  find_package(OpenMP REQUIRED)
 
   # Version and Branch to use for RAPIDS projects dependencies
   # This project trails behind RAPIDS versions by one release
@@ -241,6 +242,7 @@ else()
     triton-backend-utils
     "${TRITONSERVER_LIB}"
     $<TARGET_NAME_IF_EXISTS:conda_env>
+    OpenMP::OpenMP_CXX
   )
 
   if(TRITON_ENABLE_GPU)
