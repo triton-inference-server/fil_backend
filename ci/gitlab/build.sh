@@ -110,7 +110,7 @@ docker run \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   $MODEL_BUILDER_IMAGE \
-  bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
+  bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
 if [ $CPU_ONLY -eq 1 ]
 then

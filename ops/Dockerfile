@@ -159,7 +159,7 @@ COPY qa /qa
 COPY scripts /scripts
 
 ENTRYPOINT []
-CMD ["source", "/conda/test/bin/activate", "&&", "/qa/entrypoint.sh"]
+CMD ["/bin/bash", "-c", "source /conda/test/bin/activate && /qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE} as final
 
