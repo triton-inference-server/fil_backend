@@ -154,6 +154,12 @@ FROM ${SERVER_IMAGE} as test-stage
 ENV PATH="/root/miniconda3/bin:${PATH}"
 ENV PYTHONDONTWRITEBYTECODE=true
 RUN if ! command -v conda; then \
+      if ! command -v wget; then \
+        apt-get update \
+        && apt-get install --no-install-recommends -y wget \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*; \
+      fi; \
       wget \
       https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh \
       && mkdir /root/.conda \
