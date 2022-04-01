@@ -37,6 +37,7 @@ MODELS = (
     'xgboost_shap',
     'xgboost_json',
     'lightgbm',
+    'lightgbm_rf',
     'regression',
     'sklearn',
     'cuml'
