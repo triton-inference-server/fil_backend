@@ -14,6 +14,8 @@ ARG SERVER_IMAGE=build-stage
 ARG USE_CLIENT_WHEEL=0
 # SDK container image (only used if USE_CLIENT_WHEEL==1)
 ARG SDK_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3-sdk
+# Whether or not to use backend library prebuilt on host
+ARG USE_HOST_LIB=0
 
 FROM ${BASE_IMAGE} as base
 
@@ -149,7 +151,25 @@ RUN conda run --no-capture-output -n triton_test \
 
 
 # Stage for generating testing image
+FROM ${SERVER_IMAGE} as test-host-0
+FROM ${SERVER_IMAGE} as test-host-1
+
+ARG BACKEND_NAME=fil
+ENV BACKEND_NAME=$BACKEND_NAME
+
+# Remove existing FIL backend install
+RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
+    fi
+COPY ./install/backends/fil /opt/tritonserver/backends/${BACKEND_NAME}
+
+FROM test-host-${USE_HOST_LIB} as test-build
+
 FROM ${SERVER_IMAGE} as test-stage
+
+ARG BACKEND_NAME=fil
+ENV BACKEND_NAME=$BACKEND_NAME
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 ENV PYTHONDONTWRITEBYTECODE=true
@@ -170,6 +190,14 @@ RUN if ! command -v conda; then \
 ENV PYTHONDONTWRITEBYTECODE=false
 
 COPY --from=test-install /root/miniconda3 /root/miniconda3
+# Remove existing FIL backend install
+RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
+    fi
+COPY --from=test-build \
+  /opt/tritonserver/backends/$BACKEND_NAME \
+  /opt/tritonserver/backends/$BACKEND_NAME
 
 COPY qa /qa
 COPY scripts /scripts
@@ -182,7 +210,7 @@ CMD ["conda", "run", "--no-capture-output", "-n", "triton_test", "/qa/entrypoint
 
 FROM ${BASE_IMAGE} as final
 
-ARG BACKEND_NAME
+ARG BACKEND_NAME=fil
 ENV BACKEND_NAME=$BACKEND_NAME
 
 RUN mkdir /models
