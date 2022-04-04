@@ -123,6 +123,7 @@ fi
 
 echo "Running tests..."
 docker run \
+  -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \

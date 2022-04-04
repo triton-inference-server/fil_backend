@@ -201,7 +201,6 @@ fi
 [ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
 [ ! -z $BACKEND_REF ] || BACKEND_REF="r${TRITON_VERSION}"
 [ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF="r${TRITON_VERSION}"
-echo "WHWHWHWHWHWHWHWHWHWH $CORE_REF"
 
 if [ ! -z $SDK_IMAGE ]
 then
@@ -294,7 +293,6 @@ hostbuild () {
   BUILDDIR="$REPODIR/build"
   mkdir -p "$INSTALLDIR"
   mkdir -p "$BUILDDIR"
-  echo "WHWHWHWHWHWHWHWHWHWH $CORE_REF"
   pushd "$BUILDDIR"
   cmake \
     --log-level=VERBOSE \

@@ -14,6 +14,7 @@ QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
 CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 HOST_BUILD="${HOST_BUILD:-0}"
+TEST_PROFILE="${TEST_PROFILE:-dev}"
 
 export SERVER_TAG=triton_fil
 export TEST_TAG=triton_fil_test
@@ -51,6 +52,7 @@ docker run \
   -e RETRAIN=${RETRAIN:-0} \
   -e OWNER_ID=$(id -u) \
   -e OWNER_GID=$(id -g) \
+  -e TEST_PROFILE=$TEST_PROFILE \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
@@ -60,6 +62,7 @@ docker run \
 echo "Running GPU-enabled tests..."
 docker run \
   $DOCKER_ARGS \
+  -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
@@ -74,6 +77,7 @@ echo "Running CPU-only tests..."
 docker run \
   $DOCKER_ARGS \
   -e TRITON_ENABLE_GPU=OFF \
+  -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
