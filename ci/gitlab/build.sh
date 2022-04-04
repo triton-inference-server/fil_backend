@@ -14,7 +14,6 @@ set -e
 # NO_CACHE: 0 to enable Docker cache during build
 # USE_CLIENT_WHEEL: 1 to install Triton client from wheel for tests
 # SDK_IMAGE: If set, copy client wheel from this SDK image
-# HOST_BUILD: 1 to build backend lib on host and use it in tests
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
@@ -23,7 +22,6 @@ CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${CPU_ONLY:-1}
-HOST_BUILD=${HOST_BUILD:-0}
 
 if [ -z $CI_COMMIT_BRANCH ]
 then
