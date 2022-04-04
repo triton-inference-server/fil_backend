@@ -130,7 +130,7 @@ ENV TRITON_FIL_ENABLE_TREESHAP=$TRITON_FIL_ENABLE_TREESHAP
 
 COPY --from=conda-dev /conda/dev /conda/dev
 
-RUN . /conda/dev/bin/activate \
+RUN source /conda/dev/bin/activate \
  && cmake \
       --log-level=VERBOSE \
       -GNinja \
@@ -149,7 +149,7 @@ RUN . /conda/dev/bin/activate \
 
 ENV CCACHE_DIR=/ccache
 
-RUN --mount=type=cache,target=/ccache/ . /conda/dev/bin/activate && ninja install
+RUN --mount=type=cache,target=/ccache/ source /conda/dev/bin/activate && ninja install
 
 
 # Stage for generating testing image
