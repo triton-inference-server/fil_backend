@@ -130,6 +130,8 @@ ENV TRITON_FIL_ENABLE_TREESHAP=$TRITON_FIL_ENABLE_TREESHAP
 
 COPY --from=conda-dev /conda/dev /conda/dev
 
+SHELL ["/bin/bash", "-c"]
+
 RUN source /conda/dev/bin/activate \
  && cmake \
       --log-level=VERBOSE \
