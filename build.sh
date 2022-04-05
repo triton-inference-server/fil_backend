@@ -34,6 +34,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
    --no-cache       - disable Docker cache for build
+   --host           - build backend library on host, NOT in Docker
 
  default action (no args) is to build all targets
  The following environment variables are also accepted to allow further customization:
@@ -58,6 +59,7 @@ HELP="$0 [<target> ...] [<flag> ...]
                       build.py. For all other build methods, the backend will
                       simply be built with the current version of the code
    TREELITE_STATIC  - If ON, Treelite will be statically linked into the binaries
+   RAPIDS_VERSION   - The version of RAPIDS to require for RAPIDS dependencies
 "
 
 BUILD_TYPE=Release
@@ -65,6 +67,7 @@ TRITON_ENABLE_GPU=ON
 TRITON_FIL_ENABLE_TREESHAP=ON
 DOCKER_ARGS=""
 BUILDPY=0
+HOST_BUILD=0
 
 export DOCKER_BUILDKIT=1
 
@@ -94,6 +97,7 @@ LONG_ARGUMENT_LIST=(
     "tag-commit"
     "buildpy"
     "no-cache"
+    "host"
 )
 
 # Short arguments
@@ -140,6 +144,9 @@ do
     --no-cache )
       DOCKER_ARGS="$DOCKER_ARGS --no-cache"
       ;;
+    --host )
+      HOST_BUILD=1
+      ;;
     --)
       shift
       break
@@ -161,6 +168,13 @@ DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_ENABLE_TREESHAP}"
 
+if [ -z $RAPIDS_VERSION ]
+then
+  RAPIDS_VERSION=22.04
+else
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg RAPIDS_DEPENDENCIES_VERSION=${RAPIDS_VERSION}"
+fi
+
 if [ -z $BASE_IMAGE ]
 then
   BUILDPY_OPT=''
@@ -177,7 +191,16 @@ fi
 if [ ! -z $TRITON_VERSION ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
+elif [ $HOST_BUILD -eq 1 ]
+then
+  TRITON_VERSION=22.03
 fi
+
+[ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
+[ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
+[ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
+[ ! -z $BACKEND_REF ] || BACKEND_REF="r${TRITON_VERSION}"
+[ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF="r${TRITON_VERSION}"
 
 if [ ! -z $SDK_IMAGE ]
 then
@@ -193,6 +216,8 @@ fi
 if [ ! -z $TREELITE_STATIC ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_USE_TREELITE_STATIC=${TREELITE_STATIC}"
+else
+  TREELITE_STATIC='ON'
 fi
 
 TESTS=0
@@ -232,12 +257,6 @@ buildpy () {
   fi
   mkdir -p "$build_dir"
 
-  TRITON_REF=${TRITON_REF:-main}
-  COMMON_REF=${COMMON_REF:-main}
-  CORE_REF=${CORE_REF:-main}
-  BACKEND_REF=${BACKEND_REF:-main}
-  THIRDPARTY_REF=${THIRDPARTY_REF:-main}
-
   server_repo="${build_dir}/triton_server"
   if [ -d "$server_repo" ]
   then
@@ -269,11 +288,40 @@ buildpy () {
 
 }
 
+hostbuild () {
+  INSTALLDIR="$REPODIR/install/backends/fil"
+  BUILDDIR="$REPODIR/build"
+  mkdir -p "$INSTALLDIR"
+  mkdir -p "$BUILDDIR"
+  pushd "$BUILDDIR"
+  cmake \
+    --log-level=VERBOSE \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DBUILD_TESTS="OFF" \
+    -DTRITON_CORE_REPO_TAG="$CORE_REF" \
+    -DTRITON_COMMON_REPO_TAG="$COMMON_REF" \
+    -DTRITON_BACKEND_REPO_TAG="$BACKEND_REF" \
+    -DTRITON_ENABLE_GPU="$TRITON_ENABLE_GPU" \
+    -DTRITON_ENABLE_STATS="ON" \
+    -DRAPIDS_DEPENDENCIES_VERSION="$RAPIDS_VERSION" \
+    -DTRITON_FIL_USE_TREELITE_STATIC="$TREELITE_STATIC" \
+    -DTRITON_FIL_ENABLE_TREESHAP="$TRITON_FIL_ENABLE_TREESHAP" \
+    -DBACKEND_FOLDER="$INSTALLDIR" ..;
+  ninja
+  cp libtriton_fil.so "$INSTALLDIR"
+  cp _deps/cuml-build/libcuml++.so "$INSTALLDIR"
+  popd
+}
+
 if [ $BACKEND -eq 1 ]
 then
   if [ $BUILDPY -eq 1 ]
   then
     buildpy
+  elif [ $HOST_BUILD -eq 1 ]
+  then
+    hostbuild
   elif [ -z $PREBUILT_IMAGE ]
   then
     docker build \
@@ -290,6 +338,11 @@ then
 elif [ $BUILDPY -eq 1 ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg SERVER_IMAGE=${SERVER_TAG}"
+elif [ $HOST_BUILD -eq 1 ]
+then
+  SERVER_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg SERVER_IMAGE=${SERVER_IMAGE}"
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg USE_HOST_LIB=1"
 fi
 
 if [ $TESTS -eq 1 ]

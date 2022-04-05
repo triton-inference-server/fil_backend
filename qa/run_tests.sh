@@ -24,6 +24,7 @@ DOCKER_ARGS="-d -p 8000:8000 -p 8001:8001 -p 8002:8002 --name ${CONTAINER_NAME}"
 TRITON_PID=''
 LOG_DIR="${QA_DIR}/logs"
 SERVER_LOG="${LOG_DIR}/${UUID}-server.log"
+TEST_PROFILE=${TEST_PROFILE:-ci}
 
 if [ ! -d "${LOG_DIR}" ]
 then
@@ -100,10 +101,18 @@ trap finally EXIT
 
 if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
 then
-  pytest --repo "${MODEL_REPO}" --no_shap "$QA_DIR"
+  pytest \
+    --repo "${MODEL_REPO}" \
+    --no_shap \
+    --hypothesis-profile "$TEST_PROFILE" \
+    "$QA_DIR" 
 elif [ "$TRITON_FIL_ENABLE_TREESHAP" == "OFF" ]
 then
-  pytest --repo "${MODEL_REPO}" --no_shap "$QA_DIR"
+  pytest \
+    --repo "${MODEL_REPO}" \
+    --no_shap \
+    --hypothesis-profile "$TEST_PROFILE" \
+    "$QA_DIR"
 else
-  pytest --repo "${MODEL_REPO}" "$QA_DIR"
+  pytest --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
 fi
