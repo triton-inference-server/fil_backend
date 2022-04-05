@@ -21,7 +21,7 @@ COPY ./ops/gpuci_mamba_retry /usr/bin/gpuci_mamba_retry
 RUN chmod +x /usr/bin/gpuci_conda_retry /usr/bin/gpuci_mamba_retry
 
 RUN mkdir /conda
-RUN gpuci_mamba_retry install -c conda-forge conda-pack
+RUN gpuci_mamba_retry install -c conda-forge conda-pack=0.7
 
 FROM conda-base as conda-dev
 COPY ./conda/environments/rapids_triton_dev.yml /conda/environment.yml
