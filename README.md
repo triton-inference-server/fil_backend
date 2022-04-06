@@ -82,6 +82,34 @@ To build the Triton server container with the FIL backend, you can invoke the
 at a later date. Please file an issue if you have need for greater build
 customization than is provided by standard build options.**
 
+#### Docker-free build (EXPERIMENTAL)
+
+To build the FIL backend library on the host (as opposed to in Docker), the
+following prerequisites are required:
+- cMake >= 3.21, != 3.23
+- ccache
+- ninja
+- RapidJSON
+- nvcc >= 11.0
+- The CUDA Toolkit
+All of these except nvcc and the CUDA Toolkit can be installed in a `conda`
+environment via the following:
+```bash
+conda env create -f conda/environments/rapids_triton_dev.yml
+```
+
+Then the backend library can be built within this environment as follows:
+```bash
+conda activate rapids_triton_dev
+./build.sh --host server
+```
+The backend libraries will be installed in `install/backends/fil` and can be
+copied to the backends directory of a Triton installation.
+
+This build path is considered experimental. It is primarily used for rapid
+iteration during development. Building a full Triton Docker image is the
+recommended method for environments that require the latest FIL backend code.
+
 ### Running the server
 
 Before starting the server, you will need to set up a "model repository"
