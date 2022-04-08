@@ -191,8 +191,7 @@ fi
 if [ ! -z $TRITON_VERSION ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
-elif [ $HOST_BUILD -eq 1 ]
-then
+else
   TRITON_VERSION=22.03
 fi
 
