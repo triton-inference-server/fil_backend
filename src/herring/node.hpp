@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <bitset>
 #include <cstdint>
 
 namespace herring {
@@ -42,41 +43,49 @@ namespace herring {
     union value_or_index {
       value_type value;
       output_index_type index;
+      std::bitset<std::max(sizeof(value_type), sizeof(output_index_type))> categories;
     };
     value_or_index value;  // 4 bytes for float
     offset_type distant_offset;  // 2 bytes for depth < 16 or small trees; 4 otherwise
     index_type feature; // 1-4 bytes, depending on number of features
   };
 
-  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float const* row) {
+  template<bool categorical, bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
+    auto condition = false;
+    if constexpr (categorical) {
+      if constexpr (inclusive_threshold) {
+        if (feature_value > 0 && feature_value < node.value.categories.size()) {
+          condition = node.value.categories[feature_value];
+        }
+      } else {
+        if (feature_value > 0 && feature_value < node.value.categories.size()) {
+          condition = !node.value.categories[feature_value];
+        } else {
+          condition = true;
+        }
+      }
+    } else {
+      if constexpr (inclusive_threshold) {
+        condition = (feature_value <= node.value.value);
+      } else {
+        condition = (feature_value < node.value.value);
+      }
+    }
+
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
     // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
-    if constexpr (inclusive_threshold) {
-      return offset_t{1 + (*(row + node.feature) <= node.value.value) * (node.distant_offset - 1)};
-    } else {
-      return offset_t{1 + (*(row + node.feature) < node.value.value) * (node.distant_offset - 1)};
-    }
+    return offset_t{1 + condition * (node.distant_offset - 1)};
 #pragma GCC diagnostic pop
   }
 
-  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
-    // This narrowing conversion is guaranteed safe because distant_offset
-    // cannot be 0
-    // TODO(wphicks): Guarantee this with custom types
-    // (https://github.com/triton-inference-server/fil_backend/issues/204)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnarrowing"
-    if constexpr (inclusive_threshold) {
-      return offset_t{1 + (feature_value <= node.value.value) * (node.distant_offset - 1)};
-    } else {
-      return offset_t{1 + (feature_value < node.value.value) * (node.distant_offset - 1)};
-    }
-#pragma GCC diagnostic pop
+  template<bool categorical, bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float const* row) {
+    auto feature_value = *(row + node.feature);
+    return evaluate_node<categorical, inclusive_threshold>(node, feature_value);
   }
 }

@@ -59,6 +59,7 @@ namespace herring {
     float postproc_constant;
     std::vector<bool> mutable row_has_missing;
     bool use_inclusive_threshold;
+    std::vector<bool> node_is_categorical;
 
     void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
       if (!precompute_missing(input, num_row)) {

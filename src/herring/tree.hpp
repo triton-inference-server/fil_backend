@@ -45,7 +45,7 @@ namespace herring {
       return get_leaf_value(nodes[node_index]);
     }
 
-    template<bool missing_values_in_row, bool inclusive_threshold>
+    template<bool missing_values_in_row, bool categorical, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
       if constexpr(missing_values_in_row) {
@@ -53,7 +53,7 @@ namespace herring {
         auto present = !std::isnan(feature_value);
         auto result = offset_t{};
         if(present) {
-          result = evaluate_node<inclusive_threshold>(node, feature_value);
+          result = evaluate_node<categorical, inclusive_threshold>(node, feature_value);
         } else {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
@@ -66,7 +66,7 @@ namespace herring {
         }
         return result;
       } else {
-        return evaluate_node<inclusive_threshold>(node, row);
+        return evaluate_node<categorical, inclusive_threshold>(node, row);
       }
     }
   };
@@ -99,7 +99,7 @@ namespace herring {
       return leaf_outputs[nodes[node_id].value.index];
     }
 
-    template<bool missing_values_in_row, bool inclusive_threshold>
+    template<bool missing_values_in_row, bool categorical, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
       auto result = offset_t{};
@@ -107,7 +107,7 @@ namespace herring {
         auto feature_value = *(row + node.feature);
         auto present = !std::isnan(feature_value);
         if (present) {
-          result = evaluate_node<inclusive_threshold>(node, feature_value);
+          result = evaluate_node<categorical, inclusive_threshold>(node, feature_value);
         } else {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
@@ -119,7 +119,7 @@ namespace herring {
 #pragma GCC diagnostic pop
         }
       } else {
-        result = evaluate_node<inclusive_threshold>(node, row);
+        result = evaluate_node<categorical, inclusive_threshold>(node, row);
       }
       return result;
     }
