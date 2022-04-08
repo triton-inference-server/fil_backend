@@ -190,18 +190,26 @@ fi
 
 if [ ! -z $TRITON_VERSION ] && [ $HOST_BUILD -eq 1 ]
 then
+  # Must use a version compatible with a released backend image in order to
+  # test a host build, so default to latest release branch rather than main
   TRITON_VERSION=22.03
 fi
 
 if [ ! -z $TRITON_VERSION ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
+  # If the user has specified a TRITON_VERSION (or if we are performing a host
+  # build), set the upstream repo references to the corresponding branches
+  # (unless otherwise specified by the user)
   [ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
   [ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
   [ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
   [ ! -z $BACKEND_REF ] || BACKEND_REF="r${TRITON_VERSION}"
   [ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF="r${TRITON_VERSION}"
 else
+  # If TRITON_VERSION has not been set, these values will only be used for a
+  # full build.py build, so it is safe to default to main rather than a release
+  # branch.
   [ ! -z $TRITON_REF ] || TRITON_REF='main'
   [ ! -z $COMMON_REF ] || COMMON_REF='main'
   [ ! -z $CORE_REF ] || CORE_REF='main'
