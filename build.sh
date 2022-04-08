@@ -188,19 +188,26 @@ then
   BUILDPY_OPT="${BUILDPY_OPT} --enable-gpu"
 fi
 
-if [ ! -z $TRITON_VERSION ]
-then
-  DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
-elif [ $HOST_BUILD -eq 1 ]
+if [ ! -z $TRITON_VERSION ] && [ $HOST_BUILD -eq 1 ]
 then
   TRITON_VERSION=22.03
 fi
 
-[ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
-[ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
-[ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
-[ ! -z $BACKEND_REF ] || BACKEND_REF="r${TRITON_VERSION}"
-[ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF="r${TRITON_VERSION}"
+if [ ! -z $TRITON_VERSION ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_VERSION=${TRITON_VERSION}"
+  [ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
+  [ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
+  [ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
+  [ ! -z $BACKEND_REF ] || BACKEND_REF="r${TRITON_VERSION}"
+  [ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF="r${TRITON_VERSION}"
+else
+  [ ! -z $TRITON_REF ] || TRITON_REF='main'
+  [ ! -z $COMMON_REF ] || COMMON_REF='main'
+  [ ! -z $CORE_REF ] || CORE_REF='main'
+  [ ! -z $BACKEND_REF ] || BACKEND_REF='main'
+  [ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF='main'
+fi
 
 if [ ! -z $SDK_IMAGE ]
 then
