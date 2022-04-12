@@ -18,7 +18,6 @@
 
 #include<cstddef>
 #include<functional>
-#include<iostream>
 #include<new>
 #include<numeric>
 #include<type_traits>

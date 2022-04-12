@@ -57,7 +57,7 @@ namespace herring {
   auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
     auto condition = false;
     if constexpr (categorical) {
-      if (feature_value > 0 && feature_value < node.value.categories.size()) {
+      if (feature_value >= 0 && feature_value < node.value.categories.size()) {
         // NOTE: This cast aligns with the convention used in LightGBM and
         // other frameworks to cast floats when converting to integral
         // categories. This can have surprising effects with floating point

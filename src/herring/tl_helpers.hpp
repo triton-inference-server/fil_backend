@@ -17,7 +17,6 @@
 #pragma once
 
 #include <exception>
-#include <iostream>
 #include <stack>
 #include <string>
 #include <variant>
@@ -120,6 +119,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         }
       }
       result.default_distant.push_back(false);
+      result.categorical_node.push_back(false);
     } else {
       cur_node.feature = tl_tree.SplitIndex(cur_node_id);
 
@@ -154,11 +154,11 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         }
       } else {
         if (tl_tree.CategoriesListRightChild(cur_node_id)) {
-          hot_child = right_id;
-          distant_child = left_id;
-        } else {
           hot_child = left_id;
           distant_child = right_id;
+        } else {
+          hot_child = right_id;
+          distant_child = left_id;
         }
         auto tl_categories = tl_tree.MatchingCategories(cur_node_id);
         auto constexpr max_category = typename tree_t::node_type::category_set_type{}.size();
