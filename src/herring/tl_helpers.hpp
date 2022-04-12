@@ -151,7 +151,29 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
           throw unconvertible_model_exception{"Unsupported comparison operator"};
         }
       } else {
-        throw unconvertible_model_exception{"Categorical nodes not yet implemented"};
+        if (tl_tree.CategoriesListRightChild()) {
+          hot_child = right_id;
+          distant_child = left_id;
+        } else {
+          hot_child = left_id;
+          distant_child = right_id;
+        }
+        auto tl_categories = tl_tree.MatchingCategories();
+        auto bit_representation = std::transform_reduce(
+          std::begin(tl_categories),
+          std::end(tl_categories),
+          std::size_t{},
+          std::plus<>(),
+          [](auto&& category) {
+            if (category > tree_t::node_type::category_set_type::size()) {
+              throw unconvertible_model_exception{
+                "Too many categories for size of category storage"
+              };
+            }
+            return std::size_t{1} << category;
+          }
+        );
+        cur_node.value.categories = typename tree_t::node_type::category_set_type{bit_representation};
       }
 
       result.default_distant.push_back(distant_child == default_child);

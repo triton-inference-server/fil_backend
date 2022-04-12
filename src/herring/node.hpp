@@ -38,12 +38,13 @@ namespace herring {
     using index_type = feature_index_t;
     using offset_type = offset_t;
     using output_index_type = output_index_t;
+    using category_set_type = std::bitset<std::max(sizeof(value_type), sizeof(output_index_type))>;
     // Cannot use std::variant here because it takes up 4 additional bytes when
     // value_type is float
     union value_or_index {
       value_type value;
       output_index_type index;
-      std::bitset<std::max(sizeof(value_type), sizeof(output_index_type))> categories;
+      category_set_type categories;
     };
     value_or_index value;  // 4 bytes for float
     offset_type distant_offset;  // 2 bytes for depth < 16 or small trees; 4 otherwise
@@ -54,16 +55,8 @@ namespace herring {
   auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
     auto condition = false;
     if constexpr (categorical) {
-      if constexpr (inclusive_threshold) {
-        if (feature_value > 0 && feature_value < node.value.categories.size()) {
-          condition = node.value.categories[feature_value];
-        }
-      } else {
-        if (feature_value > 0 && feature_value < node.value.categories.size()) {
-          condition = !node.value.categories[feature_value];
-        } else {
-          condition = true;
-        }
+      if (feature_value > 0 && feature_value < node.value.categories.size()) {
+        condition = node.value.categories[feature_value];
       }
     } else {
       if constexpr (inclusive_threshold) {

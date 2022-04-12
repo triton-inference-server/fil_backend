@@ -59,20 +59,39 @@ namespace herring {
     float postproc_constant;
     std::vector<bool> mutable row_has_missing;
     bool use_inclusive_threshold;
-    std::vector<bool> node_is_categorical;
+    bool has_categorical_nodes;
+    std::vector<std::vector<bool>> node_is_categorical;
 
     void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
-      if (!precompute_missing(input, num_row)) {
-        if (!use_inclusive_threshold) {
-          predict_<false, false>(input, output, num_row, nthread);
+      // TODO (wphicks): The following can be dramatically simplified with
+      // template metaprogramming
+      if (!has_categorical_nodes) {
+        if (!precompute_missing(input, num_row)) {
+          if (!use_inclusive_threshold) {
+            predict_<false, false, false>(input, output, num_row, nthread);
+          } else {
+            predict_<false, false, true>(input, output, num_row, nthread);
+          }
         } else {
-          predict_<false, true>(input, output, num_row, nthread);
+          if (!use_inclusive_threshold) {
+            predict_<true, false, false>(input, output, num_row, nthread);
+          } else {
+            predict_<true, false, true>(input, output, num_row, nthread);
+          }
         }
       } else {
-        if (!use_inclusive_threshold) {
-          predict_<true, false>(input, output, num_row, nthread);
+        if (!precompute_missing(input, num_row)) {
+          if (!use_inclusive_threshold) {
+            predict_<false, true, false>(input, output, num_row, nthread);
+          } else {
+            predict_<false, true, true>(input, output, num_row, nthread);
+          }
         } else {
-          predict_<true, true>(input, output, num_row, nthread);
+          if (!use_inclusive_threshold) {
+            predict_<true, true, false>(input, output, num_row, nthread);
+          } else {
+            predict_<true, true, true>(input, output, num_row, nthread);
+          }
         }
       }
     }
@@ -199,7 +218,7 @@ namespace herring {
     }
 
 
-    template<bool missing_value_in_input, bool inclusive_threshold>
+    template<bool missing_value_in_input, bool categorical_model, bool inclusive_threshold>
     void predict_(float const* input, float* output, std::size_t num_row, thread_count<int> nthread) const {
       // "Groves" are groups of trees which are processed together in a single
       // thread. Similarly, "blocks" are groups of rows that are processed
@@ -236,14 +255,40 @@ namespace herring {
             // Find leaf node
             auto node_index = std::size_t{};
             while (tree.nodes[node_index].distant_offset != 0) {
-              if constexpr (missing_value_in_input) {
-                if (not row_has_missing[row_index]) {
-                  node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
+              // TODO (wphicks): The following can be dramatically simplified
+              // with template metaprogramming
+              if constexpr (categorical_model) {
+                if constexpr (missing_value_in_input) {
+                  if (not row_has_missing[row_index]) {
+                    if (not node_is_categorical[tree_index][node_index]){
+                      node_index += tree.template evaluate_tree_node<false, false,  inclusive_threshold>(node_index, input + row_index * num_feature);
+                    } else {
+                      node_index += tree.template evaluate_tree_node<false, true,  inclusive_threshold>(node_index, input + row_index * num_feature);
+                    }
+                  } else {
+                    if (not node_is_categorical[tree_index][node_index]){
+                      node_index += tree.template evaluate_tree_node<true, false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                    } else {
+                      node_index += tree.template evaluate_tree_node<true, true, inclusive_threshold>(node_index, input + row_index * num_feature);
+                    }
+                  }
                 } else {
-                  node_index += tree.template evaluate_tree_node<true, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  if (not node_is_categorical[tree_index][node_index]){
+                    node_index += tree.template evaluate_tree_node<false, false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  } else {
+                    node_index += tree.template evaluate_tree_node<false, true, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  }
                 }
               } else {
-                node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                if constexpr (missing_value_in_input) {
+                  if (not row_has_missing[row_index]) {
+                    node_index += tree.template evaluate_tree_node<false, false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  } else {
+                    node_index += tree.template evaluate_tree_node<true, false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  }
+                } else {
+                  node_index += tree.template evaluate_tree_node<false, false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                }
               }
             }
 
