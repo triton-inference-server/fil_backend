@@ -31,6 +31,8 @@ namespace herring {
     using output_type = output_t;
     std::vector<node_type> nodes;
     std::vector<bool> default_distant;
+    std::vector<bool> categorical_node;
+    bool has_categorical_nodes;
 
     auto get_leaf_value(node_type const& node) const {
       if constexpr (std::is_same_v<value_t, output_t>) {
@@ -45,15 +47,45 @@ namespace herring {
       return get_leaf_value(nodes[node_index]);
     }
 
-    template<bool missing_values_in_row, bool categorical, bool inclusive_threshold>
+    template<bool missing_values_in_row, bool categorical_model, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, float const* row) const {
+      auto result = offset_t{};
+      if constexpr (categorical_model) {
+        if (!has_categorical_nodes) {
+          result = evaluate_tree_node_<missing_values_in_row, false, inclusive_threshold>(
+            node_index, row
+          );
+        } else {
+          result = evaluate_tree_node_<missing_values_in_row, true, inclusive_threshold>(
+            node_index, row
+          );
+        }
+      } else {
+        result = evaluate_tree_node_<missing_values_in_row, false, inclusive_threshold>(
+          node_index, row
+        );
+      }
+      return result;
+    };
+
+   private:
+    template<bool missing_values_in_row, bool categorical_tree, bool inclusive_threshold>
+    auto evaluate_tree_node_(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
+      auto result = offset_t{};
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
         auto present = !std::isnan(feature_value);
-        auto result = offset_t{};
-        if(present) {
-          result = evaluate_node<categorical, inclusive_threshold>(node, feature_value);
+        if (present) {
+          if constexpr (categorical_tree) {
+            if (!categorical_node[node_index]) {
+              result = evaluate_node<false, inclusive_threshold>(node, feature_value);
+            } else {
+              result = evaluate_node<true, inclusive_threshold>(node, feature_value);
+            }
+          } else {
+            result = evaluate_node<false, inclusive_threshold>(node, feature_value);
+          }
         } else {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
@@ -64,10 +96,18 @@ namespace herring {
           result = 1 + (node.distant_offset - 1) * default_distant[node_index];
 #pragma GCC diagnostic pop
         }
-        return result;
       } else {
-        return evaluate_node<categorical, inclusive_threshold>(node, row);
+        if constexpr (categorical_tree) {
+          if (!categorical_node[node_index]) {
+            result = evaluate_node<false, inclusive_threshold>(node, row);
+          } else {
+            result = evaluate_node<true, inclusive_threshold>(node, row);
+          }
+        } else {
+          result = evaluate_node<false, inclusive_threshold>(node, row);
+        }
       }
+      return result;
     }
   };
 
@@ -80,6 +120,8 @@ namespace herring {
     std::vector<node_type> nodes;
     std::vector<output_type> leaf_outputs;
     std::vector<offset_t> default_distant;
+    std::vector<bool> categorical_node;
+    bool has_categorical_nodes;
 
     template <
       typename tree_output_type = output_t,
@@ -99,15 +141,45 @@ namespace herring {
       return leaf_outputs[nodes[node_id].value.index];
     }
 
-    template<bool missing_values_in_row, bool categorical, bool inclusive_threshold>
+    template<bool missing_values_in_row, bool categorical_model, bool inclusive_threshold>
     auto evaluate_tree_node(std::size_t node_index, float const* row) const {
+      auto result = offset_t{};
+      if constexpr (categorical_model) {
+        if (!has_categorical_nodes) {
+          result = evaluate_tree_node_<missing_values_in_row, false, inclusive_threshold>(
+            node_index, row
+          );
+        } else {
+          result = evaluate_tree_node_<missing_values_in_row, true, inclusive_threshold>(
+            node_index, row
+          );
+        }
+      } else {
+        result = evaluate_tree_node_<missing_values_in_row, false, inclusive_threshold>(
+          node_index, row
+        );
+      }
+      return result;
+    };
+
+   private:
+    template<bool missing_values_in_row, bool categorical_tree, bool inclusive_threshold>
+    auto evaluate_tree_node_(std::size_t node_index, float const* row) const {
       auto const& node = nodes[node_index];
       auto result = offset_t{};
       if constexpr(missing_values_in_row) {
         auto feature_value = *(row + node.feature);
         auto present = !std::isnan(feature_value);
         if (present) {
-          result = evaluate_node<categorical, inclusive_threshold>(node, feature_value);
+          if constexpr (categorical_tree) {
+            if (!categorical_node[node_index]) {
+              result = evaluate_node<false, inclusive_threshold>(node, feature_value);
+            } else {
+              result = evaluate_node<true, inclusive_threshold>(node, feature_value);
+            }
+          } else {
+            result = evaluate_node<false, inclusive_threshold>(node, feature_value);
+          }
         } else {
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
@@ -119,9 +191,17 @@ namespace herring {
 #pragma GCC diagnostic pop
         }
       } else {
-        result = evaluate_node<categorical, inclusive_threshold>(node, row);
+        if constexpr (categorical_tree) {
+          if (!categorical_node[node_index]) {
+            result = evaluate_node<false, inclusive_threshold>(node, row);
+          } else {
+            result = evaluate_node<true, inclusive_threshold>(node, row);
+          }
+        } else {
+          result = evaluate_node<false, inclusive_threshold>(node, row);
+        }
       }
-      return result;
+    return result;
     }
   };
 }

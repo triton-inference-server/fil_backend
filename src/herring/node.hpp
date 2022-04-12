@@ -49,6 +49,8 @@ namespace herring {
     value_or_index value;  // 4 bytes for float
     offset_type distant_offset;  // 2 bytes for depth < 16 or small trees; 4 otherwise
     index_type feature; // 1-4 bytes, depending on number of features
+
+    simple_node() : value{value_type{}}, distant_offset{}, feature{} {}
   };
 
   template<bool categorical, bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
@@ -56,7 +58,12 @@ namespace herring {
     auto condition = false;
     if constexpr (categorical) {
       if (feature_value > 0 && feature_value < node.value.categories.size()) {
-        condition = node.value.categories[feature_value];
+        // NOTE: This cast aligns with the convention used in LightGBM and
+        // other frameworks to cast floats when converting to integral
+        // categories. This can have surprising effects with floating point
+        // arithmetic, but it is kept this way for now in order to provide
+        // consistency with results obtained from the training frameworks.
+        condition = node.value.categories[static_cast<std::size_t>(feature_value)];
       }
     } else {
       if constexpr (inclusive_threshold) {
