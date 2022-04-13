@@ -162,21 +162,10 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         }
         auto tl_categories = tl_tree.MatchingCategories(cur_node_id);
         auto constexpr max_category = typename tree_t::node_type::category_set_type{}.size();
-        auto bit_representation = std::transform_reduce(
-          std::begin(tl_categories),
-          std::end(tl_categories),
-          std::size_t{},
-          std::plus<>(),
-          [](auto&& category) {
-            if (category > max_category) {
-              throw unconvertible_model_exception{
-                "Too many categories for size of category storage"
-              };
-            }
-            return std::size_t{1} << category;
-          }
-        );
-        cur_node.value.categories = typename tree_t::node_type::category_set_type{bit_representation};
+        cur_node.value.categories = typename tree_t::node_type::category_set_type{};
+        for (auto category : tl_categories) {
+          cur_node.value.categories[category] = true;
+        }
       }
 
       result.default_distant.push_back(distant_child == default_child);
