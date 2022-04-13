@@ -42,5 +42,5 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_rapids_triton(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                                  FORK       rapidsai
-                                 PINNED_TAG fil-backend-2203
+                                 PINNED_TAG branch-22.04
                                  )
