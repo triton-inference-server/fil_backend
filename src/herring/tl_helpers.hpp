@@ -130,7 +130,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
       auto tl_split = tl_tree.SplitType(cur_node_id);
       auto categorical = (tl_split == treelite::SplitFeatureType::kCategorical);
 
-      // Hot child is always less-than or in-category condition
+      // Distant child is always less-than or in-category condition
       if (!categorical) {
         cur_node.value.value = tl_tree.Threshold(cur_node_id);
         auto inclusive_threshold_node = (
