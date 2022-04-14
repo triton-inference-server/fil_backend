@@ -164,6 +164,9 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         auto constexpr max_category = typename tree_t::node_type::category_set_type{}.size();
         cur_node.value.categories = typename tree_t::node_type::category_set_type{};
         for (auto category : tl_categories) {
+          if (category >= max_category) {
+            throw unconvertible_model_exception{"Too many categories for categorical storage size"};
+          }
           cur_node.value.categories[category] = true;
         }
       }
