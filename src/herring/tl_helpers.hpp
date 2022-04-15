@@ -17,7 +17,6 @@
 #pragma once
 
 #include <exception>
-#include <iostream>
 #include <stack>
 #include <string>
 #include <variant>
@@ -47,15 +46,17 @@ struct unconvertible_model_exception : std::exception {
   std::string msg_;
 };
 
-// TODO(wphicks): Currently, the model use_inclusive_threshold parameter is
-// changed as a side-effect of this function. This is messy and confusing, and
-// it should be fixed in a later refactor
-// https://github.com/triton-inference-server/fil_backend/issues/205
+// TODO(wphicks): Currently, the model use_inclusive_threshold and
+// has_categorical_trees parameters are changed as a side-effect of this
+// function. This is messy and confusing, and it should be fixed in a later
+// refactor https://github.com/triton-inference-server/fil_backend/issues/205
 template<typename tree_t, typename tl_threshold_t, typename tl_output_t>
-auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold) {
+auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold, bool& categorical_model) {
   auto result = tree_t{};
   result.nodes.reserve(tl_tree.num_nodes);
   result.default_distant.reserve(tl_tree.num_nodes);
+  result.categorical_node.reserve(tl_tree.num_nodes);
+  result.has_categorical_nodes = false;
 
   // TL node id for current node
   auto cur_node_id = int{};
@@ -118,6 +119,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         }
       }
       result.default_distant.push_back(false);
+      result.categorical_node.push_back(false);
     } else {
       cur_node.feature = tl_tree.SplitIndex(cur_node_id);
 
@@ -151,10 +153,28 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
           throw unconvertible_model_exception{"Unsupported comparison operator"};
         }
       } else {
-        throw unconvertible_model_exception{"Categorical nodes not yet implemented"};
+        if (tl_tree.CategoriesListRightChild(cur_node_id)) {
+          hot_child = left_id;
+          distant_child = right_id;
+        } else {
+          hot_child = right_id;
+          distant_child = left_id;
+        }
+        auto tl_categories = tl_tree.MatchingCategories(cur_node_id);
+        auto constexpr max_category = typename tree_t::node_type::category_set_type{}.size();
+        cur_node.value.categories = typename tree_t::node_type::category_set_type{};
+        for (auto category : tl_categories) {
+          if (category >= max_category) {
+            throw unconvertible_model_exception{"Too many categories for categorical storage size"};
+          }
+          cur_node.value.categories[category] = true;
+        }
       }
 
       result.default_distant.push_back(distant_child == default_child);
+      result.categorical_node.push_back(categorical);
+      result.has_categorical_nodes |= categorical;
+      categorical_model |= categorical;
 
       node_stack.push(distant_child);
       node_stack.push(hot_child);
@@ -221,7 +241,7 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
     std::begin(tl_model.trees),
     std::end(tl_model.trees),
     std::back_inserter(result.trees),
-    [&result](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree, result.use_inclusive_threshold); }
+    [&result](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree, result.use_inclusive_threshold, result.has_categorical_trees); }
   );
 
   result.num_class = tl_model.task_param.num_class;
