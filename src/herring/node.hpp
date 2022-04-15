@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <bitset>
 #include <cstdint>
 
 namespace herring {
@@ -37,46 +38,54 @@ namespace herring {
     using index_type = feature_index_t;
     using offset_type = offset_t;
     using output_index_type = output_index_t;
+    using category_set_type = std::bitset<std::max(sizeof(value_type), sizeof(output_index_type))>;
     // Cannot use std::variant here because it takes up 4 additional bytes when
     // value_type is float
     union value_or_index {
       value_type value;
       output_index_type index;
+      category_set_type categories;
     };
     value_or_index value;  // 4 bytes for float
     offset_type distant_offset;  // 2 bytes for depth < 16 or small trees; 4 otherwise
     index_type feature; // 1-4 bytes, depending on number of features
+
+    simple_node() : value{value_type{}}, distant_offset{}, feature{} {}
   };
 
-  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float const* row) {
+  template<bool categorical, bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
+    auto condition = false;
+    if constexpr (categorical) {
+      if (feature_value >= 0 && feature_value < node.value.categories.size()) {
+        // NOTE: This cast aligns with the convention used in LightGBM and
+        // other frameworks to cast floats when converting to integral
+        // categories. This can have surprising effects with floating point
+        // arithmetic, but it is kept this way for now in order to provide
+        // consistency with results obtained from the training frameworks.
+        condition = node.value.categories[static_cast<std::size_t>(feature_value)];
+      }
+    } else {
+      if constexpr (inclusive_threshold) {
+        condition = (feature_value <= node.value.value);
+      } else {
+        condition = (feature_value < node.value.value);
+      }
+    }
+
     // This narrowing conversion is guaranteed safe because distant_offset
     // cannot be 0
     // TODO(wphicks): Guarantee this with custom types
     // (https://github.com/triton-inference-server/fil_backend/issues/204)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
-    if constexpr (inclusive_threshold) {
-      return offset_t{1 + (*(row + node.feature) <= node.value.value) * (node.distant_offset - 1)};
-    } else {
-      return offset_t{1 + (*(row + node.feature) < node.value.value) * (node.distant_offset - 1)};
-    }
+    return offset_t{1 + condition * (node.distant_offset - 1)};
 #pragma GCC diagnostic pop
   }
 
-  template<bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
-  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float feature_value) {
-    // This narrowing conversion is guaranteed safe because distant_offset
-    // cannot be 0
-    // TODO(wphicks): Guarantee this with custom types
-    // (https://github.com/triton-inference-server/fil_backend/issues/204)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnarrowing"
-    if constexpr (inclusive_threshold) {
-      return offset_t{1 + (feature_value <= node.value.value) * (node.distant_offset - 1)};
-    } else {
-      return offset_t{1 + (feature_value < node.value.value) * (node.distant_offset - 1)};
-    }
-#pragma GCC diagnostic pop
+  template<bool categorical, bool inclusive_threshold, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t>
+  auto evaluate_node(simple_node<value_t, feature_index_t, offset_t, output_index_t> const& node, float const* row) {
+    auto feature_value = *(row + node.feature);
+    return evaluate_node<categorical, inclusive_threshold>(node, feature_value);
   }
 }
