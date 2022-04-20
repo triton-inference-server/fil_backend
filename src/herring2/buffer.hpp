@@ -51,7 +51,17 @@ struct buffer {
       }
       return result;
     }()},
-    size_{size}
+    size_{size},
+    cached_ptr {[this](){
+      auto result = static_cast<T*>(nullptr);
+      switch(data_.index()) {
+        case 0: result = std::get<0>(data_).get(); break;
+        case 1: result = std::get<1>(data_).get(); break;
+        case 2: result = std::get<2>(data_).get(); break;
+        case 3: result = std::get<3>(data_).get(); break;
+      }
+      return result;
+    }()}
   {
   }
 
@@ -84,7 +94,17 @@ struct buffer {
       }
       return result;
     }()},
-    size_{size}
+    size_{size},
+    cached_ptr {[this](){
+      auto result = static_cast<T*>(nullptr);
+      switch(data_.index()) {
+        case 0: result = std::get<0>(data_).get(); break;
+        case 1: result = std::get<1>(data_).get(); break;
+        case 2: result = std::get<2>(data_).get(); break;
+        case 3: result = std::get<3>(data_).get(); break;
+      }
+      return result;
+    }()}
   {
   }
 
@@ -112,7 +132,17 @@ struct buffer {
       copy(result.get(), other.get(), other.size(), stream);
       return result;
     }()},
-    size_{other.size()}
+    size_{other.size()},
+    cached_ptr {[this](){
+      auto result = static_cast<T*>(nullptr);
+      switch(data_.index()) {
+        case 0: result = std::get<0>(data_).get(); break;
+        case 1: result = std::get<1>(data_).get(); break;
+        case 2: result = std::get<2>(data_).get(); break;
+        case 3: result = std::get<3>(data_).get(); break;
+      }
+      return result;
+    }()}
   {
   }
 
@@ -152,7 +182,17 @@ struct buffer {
       } else {
       }
     }()},
-    size_{other.size()}
+    size_{other.size()},
+    cached_ptr {[this](){
+      auto result = static_cast<T*>(nullptr);
+      switch(data_.index()) {
+        case 0: result = std::get<0>(data_).get(); break;
+        case 1: result = std::get<1>(data_).get(); break;
+        case 2: result = std::get<2>(data_).get(); break;
+        case 3: result = std::get<3>(data_).get(); break;
+      }
+      return result;
+    }()}
   {
   }
   buffer(buffer<T>&& other, device_type mem_type, int device)
@@ -169,14 +209,7 @@ struct buffer {
 
   auto size() const noexcept { return size_; }
   auto* get() const noexcept {
-    auto result = static_cast<T*>(nullptr);
-    switch(data_.index()) {
-      case 0: result = std::get<0>(data_).get(); break;
-      case 1: result = std::get<1>(data_).get(); break;
-      case 2: result = std::get<2>(data_).get(); break;
-      case 3: result = std::get<3>(data_).get(); break;
-    }
-    return result;
+    return cached_ptr;
   }
   auto memory_type() const noexcept {
     auto result = device_type{};
@@ -197,11 +230,16 @@ struct buffer {
     return result;
   }
 
+  auto const& operator[](std::size_t index) const {
+    return *(get() + index);
+  }
+
 
  private:
   device_id_variant device_;
   data_store data_;
   size_type size_;
+  T* cached_ptr;
 
 };
 

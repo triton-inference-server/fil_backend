@@ -4,8 +4,14 @@
 namespace herring {
 #ifdef ENABLE_GPU
 auto constexpr GPU_ENABLED = true;
+#define HOST __host__
+#define DEVICE __device__
+#define GLOBAL __global__
 #else
 auto constexpr GPU_ENABLED = false;
+#define HOST
+#define DEVICE
+#define GLOBAL
 #endif
 
 struct gpu_unsupported : std::exception {
