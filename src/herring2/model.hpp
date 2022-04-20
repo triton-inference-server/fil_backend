@@ -1,7 +1,10 @@
 #pragma once
 #include <bitset>
 #include <cstddef>
+#include <functional>
 #include <vector>
+#include <herring/output_ops.hpp>
+#include <herring/type_helpers.hpp>
 #include <herring2/forest_layout.hpp>
 
 namespace herring {
@@ -14,6 +17,7 @@ struct decision_forest {
   using output_index_type = output_index_t;
   using output_type = output_t;
   using category_set_type = std::bitset<std::max(sizeof(value_type), sizeof(output_index_type))>;
+  using sum_elem_type = typename is_container_specialization<output_t, std::vector>::value_type;
 
   union value_or_index {
     value_type value;
@@ -36,7 +40,7 @@ struct decision_forest {
   // Metadata
   std::vector<std::size_t> tree_offsets;
   forest_layout layout;
-  std::size_t features;
+  std::size_t num_class;
 };
 
 }

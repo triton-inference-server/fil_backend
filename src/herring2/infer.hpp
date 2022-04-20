@@ -1,15 +1,19 @@
 #pragma once
+#include <optional>
 
 namespace herring {
 
-template<typename forest_t, typename output_t>
-void infer(forest_t const& forest, std::optional<std::vector<output_t>> leaf_outputs) {
+template<typename forest_t, typename input_array_t, typename output_array_t>
+void infer(forest_t const& forest, input_array_t const& input, output_array_t const& output) {
 };
 
 namespace detail {
 
-template<typename forest_t, typename input_t>
-auto evaluate_node(forest_t const& forest, input_t const& input, std::size_t node_index, std::size_t row_index) {
+/* Return whether the node at node_index in forest returns true or false for
+ * the row at row_index in input
+ */
+template<typename forest_t, typename input_array_t>
+auto evaluate_node(forest_t const& forest, input_array_t const& input, std::size_t node_index, std::size_t row_index) {
   auto result = false;
   auto node_value = forest.node_values[node_index];
   auto feature_value = input.get_value(row_index, forest.node_features[node_index])
@@ -34,10 +38,14 @@ auto evaluate_node(forest_t const& forest, input_t const& input, std::size_t nod
   return result;
 }
 
-template<bool categorical_tree, typename forest_t, typename input_t>
+/* Return the index of the leaf node obtained by evaluating the decision tree
+ * beginning at the node indicated by node_index for the row indicated by
+ * row_index in input, assuming no missing values in that row
+ */
+template<bool categorical_tree, typename forest_t, typename input_array_t>
 auto find_leaf(
     forest_t const& forest,
-    input_t const& input,
+    input_array_t const& input,
     std::size_t node_index,
     std::size_t row_index) {
   auto offset = forest.node_offsets[node_index];
@@ -50,10 +58,15 @@ auto find_leaf(
   return node_index;
 }
 
-template<bool categorical_tree, typename forest_t, typename input_t>
+/* Return the index of the leaf node obtained by evaluating the decision tree
+ * beginning at the node indicated by node_index for the row indicated by
+ * row_index in input, with missing values for input indicated by
+ * missing_values
+ */
+template<bool categorical_tree, typename forest_t, typename input_array_t>
 auto find_leaf(
     forest_t const& forest,
-    input_t const& input,
+    input_array_t const& input,
     std::size_t node_index,
     std::size_t row_index,
     std::vector<bool> const& missing_values) {
@@ -72,6 +85,8 @@ auto find_leaf(
   return node_index;
 }
 
+/* Return the output value associated with the node of forest at node_index
+ */
 template<typename forest_t, typename output_t>
 auto get_leaf_output(forest_t const& forest, std::size_t node_index) {
   auto node_value = forest.node_values[node_index];
@@ -82,6 +97,19 @@ auto get_leaf_output(forest_t const& forest, std::size_t node_index) {
   } else {
     return forest.node_outputs[node_value.index];
   }
+}
+
+template<typename forest_t, typename input_array_t, std::size_t grove_size, std::size_t block_size>
+auto get_grove_output(forest_t const& forest, input_array_t const& input) {
+  auto const num_tree = forest.tree_offsets.size();
+  auto const num_grove = (num_tree / grove_size + (num_tree % grove_size != 0));
+  auto const num_block = (num_row / block_size + (num_row % block_size != 0));
+
+  using sum_elem_type = typename forest_t::sum_elem_type;
+  auto result = std::vector<sum_elem_type>(
+    num_row * forest.num_class * num_grove,
+    sum_elem_type{}
+  );
 }
 
 } // namespace detail
