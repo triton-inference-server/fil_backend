@@ -236,10 +236,12 @@ else
 fi
 
 TESTS=0
+BUILD_TESTS='OFF'
 BACKEND=0
 if completeBuild
 then
   TESTS=1
+  BUILD_TESTS='ON'
   BACKEND=1
 elif hasArg server
 then
@@ -247,6 +249,7 @@ then
 elif hasArg tests
 then
   TESTS=1
+  BUILD_TESTS='ON'
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
 fi
 
@@ -308,11 +311,12 @@ hostbuild () {
   mkdir -p "$INSTALLDIR"
   mkdir -p "$BUILDDIR"
   pushd "$BUILDDIR"
+  echo "BUILD_TESTS: $BUILD_TESTS"
   cmake \
     --log-level=VERBOSE \
     -GNinja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -DBUILD_TESTS="OFF" \
+    -DBUILD_TESTS="$BUILD_TESTS" \
     -DTRITON_CORE_REPO_TAG="$CORE_REF" \
     -DTRITON_COMMON_REPO_TAG="$COMMON_REF" \
     -DTRITON_BACKEND_REPO_TAG="$BACKEND_REF" \

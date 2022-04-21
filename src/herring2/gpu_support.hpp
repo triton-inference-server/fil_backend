@@ -15,13 +15,13 @@ auto constexpr GPU_ENABLED = false;
 #define DEVICE __device__
 #define GLOBAL __global__
 using index_t = uint32_t;
-using rindex_t = int32_t;
+using diff_t = int32_t;
 #else
 #define HOST
 #define DEVICE
 #define GLOBAL
 using index_t = std::size_t;
-using rindex_t = std::ptrdiff_t;
+using diff_t = std::ptrdiff_t;
 #endif
 
 struct gpu_unsupported : std::exception {
