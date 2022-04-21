@@ -1,5 +1,5 @@
 #pragma once
-#include <herring2/detail/cuda_stream.hpp>
+#include <herring2/cuda_stream.hpp>
 #include <herring2/detail/copy/cpu.hpp>
 #ifdef ENABLE_GPU
 #include <herring2/detail/copy/gpu.hpp>
@@ -42,12 +42,12 @@ void copy(T* dst, T const* src, std::size_t size, device_type dst_type, device_t
 
 template<typename T>
 void copy(T* dst, T const* src, std::size_t size, device_type dst_type, device_type src_type) {
-  detail::copy<T>(dst, src, size, dst_type, src_type, cuda_stream{});
+  copy<T>(dst, src, size, dst_type, src_type, 0, 0, cuda_stream{});
 }
 
 template<typename T>
 void copy(T* dst, T const* src, std::size_t size, device_type dst_type, device_type src_type, cuda_stream stream) {
-  detail::copy<T>(dst, src, size, dst_type, src_type, stream);
+  copy<T>(dst, src, size, dst_type, src_type, 0, 0, stream);
 }
 
 }

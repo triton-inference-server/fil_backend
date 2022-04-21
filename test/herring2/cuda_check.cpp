@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,36 +14,23 @@
  * limitations under the License.
  */
 
+#ifdef ENABLE_GPU
+#include <cuda_runtime_api.h>
+#endif
 #include <gtest/gtest.h>
 
-#include <herring2/gpu_support.hpp>
+#include <herring2/cuda_check.hpp>
+#include <herring2/exceptions.hpp>
 
 namespace herring {
-
-#ifndef ENABLE_GPU
-HOST void host_func() {
-  printf("HOST macro working\n");
-}
-DEVICE void device_func() {
-  printf("DEVICE macro working\n");
-}
-GLOBAL void global_func() {
-  device_func();
-  printf("GLOBAL macro working\n");
-}
-TEST(FilBackend, cpu_macros) {
-  host_func();
-  global_func();
-}
-#endif
-
-TEST(FilBackend, gpu_support)
-{
+TEST(FilBackend, cuda_check) {
 #ifdef ENABLE_GPU
-  ASSERT_EQ(GPU_ENABLED, true) << "GPU_ENABLED constant has wrong value\n";
+  EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration), bad_cuda_call);
+  cuda_check(cudaSuccess);
 #else
-  ASSERT_EQ(GPU_ENABLED, false) << "GPU_ENABLED constant has wrong value\n";
+  cuda_check(5); // arbitrary input
 #endif
 }
-}  // namespace triton
+
+}
 

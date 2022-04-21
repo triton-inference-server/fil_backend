@@ -60,6 +60,7 @@ HELP="$0 [<target> ...] [<flag> ...]
                       simply be built with the current version of the code
    TREELITE_STATIC  - If ON, Treelite will be statically linked into the binaries
    RAPIDS_VERSION   - The version of RAPIDS to require for RAPIDS dependencies
+   BUILD_DIR        - The build directory for a host build
 "
 
 BUILD_TYPE=Release
@@ -307,10 +308,10 @@ buildpy () {
 
 hostbuild () {
   INSTALLDIR="$REPODIR/install/backends/fil"
-  BUILDDIR="$REPODIR/build"
+  [ -z BUILD_DIR ] && BUILD_DIR="$REPODIR/build"
   mkdir -p "$INSTALLDIR"
-  mkdir -p "$BUILDDIR"
-  pushd "$BUILDDIR"
+  mkdir -p "$BUILD_DIR"
+  pushd "$BUILD_DIR"
   echo "BUILD_TESTS: $BUILD_TESTS"
   cmake \
     --log-level=VERBOSE \

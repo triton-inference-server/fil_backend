@@ -12,6 +12,11 @@ struct owning_buffer<device_type::cpu, T> {
   // TODO(wphicks): Assess need for buffers of const T
   using value_type = std::remove_const_t<T>;
 
+  owning_buffer()
+    : data_{std::unique_ptr<T[]>{nullptr}}
+  {
+  }
+
   owning_buffer(std::size_t size)
     : data_{std::make_unique<T[]>(size)}
   {

@@ -1,6 +1,6 @@
 #pragma once
 #include <cstring>
-#include <herring2/detail/cuda_stream.hpp>
+#include <herring2/cuda_stream.hpp>
 #include <herring2/device_type.hpp>
 #include <herring2/gpu_support.hpp>
 

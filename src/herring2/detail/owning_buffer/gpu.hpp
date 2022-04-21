@@ -13,6 +13,7 @@ template<typename T>
 struct owning_buffer<device_type::gpu, T> {
   // TODO(wphicks): Assess need for buffers of const T
   using value_type = std::remove_const_t<T>;
+  owning_buffer() : data_{} {}
 
   owning_buffer(device_id<device_type::gpu> device_id, std::size_t size, cudaStream_t stream) noexcept(false)
     : data_{[&device_id, &size, &stream]() {

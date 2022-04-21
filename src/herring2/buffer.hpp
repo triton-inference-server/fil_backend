@@ -1,14 +1,15 @@
 #pragma once
-#include <cstddef>
 #include <memory>
 #include <variant>
 #include <herring2/detail/const_agnostic.hpp>
-#include <herring2/detail/cuda_stream.hpp>
+#include <herring2/detail/copy.hpp>
+#include <herring2/cuda_stream.hpp>
 #include <herring2/detail/non_owning_buffer.hpp>
 #include <herring2/detail/owning_buffer.hpp>
 #include <herring2/device_id.hpp>
 #include <herring2/device_type.hpp>
 #include <herring2/exceptions.hpp>
+#include <herring2/gpu_support.hpp>
 
 namespace herring {
 /**
@@ -17,7 +18,7 @@ namespace herring {
  */
 template<typename T>
 struct buffer {
-  using size_type = std::size_t;
+  using size_type = index_t;
   using value_type = T;
 
   using data_store = std::variant<
@@ -43,10 +44,10 @@ struct buffer {
       auto result = data_store{};
       switch (mem_type) {
         case device_type::cpu:
-          result = owning_buffer<device_type::cpu, T>{device_, size};
+          result = owning_buffer<device_type::cpu, T>{size};
           break;
         case device_type::gpu:
-          result = owning_buffer<device_type::gpu, T>{device_, size, stream};
+          result = owning_buffer<device_type::gpu, T>{std::get<1>(device_), size, stream};
           break;
       }
       return result;
@@ -114,7 +115,7 @@ struct buffer {
    * A buffer constructed in this way is owning and will copy the data from
    * the original location
    */
-  buffer(buffer<T> const& other, device_type mem_type, int device = 0, cuda_stream stream=0)
+  buffer(buffer<T> const& other, device_type mem_type, int device = 0, cuda_stream stream=cuda_stream{})
     : device_{[mem_type, &device]() {
       auto result = device_id_variant{};
       switch (mem_type) {
@@ -128,8 +129,18 @@ struct buffer {
       return result;
     }()},
     data_{[this, &other, mem_type, device, stream]() {
-      auto result = buffer<T>(other.size(), mem_type, device, stream);
-      copy(result.get(), other.get(), other.size(), stream);
+      auto result = data_store{};
+      auto result_data = static_cast<T*>(nullptr);
+      if (mem_type == device_type::cpu) {
+        auto buf = owning_buffer<device_type::cpu, T>(other.size());
+        result_data = buf.get();
+        result = std::move(buf);
+      } else if (mem_type==device_type::gpu) {
+        auto buf = owning_buffer<device_type::gpu, T>(std::get<1>(device_), other.size(), stream);
+        result_data = buf.get();
+        result = std::move(buf);
+      }
+      copy(result_data, other.data(), other.size(), mem_type, other.memory_type(), stream);
       return result;
     }()},
     size_{other.size()},
@@ -150,13 +161,13 @@ struct buffer {
    * @brief Create owning copy of existing buffer
    * The memory type of this new buffer will be the same as the original
    */
-  buffer(buffer<T> const& other) : buffer(other, other.mem_type(), other.device_index()) {}
+  buffer(buffer<T> const& other) : buffer(other, other.memory_type(), other.device_index()) {}
 
   /**
    * @brief Create owning copy of existing buffer with given stream
    * The memory type of this new buffer will be the same as the original
    */
-  buffer(buffer<T> const& other, cuda_stream stream) : buffer(other, other.mem_type(), other.device_index(), stream) {}
+  buffer(buffer<T> const& other, cuda_stream stream) : buffer(other, other.memory_type(), other.device_index(), stream) {}
 
   /**
    * @brief Move from existing buffer unless a copy is necessary based on
@@ -177,7 +188,7 @@ struct buffer {
     }()},
     data_{[&other, mem_type, device]() {
       auto result = data_store{};
-      if (mem_type == other.memory_type && device == other.device_index()) {
+      if (mem_type == other.memory_type() && device == other.device_index()) {
         result  = std::move(other.data_);
       } else {
       }
@@ -208,7 +219,7 @@ struct buffer {
   buffer<T>& operator=(buffer<T>&& other) = default;
 
   auto size() const noexcept { return size_; }
-  auto* get() const noexcept {
+  auto* data() const noexcept {
     return cached_ptr;
   }
   auto memory_type() const noexcept {
@@ -230,8 +241,8 @@ struct buffer {
     return result;
   }
 
-  auto const& operator[](std::size_t index) const {
-    return *(get() + index);
+  HOST DEVICE auto const& operator[](index_t index) const {
+    return data()[index];
   }
 
 
@@ -244,36 +255,36 @@ struct buffer {
 };
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, std::size_t dst_offset, std::size_t src_offset, cuda_stream stream) {
+const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, index_t src_offset, index_t size, cuda_stream stream) {
   if constexpr (bounds_check) {
-    if (src.size() - src_offset > dst.size() - dst_offset) {
-      throw out_of_bounds("Attempted copy to buffer of inadequate size");
+    if (src.size() - src_offset < size || dst.size() - dst_offset < size) {
+      throw out_of_bounds("Attempted copy to or from buffer of inadequate size");
     }
   }
-  copy(dst.get(), src.get(), src.size(), dst.memory_type(), src.memory_type(), dst_offset, src_offset, stream);
+  copy(dst.data() + dst_offset, src.data() + src_offset, size, dst.memory_type(), src.memory_type(), stream);
 }
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, std::size_t dst_offset, std::size_t src_offset) {
-  copy(dst, src, dst_offset, src_offset, cuda_stream{});
+const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, index_t src_offset) {
+  copy(dst, src, dst_offset, src_offset, src.size(), cuda_stream{});
 }
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, std::size_t dst_offset, cuda_stream stream) {
-  copy(dst, src, dst_offset, 0, stream);
+const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, cuda_stream stream) {
+  copy(dst, src, dst_offset, 0, src.size(), stream);
 }
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, std::size_t dst_offset) {
-  copy(dst, src, dst_offset, 0, cuda_stream{});
+const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset) {
+  copy(dst, src, dst_offset, 0, src.size(), cuda_stream{});
 }
 
 template<bool bounds_check, typename T, typename U>
 const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, cuda_stream stream) {
-  copy(dst, src, 0, 0, stream);
+  copy(dst, src, 0, 0, src.size(), stream);
 }
 template<bool bounds_check, typename T, typename U>
 const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src) {
-  copy(dst, src, 0, 0, cuda_stream{});
+  copy(dst, src, 0, 0, src.size(), cuda_stream{});
 }
 
 }  // namespace herring

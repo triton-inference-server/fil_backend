@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+#include <cuda_runtime_api.h>
 #include <gtest/gtest.h>
 
 #include <herring2/gpu_support.hpp>
 
 namespace herring {
 
-#ifndef ENABLE_GPU
 HOST void host_func() {
   printf("HOST macro working\n");
 }
@@ -31,19 +31,11 @@ GLOBAL void global_func() {
   device_func();
   printf("GLOBAL macro working\n");
 }
-TEST(FilBackend, cpu_macros) {
+TEST(FilBackend, gpu_macros) {
   host_func();
-  global_func();
+  global_func<<<1,1>>>();
+  auto err = cudaDeviceSynchronize();
+  ASSERT_EQ(err, cudaSuccess);
 }
-#endif
 
-TEST(FilBackend, gpu_support)
-{
-#ifdef ENABLE_GPU
-  ASSERT_EQ(GPU_ENABLED, true) << "GPU_ENABLED constant has wrong value\n";
-#else
-  ASSERT_EQ(GPU_ENABLED, false) << "GPU_ENABLED constant has wrong value\n";
-#endif
 }
-}  // namespace triton
-
