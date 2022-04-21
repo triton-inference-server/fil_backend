@@ -1,5 +1,6 @@
 #pragma once
-#include <cstddef>
+#include <stddef.h>
+#include <stdint.h>
 #include <herring2/buffer.hpp>
 #include <herring2/exceptions.hpp>
 #include <herring2/gpu_support.hpp>
@@ -14,7 +15,7 @@ enum class data_layout {
 /** A 2D array of values */
 template <data_layout layout, typename T>
 struct data_array {
-  data_array(buffer<T> const& in_buffer, std::size_t row_count, std::size_t col_count)
+  data_array(buffer<T> const& in_buffer, size_t row_count, size_t col_count)
     : data_{in_buffer},
       count_{ [row_count, col_count](){
         if constexpr (layout == data_layout::dense_row_major) {
@@ -28,7 +29,7 @@ struct data_array {
   {
   }
 
-  data_array(buffer<T> const& in_buffer, std::size_t count)
+  data_array(buffer<T> const& in_buffer, size_t count)
     : data_{in_buffer}, count_{count}
   {
   }
@@ -65,43 +66,37 @@ struct data_array {
     }
   }
 
-  template<bool bounds_check, typename index_type>
-  HOST DEVICE auto get_index(index_type row, index_type col) const noexcept(!bounds_check) {
+  template<typename index_type>
+  HOST DEVICE auto get_index(index_type row, index_type col) const noexcept {
     auto result = index_type{};
     if constexpr (layout == data_layout::dense_row_major) {
       result = count_ * row + col;
-      if constexpr (bounds_check) {
-        if (col > count_) {
-          throw out_of_bounds("Column index exceeds number of columns");
-        }
-        if (result >= size()) {
-          throw out_of_bounds("Row index exceeds number of rows");
-        }
-      }
     } else if constexpr (layout == data_layout::dense_col_major) {
       result = count_ * col + row;
-      if constexpr (bounds_check) {
-        if (row > count_) {
-          throw out_of_bounds("Row index exceeds number of rows");
-        }
-        if (result >= size()) {
-          throw out_of_bounds("Column index exceeds number of columns");
-        }
-      }
     } else {
       // TODO(whicks) static_assert(false);
     }
     return result;
   }
 
-  template<bool bounds_check, typename index_type>
-  HOST DEVICE auto get_value(index_type row, index_type col) const noexcept(!bounds_check) {
-    return data()[get_index<bounds_check>(row, col)];
+  template<typename index_type>
+  HOST DEVICE auto get_value(index_type row, index_type col) const noexcept {
+    return data()[get_index(row, col)];
+  }
+
+  template<typename index_type>
+  HOST DEVICE auto& operator[](index_type index) noexcept {
+    return data()[index];
+  }
+
+  template<typename index_type>
+  HOST DEVICE auto const& operator[](index_type index) const noexcept {
+    return data()[index];
   }
 
  private:
   buffer<T> data_;
-  std::size_t count_;
+  size_t count_;
 };
 
 }
