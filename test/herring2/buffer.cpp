@@ -34,24 +34,29 @@ TEST(FilBackend, default_buffer)
 TEST(FilBackend, device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
-  auto buf = buffer<int>(data.size(), device_type::gpu, 0, cuda_stream{});
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(data.size(), device_type::gpu, 0, cuda_stream{});
+  test_buffers.emplace_back(data.size(), device_type::gpu, 0);
+  test_buffers.emplace_back(data.size(), device_type::gpu);
 
-  ASSERT_EQ(buf.memory_type(), device_type::gpu);
-  ASSERT_EQ(buf.size(), data.size());
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::gpu);
+    ASSERT_EQ(buf.size(), data.size());
 #ifdef ENABLE_GPU
-  ASSERT_NE(buf.data(), nullptr);
+    ASSERT_NE(buf.data(), nullptr);
 
-  auto data_out = std::vector<int>(data.size());
-  cudaMemcpy(static_cast<void*>(buf.data()),
-             static_cast<void*>(data.data()),
-             sizeof(int) * data.size(),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(static_cast<void*>(data_out.data()),
-             static_cast<void*>(buf.data()),
-             sizeof(int) * data.size(),
-             cudaMemcpyDeviceToHost);
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    auto data_out = std::vector<int>(data.size());
+    cudaMemcpy(static_cast<void*>(buf.data()),
+               static_cast<void*>(data.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(static_cast<void*>(data_out.data()),
+               static_cast<void*>(buf.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyDeviceToHost);
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 #endif
+  }
 }
 
 TEST(FilBackend, non_owning_device_buffer)
@@ -65,20 +70,23 @@ TEST(FilBackend, non_owning_device_buffer)
              sizeof(int) * data.size(),
              cudaMemcpyHostToDevice);
 #endif
-  auto buf = buffer<int>(ptr_d, data.size(), device_type::gpu);
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(ptr_d, data.size(), device_type::gpu, 0);
+  test_buffers.emplace_back(ptr_d, data.size(), device_type::gpu);
 #ifdef ENABLE_GPU
 
-  ASSERT_EQ(buf.memory_type(), device_type::gpu);
-  ASSERT_EQ(buf.size(), data.size());
-  ASSERT_EQ(buf.data(), ptr_d);
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::gpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_EQ(buf.data(), ptr_d);
 
-  auto data_out = std::vector<int>(data.size());
-  cudaMemcpy(static_cast<void*>(data_out.data()),
-             static_cast<void*>(buf.data()),
-             sizeof(int) * data.size(),
-             cudaMemcpyDeviceToHost);
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
-
+    auto data_out = std::vector<int>(data.size());
+    cudaMemcpy(static_cast<void*>(data_out.data()),
+               static_cast<void*>(buf.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyDeviceToHost);
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
   cudaFree(reinterpret_cast<void*>(ptr_d));
 #endif
 }
@@ -86,63 +94,127 @@ TEST(FilBackend, non_owning_device_buffer)
 TEST(FilBackend, host_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
-  auto buf = buffer<int>(data.size(), device_type::cpu, 0, 0);
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(data.size(), device_type::cpu, 0, cuda_stream{});
+  test_buffers.emplace_back(data.size(), device_type::cpu, 0);
+  test_buffers.emplace_back(data.size(), device_type::cpu);
+  test_buffers.emplace_back(data.size());
 
-  ASSERT_EQ(buf.memory_type(), device_type::cpu);
-  ASSERT_EQ(buf.size(), data.size());
-  ASSERT_NE(buf.data(), nullptr);
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::cpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_NE(buf.data(), nullptr);
 
-  std::memcpy(
-    static_cast<void*>(buf.data()), static_cast<void*>(data.data()), data.size() * sizeof(int));
+    std::memcpy(
+      static_cast<void*>(buf.data()), static_cast<void*>(data.data()), data.size() * sizeof(int));
 
-  auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
 }
 
 TEST(FilBackend, non_owning_host_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
-  auto buf = buffer<int>(data.data(), data.size(), device_type::cpu);
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(data.data(), data.size(), device_type::cpu, 0);
+  test_buffers.emplace_back(data.data(), data.size(), device_type::cpu);
+  test_buffers.emplace_back(data.data(), data.size());
 
-  ASSERT_EQ(buf.memory_type(), device_type::cpu);
-  ASSERT_EQ(buf.size(), data.size());
-  ASSERT_EQ(buf.data(), data.data());
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::cpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_EQ(buf.data(), data.data());
 
-  auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
 }
 
 TEST(FilBackend, copy_buffer)
 {
   auto data        = std::vector<int>{1, 2, 3};
   auto orig_buffer = buffer<int>(data.data(), data.size(), device_type::cpu);
-  auto buf      = buffer<int>(orig_buffer);
 
-  ASSERT_EQ(buf.memory_type(), device_type::cpu);
-  ASSERT_EQ(buf.size(), data.size());
-  ASSERT_NE(buf.data(), orig_buffer.data());
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(orig_buffer);
+  test_buffers.emplace_back(orig_buffer, device_type::cpu);
+  test_buffers.emplace_back(orig_buffer, device_type::cpu, 0);
+  test_buffers.emplace_back(orig_buffer, device_type::cpu, 0, cuda_stream{});
 
-  auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::cpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_NE(buf.data(), orig_buffer.data());
+
+    auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+
 #ifdef ENABLE_GPU
-  auto dev_buf = buffer<int>(orig_buffer, device_type::gpu);
-  data_out = std::vector<int>(data.size());
-  cuda_check(cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(dev_buf.data()), dev_buf.size() * sizeof(int), cudaMemcpyDefault));
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    auto test_dev_buffers = std::vector<buffer<int>>{};
+    test_dev_buffers.emplace_back(orig_buffer, device_type::gpu);
+    test_dev_buffers.emplace_back(orig_buffer, device_type::gpu, 0);
+    test_dev_buffers.emplace_back(orig_buffer, device_type::gpu, 0, cuda_stream{});
+    for (auto& dev_buf : test_dev_buffers) {
+      data_out = std::vector<int>(data.size());
+      cuda_check(cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(dev_buf.data()), dev_buf.size() * sizeof(int), cudaMemcpyDefault));
+      EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+
+      auto test_dev_copies = std::vector<buffer<int>>{};
+      test_dev_copies.emplace_back(dev_buf, device_type::gpu);
+      test_dev_copies.emplace_back(dev_buf, device_type::gpu, 0);
+      test_dev_copies.emplace_back(dev_buf, device_type::gpu, 0, cuda_stream{});
+      for (auto& copy_buf : test_dev_copies) {
+        data_out = std::vector<int>(data.size());
+        cuda_check(cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(copy_buf.data()), copy_buf.size() * sizeof(int), cudaMemcpyDefault));
+        EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+      }
+
+      auto test_host_buffers = std::vector<buffer<int>>{};
+      test_host_buffers.emplace_back(dev_buf, device_type::cpu);
+      test_host_buffers.emplace_back(dev_buf, device_type::cpu, 0);
+      test_host_buffers.emplace_back(dev_buf, device_type::cpu, 0, cuda_stream{});
+      for (auto& host_buf : test_host_buffers) {
+        data_out = std::vector<int>(host_buf.data(), host_buf.data() + host_buf.size());
+        EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+      }
+    }
 #endif
+  }
 }
 
 TEST(FilBackend, move_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
-  auto buf = buffer<int>(buffer<int>(data.data(), data.size(), device_type::cpu));
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu));
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::cpu);
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::cpu, 0);
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::cpu, 0, cuda_stream{});
 
-  ASSERT_EQ(buf.memory_type(), device_type::cpu);
-  ASSERT_EQ(buf.size(), data.size());
-  ASSERT_EQ(buf.data(), data.data());
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::cpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_EQ(buf.data(), data.data());
 
-  auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
+#ifdef ENABLE_GPU
+  test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::gpu);
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::gpu, 0);
+  test_buffers.emplace_back(buffer<int>(data.data(), data.size(), device_type::cpu), device_type::gpu, 0, cuda_stream{});
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::gpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_NE(buf.data(), data.data());
+
+    auto data_out = std::vector<int>(buf.size());
+    cuda_check(cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(buf.data()), buf.size() * sizeof(int), cudaMemcpyDefault));
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
+#endif
 }
 
 TEST(FilBackend, move_assignment_buffer)
@@ -176,13 +248,50 @@ TEST(FilBackend, partial_buffer_copy)
   EXPECT_THROW(copy<true>(buf2, buf1, 1, 2, 4, cuda_stream{}), out_of_bounds);
 }
 
-TEST(FilBackend, buffer_index_operator)
+TEST(FilBackend, buffer_copy_overloads)
 {
-  auto data = std::vector<int>{1, 2, 3};
-  auto buf = buffer<int>(data.data(), data.size(), device_type::cpu);
-  for (auto i = std::size_t{}; i < data.size(); ++i) {
-    ASSERT_EQ(buf[i], data[i]);
-  }
+  auto data        = std::vector<int>{1, 2, 3};
+  auto expected = data;
+  auto orig_host_buffer = buffer<int>(data.data(), data.size(), device_type::cpu);
+  auto orig_dev_buffer = buffer<int>(orig_host_buffer, device_type::gpu);
+  auto copy_dev_buffer = buffer<int>(data.size(), device_type::gpu);
+  
+  auto data_out = std::vector<int>(data.size());
+  auto copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  std::cout << "orig_host_buffer: " << orig_host_buffer.data()[0] << "\n";
+  copy<true>(copy_host_buffer, orig_host_buffer);
+  std::cout << "copy_host_buffer: " << copy_host_buffer.data()[0] << "\n";
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
+
+  /* data_out = std::vector<int>(data.size());
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy<true>(copy_host_buffer, orig_host_buffer, cuda_stream{});
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
+
+  data_out = std::vector<int>(data.size() + 1);
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy<true>(copy_host_buffer, orig_host_buffer, 2, 1, 1, cuda_stream{});
+  expected = std::vector<int>{0, 0, 1, 0};
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+
+#ifdef ENABLE_GPU
+  data_out = std::vector<int>(data.size());
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy<true>(copy_host_buffer, orig_dev_buffer);
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
+
+  data_out = std::vector<int>(data.size());
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy<true>(copy_host_buffer, orig_dev_buffer, cuda_stream{});
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
+
+  data_out = std::vector<int>(data.size() + 1);
+  copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
+  copy<true>(copy_host_buffer, orig_dev_buffer, 2, 1, 1, cuda_stream{});
+  expected = std::vector<int>{0, 0, 1, 0};
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#endif */
 }
 
 }

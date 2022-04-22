@@ -191,11 +191,17 @@ struct buffer {
       if (mem_type == other.memory_type() && device == other.device_index()) {
         result  = std::move(other.data_);
       } else {
+        auto* result_data = static_cast<T*>(nullptr);
         if (mem_type == device_type::cpu) {
-          result = owning_buffer<device_type::cpu, T>{other.size()};
+          auto buf = owning_buffer<device_type::cpu, T>{other.size()};
+          result_data = buf.get();
+          result = std::move(buf);
         } else if (mem_type == device_type::gpu) {
-          result = owning_buffer<device_type::gpu, T>{device, other.size(), stream};
+          auto buf = owning_buffer<device_type::gpu, T>{device, other.size(), stream};
+          result_data = buf.get();
+          result = std::move(buf);
         }
+        copy(result_data, other.data(), other.size(), mem_type, other.memory_type(), stream);
       }
       return result;
     }()},
@@ -225,7 +231,7 @@ struct buffer {
   buffer<T>& operator=(buffer<T>&& other) = default;
 
   auto size() const noexcept { return size_; }
-  auto* data() const noexcept {
+  HOST DEVICE auto* data() const noexcept {
     return cached_ptr;
   }
   auto memory_type() const noexcept {
@@ -247,11 +253,6 @@ struct buffer {
     return result;
   }
 
-  HOST DEVICE auto const& operator[](index_t index) const {
-    return data()[index];
-  }
-
-
  private:
   device_id_variant device_;
   data_store data_;
@@ -271,26 +272,12 @@ const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offse
 }
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, index_t src_offset) {
-  copy(dst, src, dst_offset, src_offset, src.size(), cuda_stream{});
-}
-
-template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, cuda_stream stream) {
-  copy(dst, src, dst_offset, 0, src.size(), stream);
-}
-template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset) {
-  copy(dst, src, dst_offset, 0, src.size(), cuda_stream{});
-}
-
-template<bool bounds_check, typename T, typename U>
 const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, cuda_stream stream) {
-  copy(dst, src, 0, 0, src.size(), stream);
+  copy<bounds_check>(dst, src, 0, 0, src.size(), stream);
 }
 template<bool bounds_check, typename T, typename U>
 const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src) {
-  copy(dst, src, 0, 0, src.size(), cuda_stream{});
+  copy<bounds_check>(dst, src, 0, 0, src.size(), cuda_stream{});
 }
 
 }  // namespace herring

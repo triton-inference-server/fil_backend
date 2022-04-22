@@ -20,8 +20,8 @@ using diff_t = int32_t;
 #define HOST
 #define DEVICE
 #define GLOBAL
-using index_t = std::size_t;
-using diff_t = std::ptrdiff_t;
+using index_t = uint32_t;
+using diff_t = int32_t;
 #endif
 
 struct gpu_unsupported : std::exception {
