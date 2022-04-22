@@ -38,7 +38,7 @@ TEST(FilBackend, device_buffer)
 
   ASSERT_EQ(buf.memory_type(), device_type::gpu);
   ASSERT_EQ(buf.size(), data.size());
-#ifdef TRITON_ENABLE_GPU
+#ifdef ENABLE_GPU
   ASSERT_NE(buf.data(), nullptr);
 
   auto data_out = std::vector<int>(data.size());
@@ -58,7 +58,7 @@ TEST(FilBackend, non_owning_device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
   auto* ptr_d = static_cast<int*>(nullptr);
-#ifdef TRITON_ENABLE_GPU
+#ifdef ENABLE_GPU
   cudaMalloc(reinterpret_cast<void**>(&ptr_d), sizeof(int) * data.size());
   cudaMemcpy(static_cast<void*>(ptr_d),
              static_cast<void*>(data.data()),
@@ -66,7 +66,7 @@ TEST(FilBackend, non_owning_device_buffer)
              cudaMemcpyHostToDevice);
 #endif
   auto buf = buffer<int>(ptr_d, data.size(), device_type::gpu);
-#ifdef TRITON_ENABLE_GPU
+#ifdef ENABLE_GPU
 
   ASSERT_EQ(buf.memory_type(), device_type::gpu);
   ASSERT_EQ(buf.size(), data.size());
@@ -124,6 +124,12 @@ TEST(FilBackend, copy_buffer)
 
   auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#ifdef ENABLE_GPU
+  auto dev_buf = buffer<int>(orig_buffer, device_type::gpu);
+  data_out = std::vector<int>(data.size());
+  cuda_check(cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(dev_buf.data()), dev_buf.size() * sizeof(int), cudaMemcpyDefault));
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#endif
 }
 
 TEST(FilBackend, move_buffer)
@@ -143,7 +149,7 @@ TEST(FilBackend, move_assignment_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 
-#ifdef TRITON_ENABLE_GPU
+#ifdef ENABLE_GPU
   auto buf = buffer<int>{data.data(), data.size() - 1, device_type::gpu};
 #else
   auto buf = buffer<int>{data.data(), data.size() - 1, device_type::cpu};
@@ -159,8 +165,8 @@ TEST(FilBackend, partial_buffer_copy)
   auto data1 = std::vector<int>{1, 2, 3, 4, 5};
   auto data2 = std::vector<int>{0, 0, 0, 0, 0};
   auto expected = std::vector<int>{0, 3, 4, 5, 0};
-#ifdef TRITON_ENABLE_GPU
-  auto buf1 = buffer<int>{data1.data(), data1.size(), device_type::gpu};
+#ifdef ENABLE_GPU
+  auto buf1 = buffer<int>{buffer<int>{data1.data(), data1.size(), device_type::cpu}, device_type::gpu};
 #else
   auto buf1 = buffer<int>{data1.data(), data1.size(), device_type::cpu};
 #endif
@@ -168,6 +174,15 @@ TEST(FilBackend, partial_buffer_copy)
   copy<true>(buf2, buf1, 1, 2, 3, cuda_stream{});
   copy<false>(buf2, buf1, 1, 2, 3, cuda_stream{});
   EXPECT_THROW(copy<true>(buf2, buf1, 1, 2, 4, cuda_stream{}), out_of_bounds);
+}
+
+TEST(FilBackend, buffer_index_operator)
+{
+  auto data = std::vector<int>{1, 2, 3};
+  auto buf = buffer<int>(data.data(), data.size(), device_type::cpu);
+  for (auto i = std::size_t{}; i < data.size(); ++i) {
+    ASSERT_EQ(buf[i], data[i]);
+  }
 }
 
 }

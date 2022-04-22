@@ -186,12 +186,18 @@ struct buffer {
       }
       return result;
     }()},
-    data_{[&other, mem_type, device]() {
+    data_{[&other, mem_type, device, stream]() {
       auto result = data_store{};
       if (mem_type == other.memory_type() && device == other.device_index()) {
         result  = std::move(other.data_);
       } else {
+        if (mem_type == device_type::cpu) {
+          result = owning_buffer<device_type::cpu, T>{other.size()};
+        } else if (mem_type == device_type::gpu) {
+          result = owning_buffer<device_type::gpu, T>{device, other.size(), stream};
+        }
       }
+      return result;
     }()},
     size_{other.size()},
     cached_ptr {[this](){

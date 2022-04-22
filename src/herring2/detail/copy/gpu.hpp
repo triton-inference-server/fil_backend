@@ -10,7 +10,7 @@ namespace detail {
 
 template<device_type dst_type, device_type src_type, typename T>
 std::enable_if_t<(dst_type == device_type::gpu || src_type == device_type::gpu) && GPU_ENABLED, void> copy(T* dst, T const* src, std::size_t size, cuda_stream stream) {
-  herring::cuda_check(cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost, stream));
+  herring::cuda_check(cudaMemcpyAsync(dst, src, size * sizeof(T), cudaMemcpyDefault, stream));
 }
 
 }
