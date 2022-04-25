@@ -1,9 +1,11 @@
 #pragma once
+#include <stdint.h>
 #include <memory>
 #include <variant>
 #include <herring2/detail/const_agnostic.hpp>
 #include <herring2/detail/copy.hpp>
 #include <herring2/cuda_stream.hpp>
+#include <herring2/detail/index_type.hpp>
 #include <herring2/detail/non_owning_buffer.hpp>
 #include <herring2/detail/owning_buffer.hpp>
 #include <herring2/device_id.hpp>
@@ -18,7 +20,7 @@ namespace herring {
  */
 template<typename T>
 struct buffer {
-  using size_type = index_t;
+  using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
   using value_type = T;
 
   using data_store = std::variant<
@@ -28,7 +30,7 @@ struct buffer {
   buffer() : device_{}, data_{}, size_{} {}
 
   /** Construct non-initialized owning buffer */
-  buffer(size_type size,
+  buffer(index_type size,
          device_type mem_type = device_type::cpu,
          int device = 0,
          cuda_stream stream = 0) 
@@ -68,7 +70,7 @@ struct buffer {
 
   /** Construct non-owning buffer */
   buffer(T* input_data,
-         size_type size,
+         index_type size,
          device_type mem_type = device_type::cpu,
          int device = 0)
     : device_{[mem_type, &device]() {
@@ -256,13 +258,13 @@ struct buffer {
  private:
   device_id_variant device_;
   data_store data_;
-  size_type size_;
+  uint32_t size_;
   T* cached_ptr;
 
 };
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src, index_t dst_offset, index_t src_offset, index_t size, cuda_stream stream) {
+const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src, typename buffer<T>::index_type dst_offset, typename buffer<U>::index_type src_offset, typename buffer<T>::index_type size, cuda_stream stream) {
   if constexpr (bounds_check) {
     if (src.size() - src_offset < size || dst.size() - dst_offset < size) {
       throw out_of_bounds("Attempted copy to or from buffer of inadequate size");

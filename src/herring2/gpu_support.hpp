@@ -5,23 +5,29 @@
 
 namespace herring {
 #ifdef ENABLE_GPU
-auto constexpr GPU_ENABLED = true;
+auto constexpr static const GPU_ENABLED = true;
 #else
-auto constexpr GPU_ENABLED = false;
+auto constexpr static const GPU_ENABLED = false;
 #endif
 
 #ifdef __CUDACC__
 #define HOST __host__
 #define DEVICE __device__
 #define GLOBAL __global__
-using index_t = uint32_t;
-using diff_t = int32_t;
+auto constexpr static const GPU_COMPILATION = true;
 #else
 #define HOST
 #define DEVICE
 #define GLOBAL
-using index_t = uint32_t;
-using diff_t = int32_t;
+auto constexpr static const GPU_COMPILATION = false;
+#endif
+
+#ifndef DEBUG
+auto constexpr static const DEBUG_ENABLED = false;
+#elif DEBUG == 0
+auto constexpr static const DEBUG_ENABLED = false;
+#else
+auto constexpr static const DEBUG_ENABLED = true;
 #endif
 
 struct gpu_unsupported : std::exception {

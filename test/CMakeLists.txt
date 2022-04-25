@@ -24,6 +24,9 @@ add_executable(test_herring
     test/herring2/device_type.cpp
     test/herring2/gpu_support.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/gpu_support.cu>
+    test/herring2/host_only_throw.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/host_only_throw.cu>
+    test/herring2/index_type.cpp
 )
 
 IF(TRITON_ENABLE_GPU)
