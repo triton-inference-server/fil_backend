@@ -24,7 +24,7 @@
 
 namespace herring {
 
-__global__ void check_buffer_index(int* buf) {
+__global__ void check_buffer_access(int* buf) {
   if (buf[0] == 1) {
     buf[0] = 4;
   }
@@ -46,7 +46,7 @@ TEST(FilBackend, device_buffer_access)
     0,
     cuda_stream{}
   );
-  check_buffer_index<<<1,1>>>(buf.data());
+  check_buffer_access<<<1,1>>>(buf.data());
   auto data_out = std::vector<int>(expected.size());
   auto host_buf = buffer<int>(data_out.data(), data_out.size(), device_type::cpu);
   copy<true>(host_buf, buf);
