@@ -258,12 +258,10 @@ TEST(FilBackend, buffer_copy_overloads)
   
   auto data_out = std::vector<int>(data.size());
   auto copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
-  std::cout << "orig_host_buffer: " << orig_host_buffer.data()[0] << "\n";
   copy<true>(copy_host_buffer, orig_host_buffer);
-  std::cout << "copy_host_buffer: " << copy_host_buffer.data()[0] << "\n";
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
 
-  /* data_out = std::vector<int>(data.size());
+  data_out = std::vector<int>(data.size());
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy<true>(copy_host_buffer, orig_host_buffer, cuda_stream{});
@@ -272,26 +270,28 @@ TEST(FilBackend, buffer_copy_overloads)
   data_out = std::vector<int>(data.size() + 1);
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy<true>(copy_host_buffer, orig_host_buffer, 2, 1, 1, cuda_stream{});
-  expected = std::vector<int>{0, 0, 1, 0};
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  expected = std::vector<int>{0, 0, 2, 0};
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
 
 #ifdef ENABLE_GPU
   data_out = std::vector<int>(data.size());
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy<true>(copy_host_buffer, orig_dev_buffer);
+  expected = data;
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
 
   data_out = std::vector<int>(data.size());
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy<true>(copy_host_buffer, orig_dev_buffer, cuda_stream{});
+  expected = data;
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
 
   data_out = std::vector<int>(data.size() + 1);
   copy_host_buffer = buffer<int>(data_out.data(), data.size(), device_type::cpu);
   copy<true>(copy_host_buffer, orig_dev_buffer, 2, 1, 1, cuda_stream{});
-  expected = std::vector<int>{0, 0, 1, 0};
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
-#endif */
+  expected = std::vector<int>{0, 0, 2, 0};
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(expected));
+#endif
 }
 
 }

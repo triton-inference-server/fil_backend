@@ -262,7 +262,7 @@ struct buffer {
 };
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offset, index_t src_offset, index_t size, cuda_stream stream) {
+const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src, index_t dst_offset, index_t src_offset, index_t size, cuda_stream stream) {
   if constexpr (bounds_check) {
     if (src.size() - src_offset < size || dst.size() - dst_offset < size) {
       throw out_of_bounds("Attempted copy to or from buffer of inadequate size");
@@ -272,11 +272,11 @@ const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, index_t dst_offse
 }
 
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src, cuda_stream stream) {
+const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src, cuda_stream stream) {
   copy<bounds_check>(dst, src, 0, 0, src.size(), stream);
 }
 template<bool bounds_check, typename T, typename U>
-const_agnostic_same_t<T, U> copy(buffer<T> dst, buffer<U> src) {
+const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src) {
   copy<bounds_check>(dst, src, 0, 0, src.size(), cuda_stream{});
 }
 
