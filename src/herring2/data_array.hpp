@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <herring2/buffer.hpp>
-#include <herring2/exceptions.hpp>
+#include <herring2/detail/index_type.hpp>
 #include <herring2/gpu_support.hpp>
 
 namespace herring {
@@ -15,88 +15,58 @@ enum class data_layout {
 /** A 2D array of values */
 template <data_layout layout, typename T>
 struct data_array {
-  data_array(buffer<T> const& in_buffer, size_t row_count, size_t col_count)
-    : data_{in_buffer},
-      count_{ [row_count, col_count](){
-        if constexpr (layout == data_layout::dense_row_major) {
-          return col_count;
-        } else if constexpr (layout == data_layout::dense_col_major) {
-          return row_count;
-        } else {
-          // TODO(whicks) static_assert(false);
-        }
-      }()}
+  using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
+
+  HOST DEVICE data_array(T* data, index_type row_count, index_type col_count)
+    : data_{data}, rows_{row_count}, cols_{col_count}
   {
   }
 
-  data_array(buffer<T> const& in_buffer, size_t count)
-    : data_{in_buffer}, count_{count}
-  {
-  }
+  HOST DEVICE [[nodiscard]] auto* data() noexcept { return data_; }
+  HOST DEVICE [[nodiscard]] auto const* data() const noexcept { return data_; }
 
-  [[nodiscard]] auto* data() noexcept {
-    return data_.data();
-  }
+  HOST DEVICE [[nodiscard]] auto size() const noexcept { return rows_ * cols_; }
 
-  [[nodiscard]] auto& get_buffer() noexcept {
-    return data_;
-  }
+  HOST DEVICE [[nodiscard]] auto rows() const { return rows_; }
 
-  [[nodiscard]] auto size() const noexcept {
-    return data_.size();
-  }
+  HOST DEVICE [[nodiscard]] auto cols() const { return cols_; }
 
-  [[nodiscard]] auto get_row_count() const {
-    if constexpr (layout == data_layout::dense_row_major) {
-      return data_.size() / count_;
-    } else if constexpr (layout == data_layout::dense_col_major) {
-      return count_;
-    } else {
-      // TODO(whicks) static_assert(false);
-    }
-  }
-
-  [[nodiscard]] auto get_col_count() const {
-    if constexpr (layout == data_layout::dense_row_major) {
-      return count_;
-    } else if constexpr (layout == data_layout::dense_col_major) {
-      return data_.size() / count_;
-    } else {
-      // TODO(whicks) static_assert(false);
-    }
-  }
-
-  template<typename index_type>
-  HOST DEVICE auto get_index(index_type row, index_type col) const noexcept {
+  HOST DEVICE [[nodiscard]] auto get_index(index_type row, index_type col) const noexcept {
     auto result = index_type{};
     if constexpr (layout == data_layout::dense_row_major) {
-      result = count_ * row + col;
+      result = cols_ * row + col;
     } else if constexpr (layout == data_layout::dense_col_major) {
-      result = count_ * col + row;
+      result = rows_ * col + row;
     } else {
-      // TODO(whicks) static_assert(false);
+      // static_assert(false);
     }
     return result;
   }
 
-  template<typename index_type>
-  HOST DEVICE auto get_value(index_type row, index_type col) const noexcept {
+  HOST DEVICE [[nodiscard]] auto const& at(index_type row, index_type col) const noexcept {
     return data()[get_index(row, col)];
   }
 
-  template<typename index_type>
-  HOST DEVICE auto& operator[](index_type index) noexcept {
-    return data()[index];
+  HOST DEVICE [[nodiscard]] auto& at(index_type row, index_type col) noexcept {
+    return data()[get_index(row, col)];
   }
 
-  template<typename index_type>
-  HOST DEVICE auto const& operator[](index_type index) const noexcept {
+  template<typename U>
+  HOST DEVICE [[nodiscard]] auto& other_at(U* other_data, index_type row, index_type col) const noexcept {
+    return other_data[get_index(row, col)];
+  }
+
+  HOST DEVICE [[nodiscard]] auto& operator[](index_type index) noexcept {
+    return data()[index];
+  }
+  HOST DEVICE [[nodiscard]] auto const& operator[](index_type index) const noexcept {
     return data()[index];
   }
 
  private:
-  buffer<T> data_;
-  size_t count_;
+  T* data_;
+  uint32_t rows_;
+  uint32_t cols_;
 };
 
 }
