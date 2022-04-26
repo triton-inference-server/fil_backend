@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <herring2/detail/index_type.hpp>
 #include <herring2/gpu_support.hpp>
 #include <type_traits>
