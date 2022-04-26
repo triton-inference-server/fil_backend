@@ -13,7 +13,7 @@ using raw_array = T[N];
 }
 
 template<typename... Axes>
-auto nth_layout_elem(raw_index_t n, raw_index_t first, Axes const&... remaining) {
+HOST DEVICE auto nth_layout_elem(raw_index_t n, raw_index_t first, Axes const&... remaining) {
   auto result = raw_index_t{1};
   if (n == 0) {
     result = first;
@@ -111,7 +111,7 @@ struct ndarray {
 
   template <typename U>
   HOST DEVICE [[nodiscard]] auto& other_at(U* other_data, detail::raw_array<raw_index_t, N>&& indices) const {
-    return other_data[get_index(indices)];
+    return other_data[get_index(std::move(indices))];
   }
 };
 

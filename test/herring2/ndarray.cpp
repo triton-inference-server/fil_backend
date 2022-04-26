@@ -55,6 +55,8 @@ TEST(FilBackend, host_ndarray)
         ASSERT_LT(arr1.get_index(i0, i1, i2), data_layout2.size());
         ASSERT_LT(arr2.get_index(i0, i1, i2), data_layout2.size());
         ASSERT_EQ(arr1.at(i0, i1, i2), arr2.at(i0, i1, i2));
+        ASSERT_EQ(arr1.at(i0, i1, i2), arr1.other_at(data_layout1.data(), i0, i1, i2));
+        ASSERT_EQ(arr2.at(i0, i1, i2), arr2.other_at(data_layout2.data(), i0, i1, i2));
       }
     }
   }

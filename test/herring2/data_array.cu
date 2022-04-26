@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
 #include <cstdint>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
