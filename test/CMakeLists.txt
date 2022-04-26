@@ -31,6 +31,8 @@ add_executable(test_herring
     test/herring2/index_type.cpp
     test/herring2/ndarray.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/ndarray.cu>
+    test/herring2/tree.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/tree.cu>
 )
 
 IF(TRITON_ENABLE_GPU)

@@ -16,7 +16,6 @@
 
 #include <stdint.h>
 #include <cstdint>
-#include <iostream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <herring2/buffer.hpp>

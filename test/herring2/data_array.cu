@@ -19,6 +19,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <herring2/buffer.hpp>
+#include <herring2/cuda_check.hpp>
 #include <herring2/data_array.hpp>
 #include <herring2/device_type.hpp>
 
