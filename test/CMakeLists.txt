@@ -20,6 +20,7 @@ add_executable(test_herring
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/buffer.cu>
     test/herring2/cuda_check.cpp
     test/herring2/data_array.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/data_array.cu>
     test/herring2/device_id.cpp
     test/herring2/device_setter.cpp
     test/herring2/device_type.cpp
@@ -28,6 +29,7 @@ add_executable(test_herring
     test/herring2/host_only_throw.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/host_only_throw.cu>
     test/herring2/index_type.cpp
+    test/herring2/ndarray.cpp
 )
 
 IF(TRITON_ENABLE_GPU)

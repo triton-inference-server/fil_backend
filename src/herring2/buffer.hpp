@@ -258,7 +258,7 @@ struct buffer {
  private:
   device_id_variant device_;
   data_store data_;
-  uint32_t size_;
+  raw_index_t size_;
   T* cached_ptr;
 
 };

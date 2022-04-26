@@ -1,7 +1,4 @@
 #pragma once
-#include <stddef.h>
-#include <stdint.h>
-#include <herring2/buffer.hpp>
 #include <herring2/detail/index_type.hpp>
 #include <herring2/gpu_support.hpp>
 
@@ -10,6 +7,7 @@ namespace herring {
 enum class data_layout {
   dense_row_major,
   dense_col_major
+  // TODO(wphicks): CSR and COO
 };
 
 /** A 2D array of values */
@@ -65,8 +63,8 @@ struct data_array {
 
  private:
   T* data_;
-  uint32_t rows_;
-  uint32_t cols_;
+  raw_index_t rows_;
+  raw_index_t cols_;
 };
 
 }

@@ -21,21 +21,29 @@
 
 namespace herring {
 TEST(FilBackend, index_type) {
+  auto zero = 0;
+  auto one = 1;
   auto zero_32bit = std::uint32_t{0};
   auto one_32bit = std::uint32_t{1};
   auto zero_64bit = std::size_t{0};
   auto one_64bit = std::size_t{1};
 
+  ASSERT_EQ(detail::index_type<true>{}, zero);
+  ASSERT_NE(detail::index_type<true>{}, one);
   ASSERT_EQ(detail::index_type<true>{}, zero_32bit);
   ASSERT_NE(detail::index_type<true>{}, one_32bit);
   ASSERT_EQ(detail::index_type<true>{}, zero_64bit);
   ASSERT_NE(detail::index_type<true>{}, one_64bit);
 
+  ASSERT_EQ(detail::index_type<true>{one_32bit}, one);
+  ASSERT_NE(detail::index_type<true>{one_32bit}, zero);
   ASSERT_EQ(detail::index_type<true>{one_32bit}, one_32bit);
   ASSERT_NE(detail::index_type<true>{one_32bit}, zero_32bit);
   ASSERT_EQ(detail::index_type<true>{one_32bit}, one_64bit);
   ASSERT_NE(detail::index_type<true>{one_32bit}, zero_64bit);
 
+  ASSERT_EQ(detail::index_type<true>{one_64bit}, one);
+  ASSERT_NE(detail::index_type<true>{one_64bit}, zero);
   ASSERT_EQ(detail::index_type<true>{one_64bit}, one_32bit);
   ASSERT_NE(detail::index_type<true>{one_64bit}, zero_32bit);
   ASSERT_EQ(detail::index_type<true>{one_64bit}, one_64bit);
@@ -43,21 +51,29 @@ TEST(FilBackend, index_type) {
 }
 
 TEST(FilBackend, diff_type) {
+  auto zero = 0;
+  auto neg_one = -1;
   auto zero_32bit = std::int32_t{0};
   auto neg_one_32bit = std::int32_t{-1};
   auto zero_64bit = std::ptrdiff_t{0};
   auto neg_one_64bit = std::ptrdiff_t{-1};
 
+  ASSERT_EQ(detail::diff_type<true>{}, zero);
+  ASSERT_NE(detail::diff_type<true>{}, neg_one);
   ASSERT_EQ(detail::diff_type<true>{}, zero_32bit);
   ASSERT_NE(detail::diff_type<true>{}, neg_one_32bit);
   ASSERT_EQ(detail::diff_type<true>{}, zero_64bit);
   ASSERT_NE(detail::diff_type<true>{}, neg_one_64bit);
 
+  ASSERT_EQ(detail::diff_type<true>{neg_one_32bit}, neg_one);
+  ASSERT_NE(detail::diff_type<true>{neg_one_32bit}, zero);
   ASSERT_EQ(detail::diff_type<true>{neg_one_32bit}, neg_one_32bit);
   ASSERT_NE(detail::diff_type<true>{neg_one_32bit}, zero_32bit);
   ASSERT_EQ(detail::diff_type<true>{neg_one_32bit}, neg_one_64bit);
   ASSERT_NE(detail::diff_type<true>{neg_one_32bit}, zero_64bit);
 
+  ASSERT_EQ(detail::diff_type<true>{neg_one_64bit}, neg_one);
+  ASSERT_NE(detail::diff_type<true>{neg_one_64bit}, zero);
   ASSERT_EQ(detail::diff_type<true>{neg_one_64bit}, neg_one_32bit);
   ASSERT_NE(detail::diff_type<true>{neg_one_64bit}, zero_32bit);
   ASSERT_EQ(detail::diff_type<true>{neg_one_64bit}, neg_one_64bit);

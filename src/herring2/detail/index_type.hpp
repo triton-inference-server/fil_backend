@@ -9,6 +9,9 @@
 #include <type_traits>
 
 namespace herring {
+using raw_index_t = uint32_t;
+using raw_diff_t = int32_t;
+
 namespace detail {
 
 auto constexpr static const MAX_INDEX = UINT_MAX;
@@ -36,8 +39,9 @@ HOST DEVICE auto constexpr universal_min(T a, U b) {
 
 template <bool bounds_check>
 struct index_type {
-  using value_type = uint32_t;
+  using value_type = raw_index_t;
   HOST DEVICE index_type() : val{} {};
+  HOST DEVICE index_type(index_type<!bounds_check> index): val{index.value()} {}
   HOST DEVICE index_type(value_type index): val{index} {}
   HOST DEVICE index_type(size_t index) noexcept(!bounds_check) : val{[index]() {
     auto result = value_type{};
@@ -56,7 +60,7 @@ struct index_type {
         herring::host_only_throw<bad_index>("Invalid value for index");
       }
     }
-    result = universal_min(static_cast<uint32_t>(universal_max(0, index)), MAX_INDEX);
+    result = universal_min(static_cast<raw_index_t>(universal_max(0, index)), MAX_INDEX);
     return result;
   }()} {}
   HOST DEVICE operator value_type&() noexcept { return val; }
@@ -70,8 +74,9 @@ struct index_type {
 
 template <bool bounds_check>
 struct diff_type {
-  using value_type = int32_t;
+  using value_type = raw_diff_t;
   HOST DEVICE diff_type() : val{} {};
+  HOST DEVICE diff_type(diff_type<!bounds_check> index): val{index.value()} {}
   HOST DEVICE diff_type(value_type index): val{index} {}
   HOST DEVICE diff_type(ptrdiff_t index) : val{[index]() {
     auto result = value_type{};
@@ -92,41 +97,174 @@ struct diff_type {
   value_type val;
 };
 
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, size_t> || std::is_same_v<T, typename index_type<bounds_check>::value_type>, bool> operator==(index_type<bounds_check> const& lhs, T const& rhs) {
-  return lhs.value() == rhs;
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator==(T const& lhs, U const& rhs) {
+  return static_cast<index_type<false>>(lhs).value() == static_cast<index_type<false>>(rhs).value();
 }
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, size_t> || std::is_same_v<T, typename index_type<bounds_check>::value_type>, bool> operator==(T const& lhs, index_type<bounds_check> const& rhs) {
-  return lhs == rhs.value();
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator<(T const& lhs, U const& rhs) {
+  return static_cast<index_type<false>>(lhs).value() < static_cast<index_type<false>>(rhs).value();
 }
-
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, size_t> || std::is_same_v<T, typename index_type<bounds_check>::value_type>, bool> operator!=(index_type<bounds_check> const& lhs, T const& rhs) {
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator!=(T const& lhs, U const& rhs) {
   return !(lhs == rhs);
 }
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, size_t> || std::is_same_v<T, typename index_type<bounds_check>::value_type>, bool> operator!=(T const& lhs, index_type<bounds_check> const& rhs) {
-  return !(lhs == rhs);
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator>=(T const& lhs, U const& rhs) {
+  return !(lhs < rhs);
+}
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator>(T const& lhs, U const& rhs) {
+  return (lhs >= rhs) && !(lhs == rhs);
+}
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, index_type<false>> ||
+    std::is_same_v<T, index_type<true>> ||
+    std::is_same_v<U, index_type<false>> ||
+    std::is_same_v<U, index_type<true>>
+  ) && (
+    std::is_convertible_v<T, index_type<false>> &&
+    std::is_convertible_v<U, index_type<false>>
+  ), bool
+> operator<=(T const& lhs, U const& rhs) {
+  return (lhs < rhs) && (lhs == rhs);
 }
 
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, ptrdiff_t> || std::is_same_v<T, typename diff_type<bounds_check>::value_type>, bool> operator==(diff_type<bounds_check> const& lhs, T const& rhs) {
-  return lhs.value() == rhs;
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator==(T const& lhs, U const& rhs) {
+  return static_cast<diff_type<false>>(lhs).value() == static_cast<diff_type<false>>(rhs).value();
 }
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, ptrdiff_t> || std::is_same_v<T, typename diff_type<bounds_check>::value_type>, bool> operator==(T const& lhs, diff_type<bounds_check> const& rhs) {
-  return lhs == rhs.value();
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator<(T const& lhs, U const& rhs) {
+  return static_cast<diff_type<false>>(lhs).value() < static_cast<diff_type<false>>(rhs).value();
 }
-
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, ptrdiff_t> || std::is_same_v<T, typename diff_type<bounds_check>::value_type>, bool> operator!=(diff_type<bounds_check> const& lhs, T const& rhs) {
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator!=(T const& lhs, U const& rhs) {
   return !(lhs == rhs);
 }
-template <bool bounds_check, typename T>
-HOST DEVICE std::enable_if_t<std::is_same_v<T, ptrdiff_t> || std::is_same_v<T, typename diff_type<bounds_check>::value_type>, bool> operator!=(T const& lhs, diff_type<bounds_check> const& rhs) {
-  return !(lhs == rhs);
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator>=(T const& lhs, U const& rhs) {
+  return !(lhs < rhs);
 }
-
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator>(T const& lhs, U const& rhs) {
+  return (lhs >= rhs) && !(lhs == rhs);
+}
+template <typename T, typename U>
+HOST DEVICE std::enable_if_t<
+  (
+    std::is_same_v<T, diff_type<false>> ||
+    std::is_same_v<T, diff_type<true>> ||
+    std::is_same_v<U, diff_type<false>> ||
+    std::is_same_v<U, diff_type<true>>
+  ) && (
+    std::is_convertible_v<T, diff_type<false>> &&
+    std::is_convertible_v<U, diff_type<false>>
+  ), bool
+> operator<=(T const& lhs, U const& rhs) {
+  return (lhs < rhs) && (lhs == rhs);
+}
 }
 }
