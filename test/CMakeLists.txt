@@ -16,6 +16,7 @@
 
 # keep the files in alphabetical order!
 add_executable(test_herring
+    test/herring2/bitset.cpp
     test/herring2/buffer.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/buffer.cu>
     test/herring2/cuda_check.cpp

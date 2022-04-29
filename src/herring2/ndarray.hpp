@@ -1,16 +1,11 @@
 #pragma once
 #include <herring2/detail/index_type.hpp>
+#include <herring2/detail/raw_array.hpp>
 #include <herring2/gpu_support.hpp>
 #include <type_traits>
 #include <utility>
 
 namespace herring {
-
-namespace detail {
-// Use raw arrays here for device-side support
-template<typename T, raw_index_t N>
-using raw_array = T[N];
-}
 
 template<typename... Axes>
 HOST DEVICE auto nth_layout_elem(raw_index_t n, raw_index_t first, Axes const&... remaining) {

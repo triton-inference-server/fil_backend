@@ -40,10 +40,10 @@ HOST DEVICE auto constexpr universal_min(T a, U b) {
 template <bool bounds_check>
 struct index_type {
   using value_type = raw_index_t;
-  HOST DEVICE index_type() : val{} {};
-  HOST DEVICE index_type(index_type<!bounds_check> index): val{index.value()} {}
-  HOST DEVICE index_type(value_type index): val{index} {}
-  HOST DEVICE index_type(size_t index) noexcept(!bounds_check) : val{[index]() {
+  HOST DEVICE constexpr index_type() : val{} {};
+  HOST DEVICE constexpr index_type(index_type<!bounds_check> index): val{index.value()} {}
+  HOST DEVICE constexpr index_type(value_type index): val{index} {}
+  HOST DEVICE constexpr index_type(size_t index) noexcept(!bounds_check) : val{[index]() {
     auto result = value_type{};
     if constexpr (bounds_check) {
       if (index > MAX_INDEX) {
@@ -63,10 +63,10 @@ struct index_type {
     result = universal_min(static_cast<raw_index_t>(universal_max(0, index)), MAX_INDEX);
     return result;
   }()} {}
-  HOST DEVICE operator value_type&() noexcept { return val; }
-  HOST DEVICE operator value_type() const noexcept { return val; }
-  HOST DEVICE operator size_t() const noexcept { return static_cast<size_t>(val); }
-  HOST DEVICE auto value() const { return val; }
+  HOST DEVICE constexpr operator value_type&() noexcept { return val; }
+  HOST DEVICE constexpr operator value_type() const noexcept { return val; }
+  HOST DEVICE constexpr operator size_t() const noexcept { return static_cast<size_t>(val); }
+  HOST DEVICE constexpr auto value() const { return val; }
 
  private:
   value_type val;
