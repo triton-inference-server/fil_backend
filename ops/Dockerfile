@@ -70,9 +70,9 @@ FROM ${BASE_IMAGE} as base
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
 RUN [ $(uname -m) = 'x86_64' ] \
- && wget -O /tmp/cuda-keyring.deb \
+ && curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb \
- || wget -O /tmp/cuda-keyring.deb \
+ || curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/sbsa/cuda-keyring_1.0-1_all.deb; \
  dpkg -i /tmp/cuda-keyring.deb \
  && rm /tmp/cuda-keyring.deb
