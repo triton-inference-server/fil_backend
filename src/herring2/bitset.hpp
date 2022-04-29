@@ -18,7 +18,7 @@ struct bitset {
     num_bits / bin_width + (num_bits % bin_width != 0)
   );
 
-  auto constexpr size() const {
+  HOST DEVICE auto constexpr size() const {
     return num_bits;
   }
 
@@ -30,18 +30,18 @@ struct bitset {
   }
 
   // Standard bit-wise mutators and accessor
-  auto& set(index_type index) {
+  HOST DEVICE auto& set(index_type index) {
     data_[bin_from_index(index)] |= mask_in_bin(index);
     return *this;
   }
-  auto& clear(index_type index) {
+  HOST DEVICE auto& clear(index_type index) {
     data_[bin_from_index(index)] &= ~mask_in_bin(index);
     return *this;
   }
-  auto test(index_type index) {
+  HOST DEVICE auto test(index_type index) {
     return ((data_[bin_from_index(index)] & mask_in_bin(index)) != 0);
   }
-  auto& flip() {
+  HOST DEVICE auto& flip() {
     for (auto i = raw_index_t{}; i < bins; ++i) {
       data_[i] = ~data_[i];
     }
@@ -53,64 +53,64 @@ struct bitset {
     raw_index_t bin_count = bins, 
     typename = typename std::enable_if_t<bin_count == raw_index_t{1}>
   >
-  operator storage_type() const noexcept { return data_[0]; }
+  HOST DEVICE operator storage_type() const noexcept { return data_[0]; }
   template <
     raw_index_t bin_count = bins, 
     typename = typename std::enable_if_t<bin_count == raw_index_t{1}>
   >
-  operator storage_type&() noexcept { return data_[0]; }
+  HOST DEVICE operator storage_type&() noexcept { return data_[0]; }
 
   // Bit-wise boolean operations
   template<raw_index_t N, typename T>
-  friend bitset<N, T> operator&(
+  HOST DEVICE friend bitset<N, T> operator&(
     bitset<num_bits, storage_t> const& lhs,
     bitset<num_bits, storage_t> const& rhs
   );
   template<raw_index_t N, typename T>
-  friend bitset<N, T> operator|(
+  HOST DEVICE friend bitset<N, T> operator|(
     bitset<num_bits, storage_t> const& lhs,
     bitset<num_bits, storage_t> const& rhs
   );
   template<raw_index_t N, typename T>
-  friend bitset<N, T> operator^(
+  HOST DEVICE friend bitset<N, T> operator^(
     bitset<num_bits, storage_t> const& lhs,
     bitset<num_bits, storage_t> const& rhs
   );
-  auto& operator&=(bitset<num_bits, storage_t> const& other) {
+  HOST DEVICE auto& operator&=(bitset<num_bits, storage_t> const& other) {
     for (auto i = raw_index_t{}; i < bins; ++i) {
       data_[i] &= other.data_[i];
     }
     return *this;
   }
-  auto& operator|=(bitset<num_bits, storage_t> const& other) {
+  HOST DEVICE auto& operator|=(bitset<num_bits, storage_t> const& other) {
     for (auto i = raw_index_t{}; i < bins; ++i) {
       data_[i] |= other.data_[i];
     }
     return *this;
   }
-  auto& operator^=(bitset<num_bits, storage_t> const& other) {
+  HOST DEVICE auto& operator^=(bitset<num_bits, storage_t> const& other) {
     for (auto i = raw_index_t{}; i < bins; ++i) {
       data_[i] ^= other.data_[i];
     }
     return *this;
   }
-  auto operator~() const {
+  HOST DEVICE auto operator~() const {
     return bitset<num_bits, storage_t>(*this).flip();
   }
  private:
   detail::raw_array<storage_t, bins> data_;
 
-  auto mask_in_bin(raw_index_t index) {
+  HOST DEVICE auto mask_in_bin(raw_index_t index) {
     return storage_t{1} << (index % bin_width);
   }
 
-  auto bin_from_index(raw_index_t index) {
+  HOST DEVICE auto bin_from_index(raw_index_t index) {
     return index / bin_width;
   }
 };
 
 template <raw_index_t num_bits, typename storage_t>
-auto operator&(
+HOST DEVICE auto operator&(
   bitset<num_bits, storage_t> const& lhs,
   bitset<num_bits, storage_t> const& rhs
 ) {
@@ -120,7 +120,7 @@ auto operator&(
 }
 
 template <raw_index_t num_bits, typename storage_t>
-auto operator|(
+HOST DEVICE auto operator|(
   bitset<num_bits, storage_t> const& lhs,
   bitset<num_bits, storage_t> const& rhs
 ) {
@@ -130,7 +130,7 @@ auto operator|(
 }
 
 template <raw_index_t num_bits, typename storage_t>
-auto operator^(
+HOST DEVICE auto operator^(
   bitset<num_bits, storage_t> const& lhs,
   bitset<num_bits, storage_t> const& rhs
 ) {
