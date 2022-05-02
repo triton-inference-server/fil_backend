@@ -288,7 +288,7 @@ buildpy () {
 
   pushd "${server_repo}"
   python3 build.py $BUILDPY_OPT \
-    --cmake-dir=./build \
+    --no-container-interactive \
     --enable-logging \
     --enable-metrics \
     --enable-stats \

@@ -3,10 +3,9 @@ channels:
   - conda-forge
   - nvidia
   - rapidsai
-  - rapidsai-nightly
 dependencies:
   - cudatoolkit=11.4
-  - cudf=21.12
+  - cudf=22.04
   - matplotlib
   - pip
   - python=3.8
