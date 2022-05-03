@@ -21,6 +21,7 @@
 #include <herring2/bitset.hpp>
 #include <herring2/buffer.hpp>
 #include <herring2/data_array.hpp>
+#include <herring2/device_type.hpp>
 #include <herring2/forest.hpp>
 #include <herring2/tree_layout.hpp>
 #include <iterator>
@@ -28,16 +29,59 @@
 
 namespace herring {
 
-TEST(FilBackend, small_host_forest)
+using small_forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, bitset<32, uint32_t>>;
+
+__global__ void check_small_forest(
+    bool* out,
+    small_forest_type test_forest,
+    data_array<data_layout::dense_row_major, float> input) {
+
+  auto output = test_forest.evaluate_tree<true, false>(0, 0, input);
+  out[0] = (output.at(0) == 6.0f);
+  output = test_forest.evaluate_tree<false, false>(0, 0, input);
+  out[1] = (output.at(0) == 6.0f);
+  output = test_forest.evaluate_tree<true, false>(1, 0, input);
+  out[2] = (output.at(0) == 7.0f);
+  output = test_forest.evaluate_tree<true, false>(2, 0, input);
+  out[3] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false>(2, 0, input);
+  out[4] = (output.at(0) == 0.0f);
+
+  output = test_forest.evaluate_tree<true, false>(0, 1, input);
+  out[5] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false>(0, 1, input);
+  out[6] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<true, false>(1, 1, input);
+  out[7] = (output.at(0) == 4.0f);
+  output = test_forest.evaluate_tree<true, false>(2, 1, input);
+  out[8] = (output.at(0) == 2.0f);
+  output = test_forest.evaluate_tree<false, false>(2, 1, input);
+  out[9] = (output.at(0) == 2.0f);
+
+  output = test_forest.evaluate_tree<true, false>(0, 2, input, missing_input);
+  out[10] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false>(0, 2, input, missing_input);
+  out[11] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<true, false>(1, 2, input, missing_input);
+  out[12] = (output.at(0) == 4.0f);
+  output = test_forest.evaluate_tree<true, false>(2, 2, input, missing_input);
+  out[13] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false>(2, 2, input, missing_input);
+  out[14] = (output.at(0) == 0.0f);
+}
+
+TEST(FilBackend, small_dev_forest)
 {
-  using forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, bitset<32, uint32_t>>;
+  using forest_type = small_forest_type;
 
   auto offsets = std::vector<typename forest_type::offset_type>{
     6, 2, 0, 2, 0, 0, 0,
     4, 2, 0, 0, 2, 0, 2, 0, 0,
     2, 0, 0
   };
-  auto offsets_buf = buffer(offsets.data(), offsets.size());
+  auto offsets_buf = buffer(
+    std::begin(offsets), std::end(offsets), device_type::gpu
+  );
   auto categories1 = typename forest_type::category_set_type{};
   categories1.set(0);
   categories1.set(6);
@@ -65,27 +109,38 @@ TEST(FilBackend, small_host_forest)
   values[16 + 1].value = 0.0f;
   values[16 + 2].value = 2.0f;
 
-  auto values_buf = buffer(values.data(), values.size());
+  auto values_buf = buffer(
+    std::begin(values), std::end(values), device_type::gpu
+  );
   auto features = std::vector<uint16_t>{0, 0, 0, 0, 0, 0, 0,
                                         0, 1, 0, 0, 1, 0, 0, 0, 0,
                                         0, 0, 0};
-  auto features_buf = buffer(features.data(), features.size());
+  auto features_buf = buffer(
+    std::begin(features), std::end(features), device_type::gpu
+  );
   auto distant_vals = std::vector<bool>{
     true, false, false, false, false, false, false,
     true, false, false, false, false, false, false, false, false,
     false, false, false
   };
-  auto distant_buf = buffer<bool>(std::begin(distant_vals), std::end(distant_vals));
+  auto distant_buf = buffer<bool>(
+    std::begin(distant_vals), std::end(distant_vals),  device_type::gpu
+  );
 
   auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
-  auto tree_offsets_buf = buffer(tree_offsets.data(), tree_offsets.size());
+  auto tree_offsets_buf = buffer(
+    std::begin(tree_offsets),
+    std::end(tree_offsets),
+    device_type::gpu
+  );
   auto categorical_nodes = std::vector<bool>{
     false, false, false, false, false, false, false,
     false, true, false, false, true, false, false, false, false,
     false, false, false
   };
   auto categorical_nodes_buf = buffer<bool>(
-    std::begin(categorical_nodes), std::end(categorical_nodes)
+    std::begin(categorical_nodes), std::end(categorical_nodes),
+    device_type::gpu
   );
   auto test_forest = forest_type{
     offsets_buf.size(),
@@ -100,46 +155,17 @@ TEST(FilBackend, small_host_forest)
     categorical_nodes_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
-  auto input_values_buf = buffer(input_values.data(), input_values.size());
+  auto input_values_buf = buffer(
+    std::begin(input_values), std::end(input_values), device_type::gpu
+  );
   auto input = data_array<data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
   auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
-  auto missing_buf = buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
+  auto missing_buf = buffer<bool>(
+    std::begin(missing_vals), std::end(missing_vals), device_type::gpu
+  );
   auto missing_input = data_array<data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
-
-  auto output = test_forest.evaluate_tree<true, false>(0, 0, input);
-  ASSERT_FLOAT_EQ(output.at(0), 6.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 0, input);
-  ASSERT_FLOAT_EQ(output.at(0), 6.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 0, input);
-  ASSERT_FLOAT_EQ(output.at(0), 7.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 0, input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 0, input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-
-  output = test_forest.evaluate_tree<true, false>(0, 1, input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 1, input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 1, input);
-  ASSERT_FLOAT_EQ(output.at(0), 4.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 1, input);
-  ASSERT_FLOAT_EQ(output.at(0), 2.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 1, input);
-  ASSERT_FLOAT_EQ(output.at(0), 2.0f);
-
-  output = test_forest.evaluate_tree<true, false>(0, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 4.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
 }
 
 TEST(FilBackend, large_host_forest)
@@ -218,12 +244,12 @@ TEST(FilBackend, large_host_forest)
     categorical_nodes_buf.data(),
     categories_buf.data()
   };
-  auto input_values = std::vector<float>{7.0f, 0.0f, NAN, 6.0f, 1.0f, 1.0f};
+  auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
   auto input_values_buf = buffer(input_values.data(), input_values.size());
-  auto input = data_array<data_layout::dense_col_major, float>{input_values_buf.data(), 3, 2};
-  auto missing_vals = std::vector<bool>{false, false, true, false, false, false};
+  auto input = data_array<data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
   auto missing_buf = buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
-  auto missing_input = data_array<data_layout::dense_col_major, bool>{
+  auto missing_input = data_array<data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
 
