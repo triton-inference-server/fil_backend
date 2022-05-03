@@ -113,6 +113,53 @@ TEST(FilBackend, host_buffer)
   }
 }
 
+TEST(FilBackend, host_buffer_from_iters)
+{
+  auto data   = std::vector<int>{1, 2, 3};
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(std::begin(data), std::end(data));
+
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::cpu);
+    ASSERT_EQ(buf.size(), data.size());
+    ASSERT_NE(buf.data(), nullptr);
+
+    std::memcpy(
+      static_cast<void*>(buf.data()), static_cast<void*>(data.data()), data.size() * sizeof(int));
+
+    auto data_out = std::vector<int>(buf.data(), buf.data() + buf.size());
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  }
+}
+
+TEST(FilBackend, device_buffer_from_iters)
+{
+  auto data = std::vector<int>{1, 2, 3};
+  auto test_buffers = std::vector<buffer<int>>{};
+  test_buffers.emplace_back(std::begin(data), std::end(data), device_type::gpu);
+  test_buffers.emplace_back(std::begin(data), std::end(data), device_type::gpu, 0);
+  test_buffers.emplace_back(std::begin(data), std::end(data), device_type::gpu, 0, cuda_stream{});
+
+  for (auto& buf : test_buffers) {
+    ASSERT_EQ(buf.memory_type(), device_type::gpu);
+    ASSERT_EQ(buf.size(), data.size());
+#ifdef ENABLE_GPU
+    ASSERT_NE(buf.data(), nullptr);
+
+    auto data_out = std::vector<int>(data.size());
+    cudaMemcpy(static_cast<void*>(buf.data()),
+               static_cast<void*>(data.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(static_cast<void*>(data_out.data()),
+               static_cast<void*>(buf.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyDeviceToHost);
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#endif
+  }
+}
+
 TEST(FilBackend, non_owning_host_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};

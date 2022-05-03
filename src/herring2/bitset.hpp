@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <type_traits>
+#include <variant>
 #include <herring2/detail/index_type.hpp>
 #include <herring2/detail/raw_array.hpp>
 #include <herring2/gpu_support.hpp>

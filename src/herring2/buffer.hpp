@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
+#include <iterator>
 #include <memory>
+#include <utility>
 #include <variant>
 #include <herring2/detail/const_agnostic.hpp>
 #include <herring2/detail/copy.hpp>
@@ -232,6 +234,31 @@ struct buffer {
   buffer(buffer<T>&& other) = default;
   buffer<T>& operator=(buffer<T>&& other) = default;
 
+  template <
+    typename iter_t,
+    typename = decltype(*std::declval<iter_t&>(), void(), ++std::declval<iter_t&>(), void())
+  >
+  buffer(iter_t const& begin, iter_t const& end)
+    : buffer{static_cast<size_t>(std::distance(begin, end))}
+  {
+    auto index = std::size_t{};
+    std::for_each(begin, end, [&index, this](auto&& val) {
+        data()[index++] = val;
+    });
+  }
+
+  template <
+    typename iter_t,
+    typename = decltype(*std::declval<iter_t&>(), void(), ++std::declval<iter_t&>(), void())
+  >
+  buffer(iter_t const& begin, iter_t const& end, device_type mem_type) : buffer{buffer{begin, end}, mem_type} { }
+
+  template <
+    typename iter_t,
+    typename = decltype(*std::declval<iter_t&>(), void(), ++std::declval<iter_t&>(), void())
+  >
+  buffer(iter_t const& begin, iter_t const& end, device_type mem_type, int device, cuda_stream stream=cuda_stream{}) : buffer{buffer{begin, end}, mem_type, device, stream} { }
+
   auto size() const noexcept { return size_; }
   HOST DEVICE auto* data() const noexcept {
     return cached_ptr;
@@ -260,7 +287,6 @@ struct buffer {
   data_store data_;
   raw_index_t size_;
   T* cached_ptr;
-
 };
 
 template<bool bounds_check, typename T, typename U>

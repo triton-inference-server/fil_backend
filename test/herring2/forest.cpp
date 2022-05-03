@@ -14,53 +14,78 @@
  * limitations under the License.
  */
 
-#include <cstdint>
+#include <stdint.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <herring2/index_type.hpp>
-#include <herring2/tree.hpp>
+#include <array>
+#include <herring2/bitset.hpp>
+#include <herring2/buffer.hpp>
+#include <herring2/forest.hpp>
+#include <herring2/tree_layout.hpp>
+#include <vector>
 
 namespace herring {
 
-TEST(FilBackend, host_tree)
+TEST(FilBackend, host_forest)
 {
-  auto df_out = std::vector<int>{0, 1, 2, 3, 4, 5, 6};
-  auto bf_out = std::vector<int>{0, 1, 6, 2, 3, 4, 5};
+  using forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, bitset<32, uint32_t>>;
 
-  auto offsets1 = std::vector<raw_index_t>{6, 2, 0, 2, 0, 0, 0};
-  auto features1 = std::vector<raw_index_t>{0, 1, 0, 1, 0, 0, 0};
-  // TODO(wphicks): value
-  auto defaults1 = std::vector<bool>{true, false, false, true, false, false, false};
+  auto offsets = std::vector<typename forest_type::offset_type>{6, 2, 0, 2, 0, 0, 0,
+                                       4, 2, 0, 0, 2, 0, 2, 0, 0,
+                                       2, 0, 0};
+  auto categories1 = typename forest_type::category_set_type{};
+  categories1.set(0);
+  categories1.set(2);
+  auto categories2 = typename forest_type::category_set_type{};
+  categories1.set(1);
 
-  auto df_tree = tree<tree_layout::depth_first, int>{df_data.data(), df_data.size()};
-  auto bf_data = std::vector<int>{2, 3, 0, 0, 2, 0, 0};
-  auto bf_tree = tree<tree_layout::breadth_first, int>{bf_data.data(), bf_data.size()};
-
-  ASSERT_EQ(df_tree.data(), df_data.data());
-  ASSERT_EQ(bf_tree.data(), bf_data.data());
-  ASSERT_EQ(df_tree.size(), df_data.size());
-  ASSERT_EQ(bf_tree.size(), bf_data.size());
-
-  auto paths = std::vector<std::vector<bool>>{
-    {},
-    {false},
-    {false, false},
-    {false, true},
-    {false, true, false},
-    {false, true, true},
-    {true},
+  auto values = std::vector<typename forest_type::node_value_type>(offsets.size());
+  values[0].value = 0.0f;
+  values[1].value = 0.1f;
+  values[2].value = 0.2f;
+  values[3].value = 0.3f;
+  values[4].value = 0.4f;
+  values[5].value = 0.5f;
+  values[6].value = 0.6f;
+  values[7 + 0].value = 0.0f;
+  values[7 + 1].categories = categories1;
+  values[7 + 2].value = 0.2f;
+  values[7 + 3].value = 0.3f;
+  values[7 + 4].categories = categories2;
+  values[7 + 5].value = 0.5f;
+  values[7 + 6].value = 0.6f;
+  values[7 + 7].value = 0.7f;
+  values[7 + 8].value = 0.8f;
+  values[16 + 0].value = 0.0f;
+  values[16 + 1].value = 0.1f;
+  values[16 + 2].value = 0.2f;
+  auto features = std::vector<uint16_t>{0, 0, 0, 0, 0, 0, 0,
+                                        0, 1, 0, 0, 1, 0, 0, 0, 0,
+                                        0, 0, 0};
+  auto distant_vals = std::array{
+    true, false, false, false, false, false, false,
+    true, false, false, false, false, false, false, false, false,
+    false, false, false
   };
-  for (auto i = std::uint32_t{}; i < paths.size(); ++i) {
-    auto const& path = paths[i];
-    auto df_index = std::uint32_t{};
-    auto bf_index = std::uint32_t{};
-    for (auto cond : path) {
-      df_index += df_tree.next_offset(df_index, cond);
-      bf_index += bf_tree.next_offset(bf_index, cond);
-    }
-    ASSERT_EQ(df_out[df_index], i);
-    ASSERT_EQ(df_out[df_index], i);
-  }
+
+  auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
+  auto categorical_nodes = std::array{
+    false, false, false, false, false, false, false,
+    false, true, false, false, true, false, false, false, false,
+    false, false, false
+  };
+  auto test_forest = forest_type{
+    offsets.size(),
+    values.data(),
+    features.data(),
+    offsets.data(),
+    static_cast<bool*>(distant_vals.data()),
+    tree_offsets.size(),
+    tree_offsets.data(),
+    uint32_t{1},
+    nullptr,
+    static_cast<bool*>(categorical_nodes.data())
+  };
 }
 
 }

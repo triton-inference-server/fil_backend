@@ -1,6 +1,7 @@
 #pragma once
 #include <herring2/detail/index_type.hpp>
 #include <herring2/gpu_support.hpp>
+#include <herring2/tree_layout.hpp>
 
 namespace herring {
 

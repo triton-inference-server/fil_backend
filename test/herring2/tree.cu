@@ -22,6 +22,7 @@
 #include <herring2/cuda_check.hpp>
 #include <herring2/device_type.hpp>
 #include <herring2/tree.hpp>
+#include <herring2/tree_layout.hpp>
 
 namespace herring {
 

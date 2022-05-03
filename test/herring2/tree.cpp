@@ -18,6 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <herring2/tree.hpp>
+#include <herring2/tree_layout.hpp>
 
 namespace herring {
 

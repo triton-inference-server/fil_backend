@@ -5,12 +5,40 @@
 #include <herring2/gpu_support.hpp>
 #include <herring2/node_value.hpp>
 #include <herring2/tree.hpp>
+#include <herring2/tree_layout.hpp>
 
 namespace herring {
 
-template<typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, typename bitset_t, tree_layout layout>
+template<tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, typename bitset_t>
 struct forest {
-  using index_type = detail::index_type<DEBUG_ENABLED && !GPU_ENABLED>;
+  auto constexpr static const bounds_check = DEBUG_ENABLED && !GPU_ENABLED;
+  using index_type = detail::index_type<bounds_check>;
+  using category_set_type = bitset_t;
+  using node_value_type = node_value<value_t, output_index_t, category_set_type>;
+  using offset_type = offset_t;
+
+  forest()
+    : node_count_{}, values_{nullptr}, features_{nullptr},
+    distant_offsets_{nullptr}, default_distant_{nullptr}, tree_count_{},
+    tree_offsets_{nullptr}, output_size_{}, outputs_{nullptr},
+    categorical_nodes_{nullptr}, node_categories_{nullptr} { }
+
+  forest(
+    index_type node_count,
+    node_value_type* node_values,
+    feature_index_t* node_features,
+    offset_type* distant_child_offsets,
+    bool* default_distant,
+    index_type tree_count,
+    raw_index_t* tree_offsets,
+    index_type output_size = raw_index_t{1},
+    output_t* outputs = nullptr,
+    bool* categorical_nodes = nullptr,
+    category_set_type* node_categories = nullptr
+  ) : node_count_{node_count}, values_{node_values}, features_{node_features},
+    distant_offsets_{distant_child_offsets}, default_distant_{default_distant}, tree_count_{tree_count},
+    tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
+    categorical_nodes_{categorical_nodes}, node_categories_{node_categories} { }
 
   template <bool categorical, bool lookup, data_layout input_layout, typename input_t>
   HOST DEVICE auto evaluate_tree(
@@ -18,6 +46,8 @@ struct forest {
     index_type row_index,
     data_array<input_layout, input_t> const& input
   ) const {
+    // TODO(wphicks): host_only_throw if bounds_check enabled and tree index
+    // OOB
     return get_output<lookup>(find_leaf<categorical>(tree_index, row_index, input));
   }
 
@@ -35,20 +65,19 @@ struct forest {
 
  private:
   raw_index_t node_count_;
-  offset_t* distant_offsets_;
+  node_value_type* values_;
   feature_index_t* features_;
-  node_value<value_t, output_index_t, bitset_t>* values_;
+  offset_type* distant_offsets_;
   bool* default_distant_;
 
   raw_index_t tree_count_;
   raw_index_t* tree_offsets_;  // TODO(wphicks): Worth precomputing trees?
 
   raw_index_t output_size_;
-
   // Optional data (may be null)
   output_t* outputs_;
   bool* categorical_nodes_;
-  bitset_t* node_categories_;
+  category_set_type* node_categories_;
 
   template<bool lookup>
   HOST DEVICE auto get_output(index_type leaf_index) {
@@ -121,7 +150,7 @@ struct forest {
   HOST DEVICE [[nodiscard]] auto get_tree(index_type tree_index) const {
     auto min_index = tree_offsets_[tree_index];
     auto max_index = tree_index + 1 >= tree_count_ ? node_count_ : tree_offsets_[tree_index + 1];
-    return tree<layout, offset_t>{distant_offsets_ + min_index, max_index - min_index};
+    return tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
   }
 
   template <bool categorical, data_layout input_layout, typename input_t>
@@ -130,18 +159,32 @@ struct forest {
     index_type row_index,
     data_array<input_layout, input_t> const& input
   ) {
+    auto result = false;
     if constexpr (!categorical) {
-      return input.at(row_index, features_[node_index]) < values_[node_index].value;
+      result = input.at(row_index, features_[node_index]) < values_[node_index].value;
     } else {
-      auto const& categories = values_[node_index].categories;
+      auto const& categories = category_set_type{};
       if constexpr (
-        sizeof(bitset_t) > sizeof(value_t) && sizeof(bitset_t) > sizeof(output_index_t)
+        sizeof(category_set_type) > sizeof(value_t) && sizeof(category_set_type) > sizeof(output_index_t)
       ) {
+        // Too many categories for size of bitset storage; look up categories
+        // in external storage
         categories = node_categories_[values_[node_index].categories];
+      } else {
+        categories = values_[node_index].categories;
       }
       auto value = input.at(row_index, features_[node_index]);
-      // TODO(wphicks): auto categorical_value = 
+      if (value >=0 && value < categories.size()) {
+        // NOTE: This cast aligns with the convention used in LightGBM and
+        // other frameworks to cast floats when converting to integral
+        // categories. This can have surprising effects with floating point
+        // arithmetic, but it is kept this way for now in order to provide
+        // consistency with results obtained from the training frameworks.
+        auto categorical_value = static_cast<raw_index_t>(value);
+        result = categories.test(categorical_value);
+      }
     }
+    return result;
   }
 
   template <bool categorical, data_layout input_layout, typename input_t>
