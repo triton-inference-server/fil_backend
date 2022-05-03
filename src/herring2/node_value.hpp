@@ -26,18 +26,11 @@ namespace herring {
  * which is used to look up the output in external storage _unless_
  * output_index_t is itself the output type, in which case the output can be
  * stored directly in the index field. A non-leaf node with a categorical test
- * will store the bitset representing its categories in the categories field
- * unless the number of categories results in a bitset type large than either
- * value_t or output_index_t. In such cases, the categories field is used as an
- * index to look up the categorical bitset in external storage. */
+ * will store the bitset representing its categories in the index field.
+ */
 template<typename value_t, typename output_index_t, typename bitset_t>
 union node_value {
   value_t value;
   output_index_t index;
-  std::conditional_t<
-    sizeof(bitset_t) <= sizeof(value_t) || sizeof(bitset_t) <= sizeof(output_index_t),
-    bitset_t,
-    output_index_t
-  > categories;
 };
 }

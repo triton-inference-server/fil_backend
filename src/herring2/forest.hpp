@@ -80,7 +80,7 @@ struct forest {
   category_set_type* node_categories_;
 
   template<bool lookup>
-  HOST DEVICE auto get_output(index_type leaf_index) {
+  HOST DEVICE auto get_output(index_type leaf_index) const {
     if constexpr (lookup) {
       return flat_array<array_encoding::dense, output_t>(
         outputs_ + leaf_index,
@@ -90,12 +90,12 @@ struct forest {
       auto const& value = values_ + leaf_index;
       if constexpr (std::is_same_v<value_t, output_t>) {
         return flat_array<array_encoding::dense, output_t>(
-          &(value.value),
+          &(value->value),
           1
         );
       } else if constexpr (std::is_same_v<value_t, output_t>) {
         return flat_array<array_encoding::dense, output_t>(
-          &(value.index),
+          &(value->index),
           1
         );
       } else {
@@ -110,16 +110,32 @@ struct forest {
     index_type row_index,
     data_array<input_layout, input_t> const& input
   ) const {
+    // TODO(wphicks): Consider specialization for if tree is categorical
     auto tree = get_tree(tree_index);
     auto root_index_forest = tree_offsets_[tree_index];
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
     do {
       node_index_tree += offset;
-      offset = tree.next_offset(
-        node_index_tree,
-        evaluate_node<categorical>(root_index_forest + node_index_tree, row_index, input)
-      );
+
+      auto condition = false;
+      if constexpr (categorical) {
+        if (!categorical_nodes_[root_index_forest + node_index_tree]) {
+          condition = evaluate_node<false>(
+            root_index_forest + node_index_tree, row_index, input
+          );
+        } else {
+          condition = evaluate_node<true>(
+            root_index_forest + node_index_tree, row_index, input
+          );
+        }
+      } else {
+        condition = evaluate_node<false>(
+          root_index_forest + node_index_tree, row_index, input
+        );
+      }
+
+      offset = tree.next_offset(node_index_tree, condition);
     } while (offset != raw_index_t{});
 
     return root_index_forest + node_index_tree;
@@ -138,10 +154,25 @@ struct forest {
     auto offset = raw_index_t{};
     do {
       node_index_tree += offset;
-      offset = tree.next_offset(
-        node_index_tree,
-        evaluate_node<categorical>(root_index_forest + node_index_tree, row_index, input, missing_values)
-      );
+
+      auto condition = false;
+      if constexpr (categorical) {
+        if (!categorical_nodes_[root_index_forest + node_index_tree]) {
+          condition = evaluate_node<false>(
+            root_index_forest + node_index_tree, row_index, input, missing_values
+          );
+        } else {
+          condition = evaluate_node<true>(
+            root_index_forest + node_index_tree, row_index, input, missing_values
+          );
+        }
+      } else {
+        condition = evaluate_node<false>(
+          root_index_forest + node_index_tree, row_index, input, missing_values
+        );
+      }
+
+      offset = tree.next_offset(node_index_tree, condition);
     } while (offset != raw_index_t{});
 
     return root_index_forest + node_index_tree;
@@ -158,30 +189,38 @@ struct forest {
     index_type node_index,
     index_type row_index,
     data_array<input_layout, input_t> const& input
-  ) {
+  ) const {
     auto result = false;
+    auto value = input.at(row_index, features_[node_index]);
     if constexpr (!categorical) {
-      result = input.at(row_index, features_[node_index]) < values_[node_index].value;
+      result = value < values_[node_index].value;
     } else {
-      auto const& categories = category_set_type{};
-      if constexpr (
-        sizeof(category_set_type) > sizeof(value_t) && sizeof(category_set_type) > sizeof(output_index_t)
-      ) {
-        // Too many categories for size of bitset storage; look up categories
-        // in external storage
-        categories = node_categories_[values_[node_index].categories];
+      if constexpr (sizeof(category_set_type) > sizeof(output_index_t)) {
+        auto const& categories = node_categories_[values_[node_index].index];
+        if (value >=0 && value < categories.size()) {
+          // NOTE: This cast aligns with the convention used in LightGBM and
+          // other frameworks to cast floats when converting to integral
+          // categories. This can have surprising effects with floating point
+          // arithmetic, but it is kept this way for now in order to provide
+          // consistency with results obtained from the training frameworks.
+          auto categorical_value = static_cast<raw_index_t>(value);
+          // Too many categories for size of bitset storage; look up categories
+          // in external storage
+          result = categories.test(categorical_value);
+        }
       } else {
-        categories = values_[node_index].categories;
-      }
-      auto value = input.at(row_index, features_[node_index]);
-      if (value >=0 && value < categories.size()) {
-        // NOTE: This cast aligns with the convention used in LightGBM and
-        // other frameworks to cast floats when converting to integral
-        // categories. This can have surprising effects with floating point
-        // arithmetic, but it is kept this way for now in order to provide
-        // consistency with results obtained from the training frameworks.
-        auto categorical_value = static_cast<raw_index_t>(value);
-        result = categories.test(categorical_value);
+        auto const& categories = category_set_type{values_[node_index].index};
+        if (value >=0 && value < categories.size()) {
+          // NOTE: This cast aligns with the convention used in LightGBM and
+          // other frameworks to cast floats when converting to integral
+          // categories. This can have surprising effects with floating point
+          // arithmetic, but it is kept this way for now in order to provide
+          // consistency with results obtained from the training frameworks.
+          auto categorical_value = static_cast<raw_index_t>(value);
+          // Too many categories for size of bitset storage; look up categories
+          // in external storage
+          result = categories.test(categorical_value);
+        }
       }
     }
     return result;
@@ -193,12 +232,12 @@ struct forest {
     index_type row_index,
     data_array<input_layout, input_t> const& input,
     data_array<input_layout, bool> const& missing_values
-  ) {
+  ) const {
     auto col = features_[node_index];
     if (missing_values.at(row_index, col)) {
       return default_distant_[node_index];
     } else {
-      return evaluate_node(node_index, row_index, input);
+      return evaluate_node<categorical>(node_index, row_index, input);
     }
   }
 };

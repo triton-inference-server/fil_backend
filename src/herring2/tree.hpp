@@ -34,6 +34,7 @@ struct tree {
   }
 
   HOST DEVICE [[nodiscard]] auto next_offset(index_type index, bool condition) {
+    condition |= (data_[index] == 0);
     if constexpr (layout == tree_layout::depth_first) {
       return 1 + (data_[index] - 1) * condition;
     } else if constexpr (layout == tree_layout::breadth_first) {

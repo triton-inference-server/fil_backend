@@ -30,6 +30,11 @@ struct bitset {
     }
   }
 
+  template<raw_index_t N=bins, typename = typename std::enable_if_t<N==raw_index_t{1}>>
+  HOST DEVICE bitset(storage_type val) {
+    data_[0] = val;
+  }
+
   // Standard bit-wise mutators and accessor
   HOST DEVICE auto& set(index_type index) {
     data_[bin_from_index(index)] |= mask_in_bin(index);
@@ -39,7 +44,7 @@ struct bitset {
     data_[bin_from_index(index)] &= ~mask_in_bin(index);
     return *this;
   }
-  HOST DEVICE auto test(index_type index) {
+  HOST DEVICE auto test(index_type index) const {
     return ((data_[bin_from_index(index)] & mask_in_bin(index)) != 0);
   }
   HOST DEVICE auto& flip() {
@@ -101,11 +106,11 @@ struct bitset {
  private:
   detail::raw_array<storage_t, bins> data_;
 
-  HOST DEVICE auto mask_in_bin(raw_index_t index) {
+  HOST DEVICE auto mask_in_bin(raw_index_t index) const {
     return storage_t{1} << (index % bin_width);
   }
 
-  HOST DEVICE auto bin_from_index(raw_index_t index) {
+  HOST DEVICE auto bin_from_index(raw_index_t index) const {
     return index / bin_width;
   }
 };
