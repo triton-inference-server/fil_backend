@@ -82,20 +82,20 @@ struct forest {
   template<bool lookup>
   HOST DEVICE auto get_output(index_type leaf_index) const {
     if constexpr (lookup) {
-      return flat_array<array_encoding::dense, output_t>(
-        outputs_ + leaf_index,
+      return flat_array<array_encoding::dense, output_t const>(
+        outputs_ + values_[leaf_index].index,
         output_size_
       );
     } else {
-      auto const& value = values_ + leaf_index;
+      auto const& value = values_[leaf_index];
       if constexpr (std::is_same_v<value_t, output_t>) {
-        return flat_array<array_encoding::dense, output_t>(
-          &(value->value),
+        return flat_array<array_encoding::dense, output_t const>(
+          &(value.value),
           1
         );
       } else if constexpr (std::is_same_v<value_t, output_t>) {
-        return flat_array<array_encoding::dense, output_t>(
-          &(value->index),
+        return flat_array<array_encoding::dense, output_t const>(
+          &(value.index),
           1
         );
       } else {
