@@ -40,7 +40,7 @@ struct tree {
     } else if constexpr (layout == tree_layout::breadth_first) {
       return data_[index] + condition - 1;
     } else {
-      // static_assert(false);
+      static_assert(layout == tree_layout::depth_first);
     }
   }
 

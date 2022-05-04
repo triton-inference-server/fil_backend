@@ -99,7 +99,7 @@ struct forest {
           1
         );
       } else {
-        // static_assert(false);
+        static_assert(lookup);
       }
     }
   }

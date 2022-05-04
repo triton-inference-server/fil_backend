@@ -36,7 +36,7 @@ struct data_array {
     } else if constexpr (layout == data_layout::dense_col_major) {
       result = rows_ * col + row;
     } else {
-      // static_assert(false);
+      static_assert(layout == data_layout::dense_row_major);
     }
     return result;
   }
