@@ -93,7 +93,7 @@ struct forest {
           &(value.value),
           1
         );
-      } else if constexpr (std::is_same_v<value_t, output_t>) {
+      } else if constexpr (std::is_same_v<output_index_t, output_t>) {
         return flat_array<array_encoding::dense, output_t const>(
           &(value.index),
           1
