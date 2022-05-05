@@ -23,17 +23,19 @@ namespace herring {
 TEST(FilBackend, default_bitset) {
   auto constexpr small_size = raw_index_t{8};
   auto constexpr large_size = raw_index_t{33};
-  using small_set_t = bitset<small_size, uint8_t>;
-  using large_set_t = bitset<large_size, uint32_t>;
-  auto small_set = small_set_t{};
-  auto large_set = large_set_t{};
+  using small_set_t = bitset<uint8_t>;
+  using large_set_t = bitset<uint32_t>;
+  auto small_data = uint8_t{};
+  auto small_set = small_set_t{&small_data};
+  auto large_data = std::vector<uint32_t>(2);
+  auto large_set = large_set_t{large_data.data(), large_size};
 
   ASSERT_EQ(small_set.size(), small_size);
   ASSERT_EQ(large_set.size(), large_size);
   ASSERT_EQ(small_set.bin_width, 8);
   ASSERT_EQ(large_set.bin_width, 32);
-  ASSERT_EQ(small_set.bins, 1);
-  ASSERT_EQ(large_set.bins, 2);
+  ASSERT_EQ(small_set.bin_count(), 1);
+  ASSERT_EQ(large_set.bin_count(), 2);
 
   for (auto i = raw_index_t{}; i < small_size; ++i) {
     ASSERT_EQ(small_set.test(i), false);

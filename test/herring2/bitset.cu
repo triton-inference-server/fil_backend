@@ -23,8 +23,8 @@ namespace herring {
 __global__ void check_bitset_access(
     bool* out_small,
     bool* out_large,
-    bitset<8, uint8_t> small_set,
-    bitset<33, uint32_t> large_set) {
+    bitset<uint8_t> small_set,
+    bitset<uint32_t> large_set) {
 
   for (auto i = uint32_t{}; i < small_set.size(); ++i) {
     out_small[i] = ((i % 2 == 0) == small_set.test(i));
@@ -37,10 +37,16 @@ __global__ void check_bitset_access(
 TEST(FilBackend, default_bitset_dev) {
   auto constexpr small_size = uint32_t{8};
   auto constexpr large_size = uint32_t{33};
-  using small_set_t = bitset<small_size, uint8_t>;
-  using large_set_t = bitset<large_size, uint32_t>;
-  auto small_set = small_set_t{};
-  auto large_set = large_set_t{};
+  using small_set_t = bitset<uint8_t>;
+  using large_set_t = bitset<uint32_t>;
+  auto small_data = buffer<uint8_t>{1};
+  small_data.data()[0] = 0;
+  auto large_data = buffer<uint32_t>{2};
+  large_data.data()[0] = 0;
+  large_data.data()[1] = 0;
+
+  auto small_set = small_set_t{small_data.data(), small_size};
+  auto large_set = large_set_t{large_data.data(), large_size};
 
   for (auto i = uint32_t{}; i < small_size; ++i) {
     if (i % 2 == 0) {
@@ -54,7 +60,15 @@ TEST(FilBackend, default_bitset_dev) {
   }
   auto out_buf_small = buffer<bool>{small_set.size(), device_type::gpu};
   auto out_buf_large = buffer<bool>{large_set.size(), device_type::gpu};
-  check_bitset_access<<<1,1>>>(out_buf_small.data(), out_buf_large.data(), small_set, large_set);
+
+  auto small_data_dev = buffer{small_data, device_type::gpu};
+  auto large_data_dev = buffer{large_data, device_type::gpu};
+  auto small_set_dev = small_set_t{small_data_dev.data(), small_size};
+  auto large_set_dev = large_set_t{large_data_dev.data(), large_size};
+
+  check_bitset_access<<<1,1>>>(
+    out_buf_small.data(), out_buf_large.data(), small_set_dev, large_set_dev
+  );
   auto out_buf_host_small = buffer<bool>{out_buf_small, device_type::cpu};
   auto out_buf_host_large = buffer<bool>{out_buf_large, device_type::cpu};
   cuda_check(cudaStreamSynchronize(0));

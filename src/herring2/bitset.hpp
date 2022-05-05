@@ -4,10 +4,11 @@
 #include <variant>
 #include <herring2/detail/index_type.hpp>
 #include <herring2/detail/raw_array.hpp>
+#include <herring2/detail/universal_cmp.hpp>
 #include <herring2/gpu_support.hpp>
 
 namespace herring {
-template<raw_index_t num_bits, typename storage_t>
+template<typename storage_t>
 struct bitset {
   using storage_type = storage_t;
   using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
@@ -15,24 +16,27 @@ struct bitset {
   auto constexpr static const bin_width = raw_index_t{
     detail::index_type<false>{sizeof(storage_type) * 8}
   };
-  auto constexpr static const bins = (
-    num_bits / bin_width + (num_bits % bin_width != 0)
-  );
 
-  HOST DEVICE auto constexpr size() const {
-    return num_bits;
+  HOST DEVICE bitset()
+    : data_{nullptr}, num_bits_{0}
+  {
   }
 
-  HOST DEVICE bitset() {
-    // Zero-initialize
-    for (auto i = raw_index_t{}; i < bins; ++i) {
-      data_[i] = storage_type{};
-    }
+  HOST DEVICE bitset(storage_type* data, index_type size)
+    : data_{data}, num_bits_{size}
+  {
   }
 
-  template<raw_index_t N=bins, typename = typename std::enable_if_t<N==raw_index_t{1}>>
-  HOST DEVICE bitset(storage_type val) {
-    data_[0] = val;
+  HOST DEVICE bitset(storage_type* data)
+    : data_{data}, num_bits_{detail::index_type<false>{sizeof(storage_type) * 8}}
+  {
+  }
+
+  HOST DEVICE auto size() const {
+    return num_bits_;
+  }
+  HOST DEVICE auto bin_count() const {
+    return num_bits_ / bin_width + (num_bits_ % bin_width != 0);
   }
 
   // Standard bit-wise mutators and accessor
@@ -45,66 +49,46 @@ struct bitset {
     return *this;
   }
   HOST DEVICE auto test(index_type index) const {
-    return ((data_[bin_from_index(index)] & mask_in_bin(index)) != 0);
+    auto result = false;
+    if (index < num_bits_) {
+      result = ((data_[bin_from_index(index)] & mask_in_bin(index)) != 0);
+    }
+    return result;
   }
   HOST DEVICE auto& flip() {
-    for (auto i = raw_index_t{}; i < bins; ++i) {
+    for (auto i = raw_index_t{}; i < bin_count(); ++i) {
       data_[i] = ~data_[i];
     }
     return *this;
   }
 
-  // Conversion operators for single-bin bitsets
-  template <
-    raw_index_t bin_count = bins, 
-    typename = typename std::enable_if_t<bin_count == raw_index_t{1}>
-  >
-  HOST DEVICE operator storage_type() const noexcept { return data_[0]; }
-  template <
-    raw_index_t bin_count = bins, 
-    typename = typename std::enable_if_t<bin_count == raw_index_t{1}>
-  >
-  HOST DEVICE operator storage_type&() noexcept { return data_[0]; }
-
   // Bit-wise boolean operations
-  template<raw_index_t N, typename T>
-  HOST DEVICE friend bitset<N, T> operator&(
-    bitset<num_bits, storage_t> const& lhs,
-    bitset<num_bits, storage_t> const& rhs
-  );
-  template<raw_index_t N, typename T>
-  HOST DEVICE friend bitset<N, T> operator|(
-    bitset<num_bits, storage_t> const& lhs,
-    bitset<num_bits, storage_t> const& rhs
-  );
-  template<raw_index_t N, typename T>
-  HOST DEVICE friend bitset<N, T> operator^(
-    bitset<num_bits, storage_t> const& lhs,
-    bitset<num_bits, storage_t> const& rhs
-  );
-  HOST DEVICE auto& operator&=(bitset<num_bits, storage_t> const& other) {
-    for (auto i = raw_index_t{}; i < bins; ++i) {
+  HOST DEVICE auto& operator&=(bitset<storage_type> const& other) {
+    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
       data_[i] &= other.data_[i];
     }
     return *this;
   }
-  HOST DEVICE auto& operator|=(bitset<num_bits, storage_t> const& other) {
-    for (auto i = raw_index_t{}; i < bins; ++i) {
+  HOST DEVICE auto& operator|=(bitset<storage_t> const& other) {
+    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
       data_[i] |= other.data_[i];
     }
     return *this;
   }
-  HOST DEVICE auto& operator^=(bitset<num_bits, storage_t> const& other) {
-    for (auto i = raw_index_t{}; i < bins; ++i) {
+  HOST DEVICE auto& operator^=(bitset<storage_t> const& other) {
+    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
       data_[i] ^= other.data_[i];
     }
     return *this;
   }
-  HOST DEVICE auto operator~() const {
-    return bitset<num_bits, storage_t>(*this).flip();
+  HOST DEVICE auto& operator~() const {
+    flip();
+    return *this;
   }
+
  private:
-  detail::raw_array<storage_t, bins> data_;
+  storage_type* data_;
+  raw_index_t num_bits_;
 
   HOST DEVICE auto mask_in_bin(raw_index_t index) const {
     return storage_t{1} << (index % bin_width);
@@ -114,35 +98,5 @@ struct bitset {
     return index / bin_width;
   }
 };
-
-template <raw_index_t num_bits, typename storage_t>
-HOST DEVICE auto operator&(
-  bitset<num_bits, storage_t> const& lhs,
-  bitset<num_bits, storage_t> const& rhs
-) {
-  auto result = bitset<num_bits, storage_t>(lhs);
-  result &= rhs;
-  return result;
-}
-
-template <raw_index_t num_bits, typename storage_t>
-HOST DEVICE auto operator|(
-  bitset<num_bits, storage_t> const& lhs,
-  bitset<num_bits, storage_t> const& rhs
-) {
-  auto result = bitset<num_bits, storage_t>(lhs);
-  result |= rhs;
-  return result;
-}
-
-template <raw_index_t num_bits, typename storage_t>
-HOST DEVICE auto operator^(
-  bitset<num_bits, storage_t> const& lhs,
-  bitset<num_bits, storage_t> const& rhs
-) {
-  auto result = bitset<num_bits, storage_t>(lhs);
-  result |= rhs;
-  return result;
-}
 
 }

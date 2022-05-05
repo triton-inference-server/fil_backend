@@ -5,6 +5,7 @@
 
 #include <exception>
 #include <herring2/detail/host_only_throw.hpp>
+#include <herring2/detail/universal_cmp.hpp>
 #include <herring2/gpu_support.hpp>
 #include <type_traits>
 
@@ -26,16 +27,6 @@ struct bad_index : std::exception {
  private:
   char const* msg_;
 };
-
-template <typename T, typename U>
-HOST DEVICE auto constexpr universal_max(T a, U b) {
-  return (a > b) ? a : b;
-}
-
-template <typename T, typename U>
-HOST DEVICE auto constexpr universal_min(T a, U b) {
-  return (a < b) ? a : b;
-}
 
 template <bool bounds_check>
 struct index_type {
