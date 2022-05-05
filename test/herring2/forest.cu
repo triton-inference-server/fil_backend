@@ -25,12 +25,13 @@
 #include <herring2/forest.hpp>
 #include <herring2/tree_layout.hpp>
 #include <iterator>
+#include <numeric>
 #include <vector>
 
 namespace herring {
 
-using small_forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, bitset<32, uint32_t>>;
-using large_forest_type = forest<tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, bitset<1024, uint8_t>>;
+using small_forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
+using large_forest_type = forest<tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
 
 __global__ void check_small_forest(
     bool* out,
@@ -85,32 +86,35 @@ TEST(FilBackend, small_dev_forest)
   auto offsets_buf = buffer<typename forest_type::offset_type>(
     std::begin(offsets), std::end(offsets), device_type::gpu
   );
-  auto categories1 = typename forest_type::category_set_type{};
+  auto cat1_data = typename forest_type::output_index_type{};
+  auto categories1 = typename forest_type::category_set_type{&cat1_data};
   categories1.set(0);
   categories1.set(6);
-  auto categories2 = typename forest_type::category_set_type{};
-  categories1.set(4);
+  auto cat2_data = typename forest_type::output_index_type{};
+  auto categories2 = typename forest_type::category_set_type{&cat2_data};
+  categories2.set(4);
 
-  auto values = std::vector<typename forest_type::node_value_type>(offsets_buf.size());
-  values[0].value = 1.0f;
-  values[1].value = 5.0f;
-  values[2].value = 6.0f;
-  values[3].value = 3.0f;
-  values[4].value = 4.0f;
-  values[5].value = 2.0f;
-  values[6].value = 0.0f;
-  values[7 + 0].value = 5.0f;
-  values[7 + 1].index = categories1;
-  values[7 + 2].value = 8.0f;
-  values[7 + 3].value = 7.0f;
-  values[7 + 4].index = categories2;
-  values[7 + 5].value = 4.0f;
-  values[7 + 6].value = 2.0f;
-  values[7 + 7].value = 1.0f;
-  values[7 + 8].value = 0.0f;
-  values[16 + 0].value = 1.0f;
-  values[16 + 1].value = 0.0f;
-  values[16 + 2].value = 2.0f;
+  auto values = std::vector<typename forest_type::node_value_type>{
+    {.value = 1.0f},  // Tree: 0, Node 0
+    {.value = 5.0f},  // Tree: 0, Node 1
+    {.value = 6.0f},  // Tree: 0, Node 2
+    {.value = 3.0f},  // Tree: 0, Node 3
+    {.value = 4.0f},  // Tree: 0, Node 4
+    {.value = 2.0f},  // Tree: 0, Node 5
+    {.value = 0.0f},  // Tree: 0, Node 6
+    {.value = 5.0f},  // Tree: 1, Node 0
+    {.index = cat1_data},  // Tree: 1, Node 1, (Categories 0 and 6)
+    {.value = 8.0f},  // Tree: 1, Node 2
+    {.value = 7.0f},  // Tree: 1, Node 3
+    {.index = cat2_data},  // Tree: 1, Node 4 (Category 4)
+    {.value = 4.0f},  // Tree: 1, Node 5
+    {.value = 2.0f},  // Tree: 1, Node 6
+    {.value = 1.0f},  // Tree: 1, Node 7
+    {.value = 0.0f},  // Tree: 1, Node 8
+    {.value = 1.0f},  // Tree: 2, Node 0
+    {.value = 0.0f},  // Tree: 2, Node 1
+    {.value = 2.0f}  // Tree: 2, Node 2
+  };
 
   auto values_buf = buffer<typename forest_type::node_value_type>(
     std::begin(values), std::end(values), device_type::gpu
@@ -136,13 +140,13 @@ TEST(FilBackend, small_dev_forest)
     std::end(tree_offsets),
     device_type::gpu
   );
-  auto categorical_nodes = std::vector<bool>{
-    false, false, false, false, false, false, false,
-    false, true, false, false, true, false, false, false, false,
-    false, false, false
+  auto categorical_sizes = std::vector<uint32_t>{
+    0, 0, 0, 0, 0, 0, 0,
+    0, 8, 0, 0, 8, 0, 0, 0, 0,
+    0, 0, 0
   };
-  auto categorical_nodes_buf = buffer<bool>(
-    std::begin(categorical_nodes), std::end(categorical_nodes),
+  auto categorical_sizes_buf = buffer<uint32_t>(
+    std::begin(categorical_sizes), std::end(categorical_sizes),
     device_type::gpu
   );
   auto test_forest = forest_type{
@@ -155,7 +159,7 @@ TEST(FilBackend, small_dev_forest)
     tree_offsets_buf.data(),
     uint32_t{1},
     nullptr,
-    categorical_nodes_buf.data()
+    categorical_sizes_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
   auto input_values_buf = buffer<float>(
@@ -248,12 +252,47 @@ TEST(FilBackend, large_dev_forest)
   auto offsets_buf = buffer<typename forest_type::offset_type>(
     std::begin(offsets), std::end(offsets), device_type::gpu
   );
-  auto categories = std::vector<typename forest_type::category_set_type>(2);
-  categories[0].set(0);
-  categories[0].set(6);
-  categories[1].set(4);
-  auto categories_buf = buffer<typename forest_type::category_set_type>(
-    std::begin(categories), std::end(categories), device_type::gpu
+
+  auto categorical_sizes = std::vector<uint32_t>{
+    0, 0, 0, 0, 0, 0, 0,
+    0, 17, 0, 0, 7, 0, 0, 0, 0,
+    0, 0, 0
+  };
+
+  auto cat_buf_size = std::accumulate(
+    std::begin(categorical_sizes),
+    std::end(categorical_sizes),
+    uint32_t{},
+    [](auto const& total, auto const& entry) {
+      return total + (entry / sizeof(uint8_t) + (entry % sizeof(uint8_t) != 0));
+    }
+  );
+
+  auto categorical_data = std::vector<uint8_t>(cat_buf_size);
+
+  auto categories1_bins = categorical_sizes[8] / sizeof(uint8_t) + (categorical_sizes[8] % sizeof(uint8_t) != 0);
+
+  auto categories1 = typename forest_type::category_set_type{
+    categorical_data.data(),
+    categorical_sizes[8]
+  };
+  auto categories2 = typename forest_type::category_set_type{
+    categorical_data.data() + categories1_bins,
+    categorical_sizes[11]
+  };
+  categories1.set(0);
+  categories1.set(6);
+  categories2.set(4);
+
+  auto categorical_sizes_buf = buffer<uint32_t>(
+    std::begin(categorical_sizes),
+    std::end(categorical_sizes),
+    device_type::gpu
+  );
+  auto category_buf = buffer<uint8_t>(
+    std::begin(categorical_data),
+    std::end(categorical_data),
+    device_type::gpu
   );
 
   auto values = std::vector<typename forest_type::node_value_type>(offsets_buf.size());
@@ -301,15 +340,6 @@ TEST(FilBackend, large_dev_forest)
     std::end(tree_offsets),
     device_type::gpu
   );
-  auto categorical_nodes = std::vector<bool>{
-    false, false, false, false, false, false, false,
-    false, true, false, false, true, false, false, false, false,
-    false, false, false
-  };
-  auto categorical_nodes_buf = buffer<bool>(
-    std::begin(categorical_nodes), std::end(categorical_nodes),
-    device_type::gpu
-  );
   auto output_vals = std::vector<uint64_t>{
     6, 6, 4, 4, 2, 2, 0, 0, 8, 8, 7, 7, 4, 4, 1, 1, 0, 0, 0, 0, 2, 2
   };
@@ -328,8 +358,8 @@ TEST(FilBackend, large_dev_forest)
     tree_offsets_buf.data(),
     uint32_t{2},
     outputs_buf.data(),
-    categorical_nodes_buf.data(),
-    categories_buf.data()
+    categorical_sizes_buf.data(),
+    category_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
   auto input_values_buf = buffer<float>(

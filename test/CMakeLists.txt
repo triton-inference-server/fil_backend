@@ -29,7 +29,7 @@ add_executable(test_herring
     test/herring2/flat_array.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/flat_array.cu>
     test/herring2/forest.cpp
-    # $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
     test/herring2/gpu_support.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/gpu_support.cu>
     test/herring2/host_only_throw.cpp
