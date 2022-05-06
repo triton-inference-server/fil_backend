@@ -14,6 +14,11 @@ template <array_encoding layout, typename T>
 struct flat_array {
   using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
 
+  HOST DEVICE flat_array()
+    : data_{nullptr}, size_{0}
+  {
+  }
+
   HOST DEVICE flat_array(T* data, index_type size)
     : data_{data}, size_{size}
   {
