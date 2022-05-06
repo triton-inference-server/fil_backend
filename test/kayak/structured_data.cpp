@@ -24,9 +24,9 @@ namespace kayak {
 TEST(FilBackend, structured_data_default)
 {
   auto sd = structured_data<flat_array<array_encoding::dense, int>>{};
-  EXPECT_EQ(sd.data().memory_type(), device_type::cpu);
-  EXPECT_EQ(sd.data().size(), 0);
-  EXPECT_EQ(sd.data().device_index(), 0);
+  EXPECT_EQ(sd.buffer().memory_type(), device_type::cpu);
+  EXPECT_EQ(sd.buffer().size(), 0);
+  EXPECT_EQ(sd.buffer().device_index(), 0);
   EXPECT_EQ(sd.obj().data(), nullptr);
   EXPECT_EQ(sd.obj().size(), 0);
 }
@@ -43,11 +43,12 @@ TEST(FilBackend, make_structured_data)
     cuda_stream{},
     size
   );
-  EXPECT_EQ(sd.data().memory_type(), device_type::cpu);
-  EXPECT_EQ(sd.data().size(), size);
-  EXPECT_EQ(sd.data().device_index(), 0);
-  EXPECT_NE(sd.obj().data(), nullptr);
-  EXPECT_EQ(sd.obj().size(), 0);
+  EXPECT_EQ(sd.buffer().memory_type(), device_type::cpu);
+  EXPECT_EQ(sd.buffer().size(), size);
+  EXPECT_EQ(sd.buffer().device_index(), device);
+  EXPECT_NE(sd.buffer().data(), nullptr);
+  EXPECT_EQ(sd.obj().data(), sd.buffer().data());
+  EXPECT_EQ(sd.obj().size(), sd.buffer().size());
 }
 
 }

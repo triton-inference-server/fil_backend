@@ -10,13 +10,13 @@ namespace kayak {
 
 template<typename struct_t>
 struct structured_data {
-  using value_type = std::remove_reference<decltype(*std::declval<struct_t>().data())>;
+  using value_type = std::remove_reference_t<decltype(*std::declval<struct_t>().data())>;
   using obj_type = struct_t;
 
   structured_data() : data_{}, obj_{} { }
 
-  auto& data() { return data_; }
-  auto const& data() const { return data_; }
+  auto& buffer() { return data_; }
+  auto const& buffer() const { return data_; }
   auto& obj() { return obj_; }
   auto const& obj() const { return obj_; }
 
@@ -26,7 +26,7 @@ struct structured_data {
     device_type mem_type=device_type::cpu,
     int device=0,
     cuda_stream stream=cuda_stream{}
-  ) : data_{other.data().size(), mem_type, device, stream}, obj_{other.obj()} {
+  ) : data_{other.buffer().size(), mem_type, device, stream}, obj_{other.obj()} {
     if constexpr (bounds_check) {
       if (obj_.size() > data_.size()) {
         throw out_of_bounds{
@@ -34,7 +34,7 @@ struct structured_data {
         };
       }
     }
-    copy<false>(data_, other.data());
+    copy<false>(data_, other.buffer());
   }
 
   template<bool bounds_check, typename... args_t>
@@ -45,9 +45,9 @@ struct structured_data {
     cuda_stream stream,
     args_t&&... args
   ) {
-    using value_type = std::remove_reference<decltype(*std::declval<struct_t>().data())>;
-    auto data = buffer<value_type>{size, mem_type, device, stream};
-    auto obj = struct_t{data.data(), std::forward<args_t...>(args)...};
+    using value_type = std::remove_reference_t<decltype(*std::declval<struct_t>().data())>;
+    auto data = kayak::buffer<value_type>{size, mem_type, device, stream};
+    auto obj = struct_t(data.data(), std::forward<args_t...>(args)...);
     if constexpr (bounds_check) {
       if (obj.size() > data.size()) {
         throw out_of_bounds{
@@ -62,10 +62,10 @@ struct structured_data {
   }
 
  private:
-  buffer<value_type> data_;
+  kayak::buffer<value_type> data_;
   obj_type obj_;
 
-  structured_data(buffer<value_type>&& data, struct_t&& obj)
+  structured_data(kayak::buffer<value_type>&& data, struct_t&& obj)
     : data_{std::move(data)}, obj_{std::move(obj)} { }
 };
 
