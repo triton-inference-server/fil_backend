@@ -18,11 +18,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <cmath>
-#include <herring2/bitset.hpp>
-#include <herring2/buffer.hpp>
-#include <herring2/data_array.hpp>
+#include <kayak/bitset.hpp>
+#include <kayak/buffer.hpp>
+#include <kayak/data_array.hpp>
 #include <herring2/forest.hpp>
-#include <herring2/tree_layout.hpp>
+#include <kayak/tree_layout.hpp>
 #include <iterator>
 #include <numeric>
 #include <vector>
@@ -31,14 +31,14 @@ namespace herring {
 
 TEST(FilBackend, small_host_forest)
 {
-  using forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
+  using forest_type = forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
 
   auto offsets = std::vector<typename forest_type::offset_type>{
     6, 2, 0, 2, 0, 0, 0,
     4, 2, 0, 0, 2, 0, 2, 0, 0,
     2, 0, 0
   };
-  auto offsets_buf = buffer(offsets.data(), offsets.size());
+  auto offsets_buf = kayak::buffer(offsets.data(), offsets.size());
   auto cat1_data = typename forest_type::output_index_type{};
   auto categories1 = typename forest_type::category_set_type{&cat1_data};
   categories1.set(0);
@@ -69,26 +69,26 @@ TEST(FilBackend, small_host_forest)
     {.value = 2.0f}  // Tree: 2, Node 2
   };
 
-  auto values_buf = buffer(values.data(), values.size());
+  auto values_buf = kayak::buffer(values.data(), values.size());
   auto features = std::vector<uint16_t>{0, 0, 0, 0, 0, 0, 0,
                                         0, 1, 0, 0, 1, 0, 0, 0, 0,
                                         0, 0, 0};
-  auto features_buf = buffer(features.data(), features.size());
+  auto features_buf = kayak::buffer(features.data(), features.size());
   auto distant_vals = std::vector<bool>{
     true, false, false, false, false, false, false,
     true, false, false, false, false, false, false, false, false,
     false, false, false
   };
-  auto distant_buf = buffer<bool>(std::begin(distant_vals), std::end(distant_vals));
+  auto distant_buf = kayak::buffer<bool>(std::begin(distant_vals), std::end(distant_vals));
 
   auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
-  auto tree_offsets_buf = buffer(tree_offsets.data(), tree_offsets.size());
+  auto tree_offsets_buf = kayak::buffer(tree_offsets.data(), tree_offsets.size());
   auto categorical_sizes = std::vector<uint32_t>{
     0, 0, 0, 0, 0, 0, 0,
     0, 8, 0, 0, 8, 0, 0, 0, 0,
     0, 0, 0
   };
-  auto categorical_sizes_buf = buffer<uint32_t>(
+  auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
   auto test_forest = forest_type{
@@ -104,11 +104,11 @@ TEST(FilBackend, small_host_forest)
     categorical_sizes_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
-  auto input_values_buf = buffer(input_values.data(), input_values.size());
-  auto input = data_array<data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto input_values_buf = kayak::buffer(input_values.data(), input_values.size());
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
   auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
-  auto missing_buf = buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
-  auto missing_input = data_array<data_layout::dense_row_major, bool>{
+  auto missing_buf = kayak::buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
+  auto missing_input = kayak::data_array<kayak::data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
 
@@ -148,14 +148,14 @@ TEST(FilBackend, small_host_forest)
 
 TEST(FilBackend, large_host_forest)
 {
-  using forest_type = forest<tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
+  using forest_type = forest<kayak::tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
 
   auto offsets = std::vector<typename forest_type::offset_type>{
     6, 2, 0, 2, 0, 0, 0,
     4, 2, 0, 0, 2, 0, 2, 0, 0,
     2, 0, 0
   };
-  auto offsets_buf = buffer(offsets.data(), offsets.size());
+  auto offsets_buf = kayak::buffer(offsets.data(), offsets.size());
 
   auto categorical_sizes = std::vector<uint32_t>{
     0, 0, 0, 0, 0, 0, 0,
@@ -163,7 +163,7 @@ TEST(FilBackend, large_host_forest)
     0, 0, 0
   };
 
-  auto categorical_sizes_buf = buffer<uint32_t>(
+  auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
 
@@ -176,7 +176,7 @@ TEST(FilBackend, large_host_forest)
     }
   );
 
-  auto category_buf = buffer<uint8_t>(cat_buf_size);
+  auto category_buf = kayak::buffer<uint8_t>(cat_buf_size);
   auto categories1_bins = categorical_sizes[8] / sizeof(uint8_t) + (categorical_sizes[8] % sizeof(uint8_t) != 0);
   auto categories1 = typename forest_type::category_set_type{
     category_buf.data(),
@@ -212,24 +212,24 @@ TEST(FilBackend, large_host_forest)
     {.index = 20}  // Tree: 2, Node 2
   };
 
-  auto values_buf = buffer(values.data(), values.size());
+  auto values_buf = kayak::buffer(values.data(), values.size());
   auto features = std::vector<uint32_t>{0, 0, 0, 0, 0, 0, 0,
                                         0, 1, 0, 0, 1, 0, 0, 0, 0,
                                         0, 0, 0};
-  auto features_buf = buffer(features.data(), features.size());
+  auto features_buf = kayak::buffer(features.data(), features.size());
   auto distant_vals = std::vector<bool>{
     true, false, false, false, false, false, false,
     true, false, false, false, false, false, false, false, false,
     false, false, false
   };
-  auto distant_buf = buffer<bool>(std::begin(distant_vals), std::end(distant_vals));
+  auto distant_buf = kayak::buffer<bool>(std::begin(distant_vals), std::end(distant_vals));
 
   auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
-  auto tree_offsets_buf = buffer(tree_offsets.data(), tree_offsets.size());
+  auto tree_offsets_buf = kayak::buffer(tree_offsets.data(), tree_offsets.size());
   auto output_vals = std::vector<uint64_t>{
     6, 6, 4, 4, 2, 2, 0, 0, 8, 8, 7, 7, 4, 4, 1, 1, 0, 0, 0, 0, 2, 2
   };
-  auto outputs_buf = buffer(output_vals.data(), output_vals.size());
+  auto outputs_buf = kayak::buffer(output_vals.data(), output_vals.size());
   auto test_forest = forest_type{
     offsets_buf.size(),
     values_buf.data(),
@@ -244,11 +244,11 @@ TEST(FilBackend, large_host_forest)
     category_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 0.0f, NAN, 6.0f, 1.0f, 1.0f};
-  auto input_values_buf = buffer(input_values.data(), input_values.size());
-  auto input = data_array<data_layout::dense_col_major, float>{input_values_buf.data(), 3, 2};
+  auto input_values_buf = kayak::buffer(input_values.data(), input_values.size());
+  auto input = kayak::data_array<kayak::data_layout::dense_col_major, float>{input_values_buf.data(), 3, 2};
   auto missing_vals = std::vector<bool>{false, false, true, false, false, false};
-  auto missing_buf = buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
-  auto missing_input = data_array<data_layout::dense_col_major, bool>{
+  auto missing_buf = kayak::buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
+  auto missing_input = kayak::data_array<kayak::data_layout::dense_col_major, bool>{
     missing_buf.data(), 3, 2
   };
 

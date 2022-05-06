@@ -3,13 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <exception>
-#include <herring/output_ops.hpp>
-#include <herring/type_helpers.hpp>
-#include <herring2/bitset.hpp>
-#include <herring2/buffer.hpp>
 #include <herring2/forest.hpp>
+#include <kayak/bitset.hpp>
+#include <kayak/buffer.hpp>
 #include <herring2/node_value.hpp>
-#include <herring2/tree_layout.hpp>
+#include <kayak/tree_layout.hpp>
 #include <limits>
 #include <optional>
 #include <variant>
@@ -31,7 +29,7 @@ struct unusable_model_exception : std::exception {
   std::string msg_;
 };
 
-template<tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
+template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
 struct decision_forest {
   using forest_type = forest<
     layout,
@@ -51,17 +49,17 @@ struct decision_forest {
   using category_set_type = typename forest_type::category_set_type;
 
   // Data
-  buffer<node_value_type> node_values;
-  buffer<feature_index_type> node_features;
-  buffer<offset_type> node_offsets;
-  buffer<bool> default_distant;
-  std::optional<buffer<output_type>> node_outputs;
-  std::optional<buffer<bool>> categorical_nodes;
+  kayak::buffer<node_value_type> node_values;
+  kayak::buffer<feature_index_type> node_features;
+  kayak::buffer<offset_type> node_offsets;
+  kayak::buffer<bool> default_distant;
+  std::optional<kayak::buffer<output_type>> node_outputs;
+  std::optional<kayak::buffer<bool>> categorical_nodes;
   // TODO(wphicks): Non-inclusive thresholds will be made inclusive via
   // next-representable trick
 
   // Metadata
-  buffer<std::size_t> tree_offsets;
+  kayak::buffer<std::size_t> tree_offsets;
   std::size_t num_class;
 };
 

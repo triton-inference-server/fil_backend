@@ -1,23 +1,25 @@
 #pragma once
-#include <herring2/data_array.hpp>
-#include <herring2/detail/index_type.hpp>
-#include <herring2/bitset.hpp>
-#include <herring2/flat_array.hpp>
-#include <herring2/gpu_support.hpp>
+#include <kayak/data_array.hpp>
+#include <kayak/detail/index_type.hpp>
+#include <kayak/bitset.hpp>
+#include <kayak/flat_array.hpp>
+#include <kayak/gpu_support.hpp>
 #include <herring2/node_value.hpp>
-#include <herring2/tree.hpp>
-#include <herring2/tree_layout.hpp>
+#include <kayak/tree.hpp>
+#include <kayak/tree_layout.hpp>
 
 namespace herring {
 
-template<tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
+using kayak::raw_index_t;
+
+template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
 struct forest {
-  auto constexpr static const bounds_check = DEBUG_ENABLED && !GPU_ENABLED;
-  using index_type = detail::index_type<bounds_check>;
+  auto constexpr static const bounds_check = kayak::DEBUG_ENABLED && !kayak::GPU_ENABLED;
+  using index_type = kayak::detail::index_type<bounds_check>;
   using category_set_type = std::conditional_t<
     categorical_lookup,
-    bitset<uint8_t>,
-    bitset<output_index_t>
+    kayak::bitset<uint8_t>,
+    kayak::bitset<output_index_t>
   >;
   using node_value_type = node_value<value_t, output_index_t, category_set_type>;
   using offset_type = offset_t;
@@ -46,23 +48,23 @@ struct forest {
     tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
-  template <bool categorical, bool lookup, data_layout input_layout, typename input_t>
+  template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto evaluate_tree(
     index_type tree_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input
+    kayak::data_array<input_layout, input_t> const& input
   ) const {
     // TODO(wphicks): host_only_throw if bounds_check enabled and tree index
     // OOB
     return get_output<lookup>(find_leaf<categorical>(tree_index, row_index, input));
   }
 
-  template <bool categorical, bool lookup, data_layout input_layout, typename input_t>
+  template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto evaluate_tree(
     index_type tree_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input,
-    data_array<input_layout, bool> const& missing_values
+    kayak::data_array<input_layout, input_t> const& input,
+    kayak::data_array<input_layout, bool> const& missing_values
   ) const {
     return get_output<lookup>(
       find_leaf<categorical>(tree_index, row_index, input, missing_values)
@@ -88,19 +90,19 @@ struct forest {
   template<bool lookup>
   HOST DEVICE auto get_output(index_type leaf_index) const {
     if constexpr (lookup) {
-      return flat_array<array_encoding::dense, output_t const>(
+      return kayak::flat_array<kayak::array_encoding::dense, output_t const>(
         outputs_ + values_[leaf_index].index,
         output_size_
       );
     } else {
       auto const& value = values_[leaf_index];
       if constexpr (std::is_same_v<value_t, output_t>) {
-        return flat_array<array_encoding::dense, output_t const>(
+        return kayak::flat_array<kayak::array_encoding::dense, output_t const>(
           &(value.value),
           1
         );
       } else if constexpr (std::is_same_v<output_index_t, output_t>) {
-        return flat_array<array_encoding::dense, output_t const>(
+        return kayak::flat_array<kayak::array_encoding::dense, output_t const>(
           &(value.index),
           1
         );
@@ -110,11 +112,11 @@ struct forest {
     }
   }
 
-  template <bool categorical, data_layout input_layout, typename input_t>
+  template <bool categorical, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto find_leaf(
     index_type tree_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input
+    kayak::data_array<input_layout, input_t> const& input
   ) const {
     // TODO(wphicks): Consider specialization for if tree is categorical
     auto tree = get_tree(tree_index);
@@ -139,12 +141,12 @@ struct forest {
           root_index_forest + node_index_tree, row_index, input
         );
       }
-      if constexpr (layout == tree_layout::depth_first) {
+      if constexpr (layout == kayak::tree_layout::depth_first) {
         offset = 1 + (tree[node_index_tree] - 1) * condition;
-      } else if constexpr (layout == tree_layout::breadth_first) {
+      } else if constexpr (layout == kayak::tree_layout::breadth_first) {
         offset = tree[node_index_tree] + condition - 1;
       } else {
-        static_assert(layout == tree_layout::depth_first);
+        static_assert(layout == kayak::tree_layout::depth_first);
       }
       node_index_tree += offset;
     }
@@ -152,12 +154,12 @@ struct forest {
     return root_index_forest + node_index_tree;
   }
 
-  template <bool categorical, data_layout input_layout, typename input_t>
+  template <bool categorical, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto find_leaf(
     index_type tree_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input,
-    data_array<input_layout, bool> const& missing_values
+    kayak::data_array<input_layout, input_t> const& input,
+    kayak::data_array<input_layout, bool> const& missing_values
   ) const {
     auto tree = get_tree(tree_index);
     auto root_index_forest = tree_offsets_[tree_index];
@@ -181,12 +183,12 @@ struct forest {
           root_index_forest + node_index_tree, row_index, input, missing_values
         );
       }
-      if constexpr (layout == tree_layout::depth_first) {
+      if constexpr (layout == kayak::tree_layout::depth_first) {
         offset = 1 + (tree[node_index_tree] - 1) * condition;
-      } else if constexpr (layout == tree_layout::breadth_first) {
+      } else if constexpr (layout == kayak::tree_layout::breadth_first) {
         offset = tree[node_index_tree] + condition - 1;
       } else {
-        static_assert(layout == tree_layout::depth_first);
+        static_assert(layout == kayak::tree_layout::depth_first);
       }
       node_index_tree += offset;
     }
@@ -197,14 +199,14 @@ struct forest {
   HOST DEVICE [[nodiscard]] auto get_tree(index_type tree_index) const {
     auto min_index = tree_offsets_[tree_index];
     auto max_index = tree_index + 1 >= tree_count_ ? node_count_ : tree_offsets_[tree_index + 1];
-    return tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
+    return kayak::tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
   }
 
-  template <bool categorical, data_layout input_layout, typename input_t>
+  template <bool categorical, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE [[nodiscard]] auto evaluate_node(
     index_type node_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input
+    kayak::data_array<input_layout, input_t> const& input
   ) const {
     auto result = false;
     auto value = input.at(row_index, features_[node_index]);
@@ -235,12 +237,12 @@ struct forest {
     return result;
   }
 
-  template <bool categorical, data_layout input_layout, typename input_t>
+  template <bool categorical, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE [[nodiscard]] auto evaluate_node(
     index_type node_index,
     index_type row_index,
-    data_array<input_layout, input_t> const& input,
-    data_array<input_layout, bool> const& missing_values
+    kayak::data_array<input_layout, input_t> const& input,
+    kayak::data_array<input_layout, bool> const& missing_values
   ) const {
     auto col = features_[node_index];
     if (missing_values.at(row_index, col)) {

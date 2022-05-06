@@ -15,33 +15,49 @@
 #=============================================================================
 
 # keep the files in alphabetical order!
+add_executable(test_kayak
+    test/kayak/bitset.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/bitset.cu>
+    test/kayak/buffer.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/buffer.cu>
+    test/kayak/cuda_check.cpp
+    test/kayak/data_array.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/data_array.cu>
+    test/kayak/device_id.cpp
+    test/kayak/device_setter.cpp
+    test/kayak/device_type.cpp
+    test/kayak/flat_array.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/flat_array.cu>
+    test/kayak/gpu_support.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/gpu_support.cu>
+    test/kayak/host_only_throw.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/host_only_throw.cu>
+    test/kayak/index_type.cpp
+    test/kayak/ndarray.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/ndarray.cu>
+    test/kayak/tree.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/tree.cu>
+)
+
 add_executable(test_herring
-    test/herring2/bitset.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/bitset.cu>
-    test/herring2/buffer.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/buffer.cu>
-    test/herring2/cuda_check.cpp
-    test/herring2/data_array.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/data_array.cu>
-    test/herring2/device_id.cpp
-    test/herring2/device_setter.cpp
-    test/herring2/device_type.cpp
-    test/herring2/flat_array.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/flat_array.cu>
     test/herring2/forest.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
-    test/herring2/gpu_support.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/gpu_support.cu>
-    test/herring2/host_only_throw.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/host_only_throw.cu>
-    test/herring2/index_type.cpp
-    test/herring2/ndarray.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/ndarray.cu>
-    test/herring2/tree.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/tree.cu>
 )
 
 IF(TRITON_ENABLE_GPU)
+  set_target_properties(test_kayak
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             CUDA_STANDARD                       17
+             CUDA_STANDARD_REQUIRED              ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+  target_compile_definitions(
+    test_kayak PUBLIC ENABLE_GPU
+  )
   set_target_properties(test_herring
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
@@ -56,6 +72,14 @@ IF(TRITON_ENABLE_GPU)
     test_herring PUBLIC ENABLE_GPU
   )
 else()
+  set_target_properties(test_kayak
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
   set_target_properties(test_herring
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
@@ -66,16 +90,33 @@ else()
   )
 endif()
 
+target_compile_options(test_kayak
+  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
+  "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
+)
 target_compile_options(test_herring
   PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
   "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
 )
 
+target_include_directories(test_kayak
+  PUBLIC  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/src>"
+  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/test>"
+)
 target_include_directories(test_herring
   PUBLIC  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/src>"
   "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/test>"
 )
 
+target_link_libraries(test_kayak
+PRIVATE
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  gmock
+  gmock_main
+  GTest::gtest
+  GTest::gtest_main
+  $<TARGET_NAME_IF_EXISTS:conda_env>
+)
 target_link_libraries(test_herring
 PRIVATE
   $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>

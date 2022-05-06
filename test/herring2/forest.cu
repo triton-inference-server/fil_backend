@@ -18,26 +18,27 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <cmath>
-#include <herring2/bitset.hpp>
-#include <herring2/buffer.hpp>
-#include <herring2/data_array.hpp>
-#include <herring2/device_type.hpp>
 #include <herring2/forest.hpp>
-#include <herring2/tree_layout.hpp>
+#include <kayak/bitset.hpp>
+#include <kayak/buffer.hpp>
+#include <kayak/cuda_check.hpp>
+#include <kayak/data_array.hpp>
+#include <kayak/device_type.hpp>
+#include <kayak/tree_layout.hpp>
 #include <iterator>
 #include <numeric>
 #include <vector>
 
 namespace herring {
 
-using small_forest_type = forest<tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
-using large_forest_type = forest<tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
+using small_forest_type = forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
+using large_forest_type = forest<kayak::tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
 
 __global__ void check_small_forest(
     bool* out,
     small_forest_type test_forest,
-    data_array<data_layout::dense_row_major, float> input,
-    data_array<data_layout::dense_row_major, bool> missing_input
+    kayak::data_array<kayak::data_layout::dense_row_major, float> input,
+    kayak::data_array<kayak::data_layout::dense_row_major, bool> missing_input
   ) {
 
   auto output = test_forest.evaluate_tree<true, false>(0, 0, input);
@@ -83,8 +84,8 @@ TEST(FilBackend, small_dev_forest)
     4, 2, 0, 0, 2, 0, 2, 0, 0,
     2, 0, 0
   };
-  auto offsets_buf = buffer<typename forest_type::offset_type>(
-    std::begin(offsets), std::end(offsets), device_type::gpu
+  auto offsets_buf = kayak::buffer<typename forest_type::offset_type>(
+    std::begin(offsets), std::end(offsets), kayak::device_type::gpu
   );
   auto cat1_data = typename forest_type::output_index_type{};
   auto categories1 = typename forest_type::category_set_type{&cat1_data};
@@ -116,38 +117,38 @@ TEST(FilBackend, small_dev_forest)
     {.value = 2.0f}  // Tree: 2, Node 2
   };
 
-  auto values_buf = buffer<typename forest_type::node_value_type>(
-    std::begin(values), std::end(values), device_type::gpu
+  auto values_buf = kayak::buffer<typename forest_type::node_value_type>(
+    std::begin(values), std::end(values), kayak::device_type::gpu
   );
   auto features = std::vector<uint16_t>{0, 0, 0, 0, 0, 0, 0,
                                         0, 1, 0, 0, 1, 0, 0, 0, 0,
                                         0, 0, 0};
-  auto features_buf = buffer<uint16_t>(
-    std::begin(features), std::end(features), device_type::gpu
+  auto features_buf = kayak::buffer<uint16_t>(
+    std::begin(features), std::end(features), kayak::device_type::gpu
   );
   auto distant_vals = std::vector<bool>{
     true, false, false, false, false, false, false,
     true, false, false, false, false, false, false, false, false,
     false, false, false
   };
-  auto distant_buf = buffer<bool>(
-    std::begin(distant_vals), std::end(distant_vals),  device_type::gpu
+  auto distant_buf = kayak::buffer<bool>(
+    std::begin(distant_vals), std::end(distant_vals),  kayak::device_type::gpu
   );
 
   auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
-  auto tree_offsets_buf = buffer<uint32_t>(
+  auto tree_offsets_buf = kayak::buffer<uint32_t>(
     std::begin(tree_offsets),
     std::end(tree_offsets),
-    device_type::gpu
+    kayak::device_type::gpu
   );
   auto categorical_sizes = std::vector<uint32_t>{
     0, 0, 0, 0, 0, 0, 0,
     0, 8, 0, 0, 8, 0, 0, 0, 0,
     0, 0, 0
   };
-  auto categorical_sizes_buf = buffer<uint32_t>(
+  auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes), std::end(categorical_sizes),
-    device_type::gpu
+    kayak::device_type::gpu
   );
   auto test_forest = forest_type{
     offsets_buf.size(),
@@ -162,23 +163,23 @@ TEST(FilBackend, small_dev_forest)
     categorical_sizes_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
-  auto input_values_buf = buffer<float>(
-    std::begin(input_values), std::end(input_values), device_type::gpu
+  auto input_values_buf = kayak::buffer<float>(
+    std::begin(input_values), std::end(input_values), kayak::device_type::gpu
   );
-  auto input = data_array<data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
   auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
-  auto missing_buf = buffer<bool>(
-    std::begin(missing_vals), std::end(missing_vals), device_type::gpu
+  auto missing_buf = kayak::buffer<bool>(
+    std::begin(missing_vals), std::end(missing_vals), kayak::device_type::gpu
   );
-  auto missing_input = data_array<data_layout::dense_row_major, bool>{
+  auto missing_input = kayak::data_array<kayak::data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
-  auto out_buf = buffer<bool>{15, device_type::gpu};
+  auto out_buf = kayak::buffer<bool>{15, kayak::device_type::gpu};
   check_small_forest<<<1,1>>>(
     out_buf.data(), test_forest, input, missing_input
   );
-  auto out_buf_host = buffer<bool>{out_buf, device_type::cpu};
-  cuda_check(cudaStreamSynchronize(0));
+  auto out_buf_host = kayak::buffer<bool>{out_buf, kayak::device_type::cpu};
+  kayak::cuda_check(cudaStreamSynchronize(0));
   for (auto i = uint32_t{}; i < out_buf_host.size(); ++i) {
     ASSERT_EQ(out_buf_host.data()[i], true);
   }
@@ -187,8 +188,8 @@ TEST(FilBackend, small_dev_forest)
 __global__ void check_large_forest(
     bool* out,
     large_forest_type test_forest,
-    data_array<data_layout::dense_row_major, float> input,
-    data_array<data_layout::dense_row_major, bool> missing_input
+    kayak::data_array<kayak::data_layout::dense_row_major, float> input,
+    kayak::data_array<kayak::data_layout::dense_row_major, bool> missing_input
   ) {
 
   auto output = test_forest.evaluate_tree<true, true>(0, 0, input);
@@ -249,8 +250,8 @@ TEST(FilBackend, large_dev_forest)
     4, 2, 0, 0, 2, 0, 2, 0, 0,
     2, 0, 0
   };
-  auto offsets_buf = buffer<typename forest_type::offset_type>(
-    std::begin(offsets), std::end(offsets), device_type::gpu
+  auto offsets_buf = kayak::buffer<typename forest_type::offset_type>(
+    std::begin(offsets), std::end(offsets), kayak::device_type::gpu
   );
 
   auto categorical_sizes = std::vector<uint32_t>{
@@ -284,15 +285,15 @@ TEST(FilBackend, large_dev_forest)
   categories1.set(6);
   categories2.set(4);
 
-  auto categorical_sizes_buf = buffer<uint32_t>(
+  auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes),
     std::end(categorical_sizes),
-    device_type::gpu
+    kayak::device_type::gpu
   );
-  auto category_buf = buffer<uint8_t>(
+  auto category_buf = kayak::buffer<uint8_t>(
     std::begin(categorical_data),
     std::end(categorical_data),
-    device_type::gpu
+    kayak::device_type::gpu
   );
 
   auto values = std::vector<typename forest_type::node_value_type>(offsets_buf.size());
@@ -316,37 +317,37 @@ TEST(FilBackend, large_dev_forest)
   values[16 + 1].index = 18;
   values[16 + 2].index = 20;
 
-  auto values_buf = buffer<typename forest_type::node_value_type>(
-    std::begin(values), std::end(values), device_type::gpu
+  auto values_buf = kayak::buffer<typename forest_type::node_value_type>(
+    std::begin(values), std::end(values), kayak::device_type::gpu
   );
   auto features = std::vector<uint32_t>{0, 0, 0, 0, 0, 0, 0,
                                         0, 1, 0, 0, 1, 0, 0, 0, 0,
                                         0, 0, 0};
-  auto features_buf = buffer<uint32_t>(
-    std::begin(features), std::end(features), device_type::gpu
+  auto features_buf = kayak::buffer<uint32_t>(
+    std::begin(features), std::end(features), kayak::device_type::gpu
   );
   auto distant_vals = std::vector<bool>{
     true, false, false, false, false, false, false,
     true, false, false, false, false, false, false, false, false,
     false, false, false
   };
-  auto distant_buf = buffer<bool>(
-    std::begin(distant_vals), std::end(distant_vals),  device_type::gpu
+  auto distant_buf = kayak::buffer<bool>(
+    std::begin(distant_vals), std::end(distant_vals),  kayak::device_type::gpu
   );
 
   auto tree_offsets = std::vector<uint32_t>{0, 7, 16};
-  auto tree_offsets_buf = buffer<uint32_t>(
+  auto tree_offsets_buf = kayak::buffer<uint32_t>(
     std::begin(tree_offsets),
     std::end(tree_offsets),
-    device_type::gpu
+    kayak::device_type::gpu
   );
   auto output_vals = std::vector<uint64_t>{
     6, 6, 4, 4, 2, 2, 0, 0, 8, 8, 7, 7, 4, 4, 1, 1, 0, 0, 0, 0, 2, 2
   };
-  auto outputs_buf = buffer<uint64_t>(
+  auto outputs_buf = kayak::buffer<uint64_t>(
     std::begin(output_vals),
     std::end(output_vals),
-    device_type::gpu
+    kayak::device_type::gpu
   );
   auto test_forest = forest_type{
     offsets_buf.size(),
@@ -362,23 +363,23 @@ TEST(FilBackend, large_dev_forest)
     category_buf.data()
   };
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
-  auto input_values_buf = buffer<float>(
-    std::begin(input_values), std::end(input_values), device_type::gpu
+  auto input_values_buf = kayak::buffer<float>(
+    std::begin(input_values), std::end(input_values), kayak::device_type::gpu
   );
-  auto input = data_array<data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
   auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
-  auto missing_buf = buffer<bool>(
-    std::begin(missing_vals), std::end(missing_vals), device_type::gpu
+  auto missing_buf = kayak::buffer<bool>(
+    std::begin(missing_vals), std::end(missing_vals), kayak::device_type::gpu
   );
-  auto missing_input = data_array<data_layout::dense_row_major, bool>{
+  auto missing_input = kayak::data_array<kayak::data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
-  auto out_buf = buffer<bool>{30, device_type::gpu};
+  auto out_buf = kayak::buffer<bool>{30, kayak::device_type::gpu};
   check_large_forest<<<1,1>>>(
     out_buf.data(), test_forest, input, missing_input
   );
-  auto out_buf_host = buffer<bool>{out_buf, device_type::cpu};
-  cuda_check(cudaStreamSynchronize(0));
+  auto out_buf_host = kayak::buffer<bool>{out_buf, kayak::device_type::cpu};
+  kayak::cuda_check(cudaStreamSynchronize(0));
   for (auto i = uint32_t{}; i < out_buf_host.size(); ++i) {
     ASSERT_EQ(out_buf_host.data()[i], true);
   }
