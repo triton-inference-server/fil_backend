@@ -1,6 +1,8 @@
 #pragma once
 #include <kayak/detail/index_type.hpp>
+#include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
+#include <kayak/structured_data.hpp>
 
 namespace kayak {
 
@@ -66,5 +68,23 @@ struct data_array {
   raw_index_t rows_;
   raw_index_t cols_;
 };
+
+template <data_layout layout, typename T, bool bounds_check=false>
+auto make_data_array(
+    typename data_array<layout, T>::index_type rows,
+    typename data_array<layout, T>::index_type cols,
+    device_type mem_type=device_type::cpu,
+    int device=0,
+    cuda_stream stream=cuda_stream{}
+  ) {
+  return make_structured_data<data_array<layout, T>, bounds_check>(
+    rows.value() * cols.value(),
+    mem_type,
+    device,
+    stream,
+    rows,
+    cols
+  );
+}
 
 }

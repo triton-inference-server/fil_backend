@@ -1,6 +1,9 @@
 #pragma once
+#include <kayak/cuda_stream.hpp>
 #include <kayak/detail/index_type.hpp>
+#include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
+#include <kayak/structured_data.hpp>
 #include <kayak/tree_layout.hpp>
 
 namespace kayak {
@@ -43,6 +46,22 @@ struct tree {
   T* data_;
   raw_index_t node_count_;
 };
+
+template <tree_layout layout, typename T, bool bounds_check=false>
+auto make_tree(
+    typename tree<layout, T>::index_type size,
+    device_type mem_type=device_type::cpu,
+    int device=0,
+    cuda_stream stream=cuda_stream{}
+  ) {
+  return make_structured_data<tree<layout, T>, bounds_check>(
+    size,
+    mem_type,
+    device,
+    stream,
+    size
+  );
+}
 
 }
 

@@ -5,7 +5,9 @@
 #include <kayak/detail/index_type.hpp>
 #include <kayak/detail/raw_array.hpp>
 #include <kayak/detail/universal_cmp.hpp>
+#include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
+#include <kayak/structured_data.hpp>
 
 namespace kayak {
 template<typename storage_t>
@@ -98,5 +100,21 @@ struct bitset {
     return index / bin_width;
   }
 };
+
+template <typename storage_t, bool bounds_check=false>
+auto make_bitset(
+    typename bitset<storage_t>::index_type size,
+    device_type mem_type=device_type::cpu,
+    int device=0,
+    cuda_stream stream=cuda_stream{}
+  ) {
+  return make_structured_data<bitset<storage_t>, bounds_check>(
+    size,
+    mem_type,
+    device,
+    stream,
+    size
+  );
+}
 
 }

@@ -1,6 +1,9 @@
 #pragma once
+#include <kayak/cuda_stream.hpp>
 #include <kayak/detail/index_type.hpp>
+#include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
+#include <kayak/structured_data.hpp>
 
 namespace kayak {
 
@@ -48,5 +51,21 @@ struct flat_array {
   T* data_;
   raw_index_t size_;
 };
+
+template <array_encoding layout, typename T, bool bounds_check=false>
+auto make_flat_array(
+    typename flat_array<layout, T>::index_type size,
+    device_type mem_type=device_type::cpu,
+    int device=0,
+    cuda_stream stream=cuda_stream{}
+  ) {
+  return make_structured_data<flat_array<layout, T>, bounds_check>(
+    size,
+    mem_type,
+    device,
+    stream,
+    size
+  );
+}
 
 }

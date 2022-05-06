@@ -1,7 +1,10 @@
 #pragma once
+#include <kayak/cuda_stream.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/detail/raw_array.hpp>
+#include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
+#include <kayak/structured_data.hpp>
 #include <type_traits>
 #include <utility>
 
@@ -22,12 +25,13 @@ HOST DEVICE auto nth_layout_elem(raw_index_t n, raw_index_t first, Axes const&..
 
 template <typename T, raw_index_t... layout>
 struct ndarray {
+  using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
   auto static constexpr const N = sizeof...(layout);
 
   template<typename... Args, typename = typename std::enable_if_t<N == sizeof...(Args)>>
   HOST DEVICE ndarray(T* data, Args&&... args)
     : data_{data},
-      dims_{static_cast<raw_index_t>(static_cast<detail::index_type<false>>(args))...}
+      dims_{static_cast<raw_index_t>(static_cast<index_type>(args))...}
   {
     // TODO(wphicks): There is a more efficient way to calculate this
     for (auto i=raw_index_t{}; i < N; ++i) {
@@ -109,5 +113,32 @@ struct ndarray {
     return other_data[get_index(std::move(indices))];
   }
 };
+
+namespace detail {
+  template<typename... T>
+  auto variadic_product(T... factors) {
+    auto result = raw_index_t{1};
+    for (auto&& factor : {factors...}) {
+      result *= factor;
+    }
+    return result;
+  }
+}
+
+template <typename T, raw_index_t... layout, bool bounds_check=false, typename... args_t>
+auto make_ndarray(
+    args_t&&... dims,
+    device_type mem_type=device_type::cpu,
+    int device=0,
+    cuda_stream stream=cuda_stream{}
+  ) {
+  return make_structured_data<ndarray<T, layout...>, bounds_check>(
+    detail::variadic_product(dims...),
+    mem_type,
+    device,
+    stream,
+    std::forward<args_t...>(dims)...
+  );
+}
 
 }
