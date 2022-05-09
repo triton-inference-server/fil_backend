@@ -65,7 +65,7 @@ struct decision_forest {
 
 template<
   typename output_t,
-  tree_layout layout,
+  kayak::tree_layout layout,
   bool double_precision,
   bool many_features,
   bool large_trees,

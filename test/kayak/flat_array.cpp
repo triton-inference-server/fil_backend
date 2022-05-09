@@ -35,4 +35,25 @@ TEST(FilBackend, host_flat_array)
   }
 }
 
+TEST(FilBackend, host_make_flat_array)
+{
+  auto data = std::vector<int>{1, 2, 3};
+  auto data_obj = make_flat_array<array_encoding::dense, int>(
+    data.size()
+  );
+  auto& arr = data_obj.obj();
+  auto& buf = data_obj.buffer();
+
+  ASSERT_EQ(arr.size(), data.size());
+  ASSERT_NE(buf.data(), data.data());
+  ASSERT_EQ(buf.data(), arr.data());
+
+  std::copy(std::begin(data), std::end(data), buf.data());
+
+  for (auto i = std::uint32_t{}; i < data.size(); ++i) {
+    ASSERT_EQ(arr.at(i), data[i]);
+    ASSERT_EQ(arr[i], data[i]);
+  }
+}
+
 }

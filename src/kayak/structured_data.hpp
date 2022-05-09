@@ -37,36 +37,12 @@ struct structured_data {
     copy<false>(data_, other.buffer());
   }
 
-  template<bool bounds_check, typename... args_t>
-  static auto make_structured_data(
-    detail::index_type<bounds_check> size,
-    device_type mem_type,
-    int device,
-    cuda_stream stream,
-    args_t&&... args
-  ) {
-    using value_type = std::remove_reference_t<decltype(*std::declval<struct_t>().data())>;
-    auto data = kayak::buffer<value_type>{size, mem_type, device, stream};
-    auto obj = struct_t(data.data(), std::forward<args_t...>(args)...);
-    if constexpr (bounds_check) {
-      if (obj.size() > data.size()) {
-        throw out_of_bounds{
-          "Attempted to create object without a large enough backing buffer"
-        };
-      }
-    }
-    return structured_data{
-      std::move(data),
-      std::move(obj)
-    };
-  }
+  structured_data(kayak::buffer<value_type>&& data, struct_t&& obj)
+    : data_{std::move(data)}, obj_{std::move(obj)} { }
 
  private:
   kayak::buffer<value_type> data_;
   obj_type obj_;
-
-  structured_data(kayak::buffer<value_type>&& data, struct_t&& obj)
-    : data_{std::move(data)}, obj_{std::move(obj)} { }
 };
 
 template<typename struct_t, bool bounds_check, typename... args_t>
@@ -77,13 +53,20 @@ auto make_structured_data(
   cuda_stream stream,
   args_t&&... args
 ) {
-  return structured_data<struct_t>::template make_structured_data<bounds_check, args_t...>(
-    size,
-    mem_type,
-    device,
-    stream,
-    std::forward<args_t...>(args)...
-  );
+  using value_type = std::remove_reference_t<decltype(*std::declval<struct_t>().data())>;
+  auto data = kayak::buffer<value_type>{size, mem_type, device, stream};
+  auto obj = struct_t{data.data(), std::forward<args_t...>(args)...};
+  if constexpr (bounds_check) {
+    if (obj.size() > data.size()) {
+      throw out_of_bounds{
+        "Attempted to create object without a large enough backing buffer"
+      };
+    }
+  }
+  return structured_data{
+    std::move(data),
+    std::move(obj)
+  };
 }
 
 template<typename struct_t, bool bounds_check, typename... args_t>
