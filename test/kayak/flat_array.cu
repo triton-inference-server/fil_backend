@@ -25,11 +25,11 @@
 namespace kayak {
 
 __global__ void check_flat_array_access(
-    bool* out,
-    flat_array<array_encoding::dense, int> arr) {
+    flat_array<array_encoding::dense, bool> out,
+    flat_array<array_encoding::dense, int> const arr) {
 
   for (auto i = uint32_t{}; i < 3; ++i) {
-    out[i] = (arr[i] == i + 1);
+    out.at(i) = (arr.at(i) == i + 1);
   }
 }
 
@@ -45,9 +45,9 @@ TEST(FilBackend, dev_flat_array)
   ASSERT_EQ(arr.size(), buf.size());
   ASSERT_EQ(arr.data(), buf.data());
 
-  auto out_buf = buffer<bool>{data.size(), device_type::gpu};
-  check_flat_array_access<<<1,1>>>(out_buf.data(), arr);
-  auto out_buf_host = buffer<bool>{out_buf, device_type::cpu};
+  auto out_arr = make_flat_array<array_encoding::dense, bool>(data.size(), device_type::gpu);
+  check_flat_array_access<<<1,1>>>(out_arr.obj(), arr);
+  auto out_buf_host = buffer<bool>{out_arr.buffer(), device_type::cpu};
   cuda_check(cudaStreamSynchronize(0));
   for (auto i = std::uint32_t{}; i < data.size(); ++i) {
     ASSERT_EQ(out_buf_host.data()[i], true);
