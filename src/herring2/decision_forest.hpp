@@ -7,6 +7,7 @@
 #include <kayak/bitset.hpp>
 #include <kayak/buffer.hpp>
 #include <herring2/node_value.hpp>
+#include <kayak/tree.hpp>
 #include <kayak/tree_layout.hpp>
 #include <limits>
 #include <optional>
@@ -48,19 +49,50 @@ struct decision_forest {
   using node_value_type = typename forest_type::node_value_type;
   using category_set_type = typename forest_type::category_set_type;
 
+  auto num_features() const { return num_features_; }
+  auto outputs_per_sample() const { return output_size_; }
+
+  auto obj() const {
+    auto node_output_ptr = static_cast<output_type*>(nullptr);
+    if (node_outputs) {
+      node_output_ptr = node_outputs->buffer().data();
+    }
+    auto categorical_sizes_ptr = static_cast<raw_index_t*>(nullptr);
+    if (categorical_sizes) {
+      categorical_sizes_ptr = categorical_sizes->buffer().data();
+    }
+    auto categorical_storage_ptr = static_cast<uint8_t*>(nullptr);
+    if (categorical_storage) {
+      categorical_storage_ptr = categorical_storage->data();
+    }
+    return forest{
+      node_offsets.objs(),
+      node_values.buffer().size(),
+      node_features.buffer().data(),
+      default_distant.buffer().data(),
+      output_size_,
+      node_output_ptr,
+      categorical_sizes_ptr,
+      categorical_storage_ptr
+    };
+  }
+
+ private:
   // Data
-  kayak::buffer<node_value_type> node_values;
-  kayak::buffer<feature_index_type> node_features;
-  kayak::buffer<offset_type> node_offsets;
-  kayak::buffer<bool> default_distant;
-  std::optional<kayak::buffer<output_type>> node_outputs;
-  std::optional<kayak::buffer<bool>> categorical_nodes;
+  kayak::multi_tree<layout, offset_type> node_offsets;
+  kayak::multi_flat_array<kayak::array_encoding::dense, node_value_type> node_values;
+  kayak::multi_flat_array<kayak::array_encoding::dense, feature_index_type> node_features;
+  kayak::multi_flat_array<kayak::array_encoding::dense, bool> default_distant;
+  std::optional<kayak::multi_flat_array<kayak::array_encoding::dense, output_type>> node_outputs;
+  std::optional<kayak::multi_flat_array<kayak::array_encoding::dense, raw_index_t>> categorical_sizes;
+  std::optional<kayak::buffer<uint8_t>> categorical_storage;
   // TODO(wphicks): Non-inclusive thresholds will be made inclusive via
   // next-representable trick
 
   // Metadata
-  kayak::buffer<std::size_t> tree_offsets;
-  std::size_t num_class;
+  std::size_t num_class_;
+  std::size_t num_features_;
+  std::size_t output_size_;
 };
 
 template<
@@ -82,7 +114,7 @@ using forest_model = decision_forest<
 >;
 
 namespace detail {
-auto constexpr static const preferred_tree_layout = tree_layout::depth_first;
+auto constexpr static const preferred_tree_layout = kayak::tree_layout::depth_first;
 }
 
 template <typename output_t>

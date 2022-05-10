@@ -4,7 +4,8 @@
 #include <kayak/cuda_stream.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/device_type.hpp>
-#include <kayak/flat_array.hpp>
+#include <kayak/detail/flat_array.hpp>
+#include <kayak/exceptions.hpp>
 #include <kayak/gpu_support.hpp>
 #include <numeric>
 #include <optional>
@@ -44,7 +45,27 @@ struct structured_multidata {
   }
 
   auto objs() {
-    return flat_array<array_encoding::dense, obj_type>{objs_.data(), objs_.size()};
+    return detail::flat_array<detail::array_encoding::dense, obj_type>{
+      objs_.data(), objs_.size()
+    };
+  }
+
+  auto& obj(index_type obj_index) {
+    if (objs_.memory_type() != device_type::cpu) {
+      throw wrong_device_type{
+        "Attempted to retrieve host object from device memory"
+      };
+    }
+    return objs_.data()[obj_index];
+  }
+
+  auto const& obj(index_type obj_index) const {
+    if (objs_.mem_type() != device_type::cpu) {
+      throw wrong_device_type{
+        "Attempted to retrieve host object from device memory"
+      };
+    }
+    return objs_.data()[obj_index];
   }
 
  private:
@@ -79,6 +100,7 @@ auto get_padded_sizes(
       return result;
     }
   );
+  return padded_sizes;
 }
 
 }

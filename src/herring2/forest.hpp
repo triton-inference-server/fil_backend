@@ -15,6 +15,7 @@ using kayak::raw_index_t;
 template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
 struct forest {
   auto constexpr static const bounds_check = kayak::DEBUG_ENABLED && !kayak::GPU_ENABLED;
+  auto constexpr static const tree_layout = layout;
   using index_type = kayak::detail::index_type<bounds_check>;
   using category_set_type = std::conditional_t<
     categorical_lookup,
@@ -26,26 +27,23 @@ struct forest {
   using output_index_type = output_index_t;
 
   forest()
-    : node_count_{}, values_{nullptr}, features_{nullptr},
-    distant_offsets_{nullptr}, default_distant_{nullptr}, tree_count_{},
-    tree_offsets_{nullptr}, output_size_{}, outputs_{nullptr},
+    : trees_{}, values_{nullptr}, features_{nullptr},
+    default_distant_{nullptr},
+    output_size_{raw_index_t{1}}, outputs_{nullptr},
     categorical_sizes_{nullptr}, categorical_storage_{nullptr} { }
 
   forest(
-    index_type node_count,
+    kayak::flat_array<kayak::array_encoding::dense, kayak::tree<layout, offset_type>> const& trees,
     node_value_type* node_values,
     feature_index_t* node_features,
-    offset_type* distant_child_offsets,
     bool* default_distant,
-    index_type tree_count,
-    raw_index_t* tree_offsets,
     index_type output_size = raw_index_t{1},
     output_t* outputs = nullptr,
     raw_index_t* categorical_sizes = nullptr,
     uint8_t* categorical_storage = nullptr
-  ) : node_count_{node_count}, values_{node_values}, features_{node_features},
-    distant_offsets_{distant_child_offsets}, default_distant_{default_distant}, tree_count_{tree_count},
-    tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
+  ) : trees_{trees}, values_{node_values}, features_{node_features},
+    default_distant_{default_distant},
+    output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
   template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
@@ -72,10 +70,9 @@ struct forest {
   }
 
  private:
-  raw_index_t node_count_;
+  kayak::flat_array<kayak::array_encoding::dense, kayak::tree<layout, offset_type>> trees_;
   node_value_type* values_;
   feature_index_t* features_;
-  offset_type* distant_offsets_;
   bool* default_distant_;
 
   raw_index_t tree_count_;
@@ -197,9 +194,7 @@ struct forest {
   }
 
   HOST DEVICE [[nodiscard]] auto get_tree(index_type tree_index) const {
-    auto min_index = tree_offsets_[tree_index];
-    auto max_index = tree_index + 1 >= tree_count_ ? node_count_ : tree_offsets_[tree_index + 1];
-    return kayak::tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
+    return trees_.at(tree_index);
   }
 
   template <bool categorical, kayak::data_layout input_layout, typename input_t>

@@ -34,7 +34,7 @@ namespace herring {
 using small_forest_type = forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
 using large_forest_type = forest<kayak::tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
 
-__global__ void check_small_forest(
+/* __global__ void check_small_forest(
     bool* out,
     small_forest_type test_forest,
     kayak::data_array<kayak::data_layout::dense_row_major, float> input,
@@ -383,6 +383,6 @@ TEST(FilBackend, large_dev_forest)
   for (auto i = uint32_t{}; i < out_buf_host.size(); ++i) {
     ASSERT_EQ(out_buf_host.data()[i], true);
   }
-}
+}*/
 
 }

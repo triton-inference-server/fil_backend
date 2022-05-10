@@ -59,4 +59,41 @@ TEST(FilBackend, host_tree)
   }
 }
 
+TEST(FilBackend, make_tree)
+{
+  auto df_out = std::vector<int>{0, 1, 2, 3, 4, 5, 6};
+  auto df_data = std::vector<int>{6, 2, 0, 2, 0, 0, 0};
+  auto tree_storage = make_tree<tree_layout::depth_first, int, true>(
+    df_data.size()
+  );
+
+  auto& df_tree = tree_storage.obj();
+
+  ASSERT_NE(df_tree.data(), df_data.data());
+  ASSERT_EQ(df_tree.size(), df_data.size());
+
+  copy<true>(
+    tree_storage.buffer(),
+    buffer{df_data.data(), df_data.size()}
+  );
+
+  auto paths = std::vector<std::vector<bool>>{
+    {},
+    {false},
+    {false, false},
+    {false, true},
+    {false, true, false},
+    {false, true, true},
+    {true},
+  };
+  for (auto i = std::uint32_t{}; i < paths.size(); ++i) {
+    auto const& path = paths[i];
+    auto df_index = std::uint32_t{};
+    for (auto cond : path) {
+      df_index += df_tree.next_offset(df_index, cond);
+    }
+    ASSERT_EQ(df_out[df_index], i);
+  }
+}
+
 }

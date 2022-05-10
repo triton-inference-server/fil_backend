@@ -308,4 +308,23 @@ const_agnostic_same_t<T, U> copy(buffer<T>& dst, buffer<U> const& src) {
   copy<bounds_check>(dst, src, 0, 0, src.size(), cuda_stream{});
 }
 
+template<bool bounds_check, typename T, typename U>
+const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src, typename buffer<T>::index_type dst_offset, typename buffer<U>::index_type src_offset, typename buffer<T>::index_type size, cuda_stream stream) {
+  if constexpr (bounds_check) {
+    if (src.size() - src_offset < size || dst.size() - dst_offset < size) {
+      throw out_of_bounds("Attempted copy to or from buffer of inadequate size");
+    }
+  }
+  copy(dst.data() + dst_offset, src.data() + src_offset, size, dst.memory_type(), src.memory_type(), stream);
+}
+
+template<bool bounds_check, typename T, typename U>
+const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src, cuda_stream stream) {
+  copy<bounds_check>(dst, src, 0, 0, src.size(), stream);
+}
+template<bool bounds_check, typename T, typename U>
+const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src) {
+  copy<bounds_check>(dst, src, 0, 0, src.size(), cuda_stream{});
+}
+
 }  // namespace kayak
