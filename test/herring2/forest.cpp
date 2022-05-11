@@ -40,7 +40,7 @@ TEST(FilBackend, small_host_forest)
   };
   auto tree_sizes = std::vector<typename forest_type::index_type>{};
   tree_sizes.reserve(offsets.size());
-  std::transform(std::begin(offsets), std::end(offsets), std::begin(tree_sizes), [](auto&& entry) {
+  std::transform(std::begin(offsets), std::end(offsets), std::back_inserter(tree_sizes), [](auto&& entry) {
     return entry.size();
   });
   auto trees = kayak::make_multi_tree<forest_type::tree_layout, typename forest_type::offset_type>(
@@ -54,7 +54,7 @@ TEST(FilBackend, small_host_forest)
     );
   }
   auto cat1_data = typename forest_type::output_index_type{};
-  /* auto categories1 = typename forest_type::category_set_type{&cat1_data};
+  auto categories1 = typename forest_type::category_set_type{&cat1_data};
   categories1.set(0);
   categories1.set(6);
   auto cat2_data = typename forest_type::output_index_type{};
@@ -154,7 +154,7 @@ TEST(FilBackend, small_host_forest)
   output = test_forest.evaluate_tree<true, false>(2, 2, input, missing_input);
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
   output = test_forest.evaluate_tree<false, false>(2, 2, input, missing_input);
-  ASSERT_FLOAT_EQ(output.at(0), 0.0f); */
+  ASSERT_FLOAT_EQ(output.at(0), 0.0f);
 }
 
 /* TEST(FilBackend, large_host_forest)

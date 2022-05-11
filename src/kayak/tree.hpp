@@ -93,7 +93,7 @@ auto make_multi_tree(
   );
   auto buffer_size = std::reduce(std::begin(padded_sizes), std::end(padded_sizes));
 
-  auto data = buffer<value_type>(buffer_size, mem_type, device, stream);
+  auto data = buffer<value_type>{buffer_size, mem_type, device, stream};
 
   auto objs = buffer<obj_type>{padded_sizes.size()};
 

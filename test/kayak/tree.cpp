@@ -96,4 +96,28 @@ TEST(FilBackend, make_tree)
   }
 }
 
+TEST(FilBackend, make_multi_tree)
+{
+  auto offsets = std::vector<std::vector<int>>{
+    {6, 2, 0, 2, 0, 0, 0},
+    {4, 2, 0, 0, 2, 0, 2, 0, 0},
+    {2, 0, 0}
+  };
+
+  auto tree_sizes = std::vector<int>{};
+  tree_sizes.reserve(offsets.size());
+  std::transform(std::begin(offsets), std::end(offsets), std::back_inserter(tree_sizes), [](auto&& entry) {
+    return entry.size();
+  });
+  auto bytes_size = std::reduce(std::begin(tree_sizes), std::end(tree_sizes)) * sizeof(int);
+
+  auto trees_storage = kayak::make_multi_tree<tree_layout::depth_first, int>(
+    std::begin(tree_sizes),
+    std::end(tree_sizes)
+  );
+  ASSERT_EQ(trees_storage.size(), offsets.size());
+  ASSERT_EQ(trees_storage.bytes_size(), bytes_size);
+  ASSERT_EQ(trees_storage.buffer().data(), trees_storage.obj(0).data());
+}
+
 }
