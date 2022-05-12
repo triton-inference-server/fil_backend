@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/bitset.hpp>
@@ -71,18 +72,17 @@ struct forest {
 
  private:
   kayak::flat_array<kayak::array_encoding::dense, kayak::tree<layout, offset_type>> trees_;
-  node_value_type* values_;
-  feature_index_t* features_;
-  bool* default_distant_;
+  kayak::flat_array<kayak::array_encoding::dense, node_value_type> values_;
+  kayak::flat_array<kayak::array_encoding::dense, feature_index_t> features_;
+  kayak::flat_array<kayak::array_encoding::dense, bool> default_distant_;
 
   raw_index_t tree_count_;
-  raw_index_t* tree_offsets_;  // TODO(wphicks): Worth precomputing trees?
 
   raw_index_t output_size_;
-  // Optional data (may be null)
-  output_t* outputs_;
-  raw_index_t* categorical_sizes_;
-  uint8_t* categorical_storage_;
+  // Optional data (may be size 0)
+  kayak::flat_array<kayak::array_encoding::dense, output_t> outputs_;
+  kayak::flat_array<kayak::array_encoding::dense, raw_index_t> categorical_sizes_;
+  kayak::flat_array<kayak::array_encoding::dense, uint8_t> categorical_storage_;
 
   template<bool lookup>
   HOST DEVICE auto get_output(index_type leaf_index) const {
@@ -117,26 +117,37 @@ struct forest {
   ) const {
     // TODO(wphicks): Consider specialization for if tree is categorical
     auto tree = get_tree(tree_index);
-    auto root_index_forest = tree_offsets_[tree_index];
+    auto root_index_forest = tree.data() - trees_[0].data();
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 
+    std::cout << tree_index << " -> ";
+
     while (tree[node_index_tree] != offset_type{}) {
       auto condition = false;
+      std::cout << node_index_tree << ": ";
       if constexpr (categorical) {
         if (categorical_sizes_[root_index_forest + node_index_tree] == 0) {
           condition = evaluate_node<false>(
             root_index_forest + node_index_tree, row_index, input
           );
+          std::cout << " non-categorical ";
         } else {
           condition = evaluate_node<true>(
             root_index_forest + node_index_tree, row_index, input
           );
+          std::cout << " categorical ";
         }
       } else {
         condition = evaluate_node<false>(
           root_index_forest + node_index_tree, row_index, input
         );
+        std::cout << " categorical-free ";
+      }
+      if (condition) {
+        std::cout << "YES, ";
+      } else {
+        std::cout << "NO, ";
       }
       if constexpr (layout == kayak::tree_layout::depth_first) {
         offset = 1 + (tree[node_index_tree] - 1) * condition;
@@ -147,6 +158,7 @@ struct forest {
       }
       node_index_tree += offset;
     }
+    std::cout << "\n";
 
     return root_index_forest + node_index_tree;
   }
@@ -159,7 +171,7 @@ struct forest {
     kayak::data_array<input_layout, bool> const& missing_values
   ) const {
     auto tree = get_tree(tree_index);
-    auto root_index_forest = tree_offsets_[tree_index];
+    auto root_index_forest = tree.data() - trees_[0].data();
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 

@@ -8,7 +8,7 @@ namespace kayak {
 
 using array_encoding = detail::array_encoding;
 
-/** A 2D array of values */
+/** A 1D array of values */
 template <array_encoding layout, typename T>
 using flat_array = detail::flat_array<layout, T>;
 
