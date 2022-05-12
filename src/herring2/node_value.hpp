@@ -28,9 +28,11 @@ namespace herring {
  * stored directly in the index field. A non-leaf node with a categorical test
  * will store the bitset representing its categories in the index field.
  */
-template<typename value_t, typename output_index_t, typename bitset_t>
+template<typename value_t, typename output_index_t>
 union node_value {
-  value_t value;
-  output_index_t index;
+  using value_type = value_t;
+  using output_index_type = output_index_t;
+  value_type value;
+  output_index_type index;
 };
 }

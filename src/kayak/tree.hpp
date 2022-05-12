@@ -79,7 +79,7 @@ template <tree_layout layout, typename T, typename iter>
 auto make_multi_tree(
     iter counts_begin,
     iter counts_end,
-    std::optional<detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>> align_to_bytes=std::nullopt,
+    detail::index_type<!GPU_ENABLED && DEBUG_ENABLED> align_to_bytes=detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>{},
     device_type mem_type=device_type::cpu,
     int device=0,
     cuda_stream stream=cuda_stream{}

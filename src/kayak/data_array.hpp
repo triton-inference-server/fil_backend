@@ -15,6 +15,7 @@ enum class data_layout {
 /** A 2D array of values */
 template <data_layout layout, typename T>
 struct data_array {
+  using value_type = T;
   using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
 
   HOST DEVICE data_array(T* data, index_type row_count, index_type col_count)

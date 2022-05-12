@@ -79,7 +79,7 @@ template<typename T, typename iter>
 auto get_padded_sizes(
   iter sizes_begin,
   iter sizes_end,
-  std::optional<detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>> align_to_bytes
+  detail::index_type<!GPU_ENABLED && DEBUG_ENABLED> align_to_bytes
 ) {
   auto padded_sizes = std::vector<raw_index_t>{};
   padded_sizes.reserve(std::distance(sizes_begin, sizes_end));
@@ -89,11 +89,11 @@ auto get_padded_sizes(
     std::back_inserter(padded_sizes),
     [&align_to_bytes](auto&& size) {
       auto result = raw_index_t{};
-      if (!align_to_bytes) {
+      if (align_to_bytes == 0) {
         result = size;
       } else {
         result = (
-          std::lcm(align_to_bytes->value(), sizeof(T))
+          std::lcm(align_to_bytes.value(), sizeof(T))
           - size * sizeof(T)
         ) / sizeof(T) + size;
       }

@@ -42,6 +42,7 @@ struct decision_forest {
     categorical_lookup
   >;
   using value_type = typename forest_type::value_type;
+  using index_type = typename forest_type::index_type;
   using feature_index_type = typename forest_type::feature_index_type;
   using offset_type = typename forest_type::offset_type;
   using output_index_type = typename forest_type::output_index_type;
@@ -49,50 +50,139 @@ struct decision_forest {
   using node_value_type = typename forest_type::node_value_type;
   using category_set_type = typename forest_type::category_set_type;
 
+  decision_forest() :
+    node_offsets_{},
+    node_values_{},
+    node_features_{},
+    default_distant_{},
+    node_outputs_{},
+    categorical_sizes_{},
+    categorical_storage_{},
+    num_class_{},
+    num_features_{},
+    output_size_{}
+  {
+  }
+
+  decision_forest(
+    kayak::multi_tree<layout, offset_type>&& node_offsets,
+    kayak::buffer<node_value_type>&& node_values,
+    kayak::buffer<feature_index_type>&& node_features,
+    kayak::buffer<bool>&& default_distant,
+    std::optional<kayak::buffer<output_type>>&& node_outputs,
+    std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
+    std::optional<kayak::buffer<uint8_t>>&& categorical_storage
+  ) :
+    node_offsets_{std::move(node_offsets)},
+    node_values_{std::move(node_values)},
+    node_features_{std::move(node_features)},
+    default_distant_{std::move(default_distant)},
+    node_outputs_{std::move(node_outputs)},
+    categorical_sizes_{std::move(categorical_sizes)},
+    categorical_storage_{std::move(categorical_storage)}
+  {
+  }
+
+  template<typename iter>
+  decision_forest(
+    iter tree_sizes_begin,
+    iter tree_sizes_end,
+    index_type num_class,
+    index_type num_features,
+    index_type output_size=index_type{1},
+    index_type align_to_bytes=index_type{}
+  ) :
+    node_offsets_{make_multi_tree(
+      tree_sizes_begin,
+      tree_sizes_end,
+      align_to_bytes
+    )},
+    node_values_{node_offsets_.buffer_size()},
+    node_features_{node_offsets_.buffer_size()},
+    default_distant_{node_offsets_.buffer_size()},
+    node_outputs_{},
+    categorical_sizes_{},
+    categorical_storage_{},
+    num_class_{num_class},
+    num_features_{num_features},
+    output_size_{output_size}
+  {
+  }
+
+  void set_offset(index_type tree_index, index_type node_index, offset_type value) {
+    // TODO(wphicks)
+  }
+  void set_value(index_type tree_index, index_type node_index, typename node_value_type::value_type value) {
+    // TODO(wphicks)
+  }
+  void set_value(index_type tree_index, index_type node_index, typename node_value_type::output_index_type value) {
+    // TODO(wphicks)
+  }
+  void set_feature(index_type tree_index, index_type node_index, feature_index_type value) {
+    // TODO(wphicks)
+  }
+  void set_default_distant(index_type tree_index, index_type node_index, bool value) {
+    // TODO(wphicks)
+  }
+  void set_output(index_type tree_index, index_type node_index, output_type value) {
+    // TODO(wphicks)
+  }
+  template<kayak::array_encoding output_layout>
+  void set_output(index_type tree_index, index_type node_index, kayak::flat_array<output_layout, output_type> value) {
+    // TODO(wphicks)
+  }
+  void set_categories(index_type tree_index, index_type node_index, kayak::flat_array<kayak::array_encoding::dense, typename category_set_type::index_type> value) {
+    // TODO(wphicks)
+  }
+
+
   auto num_features() const { return num_features_; }
   auto outputs_per_sample() const { return output_size_; }
 
   auto obj() const {
     auto node_output_ptr = static_cast<output_type*>(nullptr);
-    if (node_outputs) {
-      node_output_ptr = node_outputs->buffer().data();
+    if (node_outputs_) {
+      node_output_ptr = node_outputs_->data();
     }
-    auto categorical_sizes_ptr = static_cast<raw_index_t*>(nullptr);
-    if (categorical_sizes) {
-      categorical_sizes_ptr = categorical_sizes->buffer().data();
+    auto categorical_sizes__ptr = static_cast<raw_index_t*>(nullptr);
+    if (categorical_sizes_) {
+      categorical_sizes__ptr = categorical_sizes_->data();
     }
-    auto categorical_storage_ptr = static_cast<uint8_t*>(nullptr);
-    if (categorical_storage) {
-      categorical_storage_ptr = categorical_storage->data();
+    auto categorical_storage__ptr = static_cast<uint8_t*>(nullptr);
+    if (categorical_storage_) {
+      categorical_storage__ptr = categorical_storage_->data();
     }
     return forest{
-      node_offsets.objs(),
-      node_values.buffer().size(),
-      node_features.buffer().data(),
-      default_distant.buffer().data(),
+      node_offsets_,
+      node_values_.data(),
+      node_features_.data(),
+      node_offsets_.data(),
+      default_distant_.data(),
+      node_offsets_.size(),
       output_size_,
       node_output_ptr,
-      categorical_sizes_ptr,
-      categorical_storage_ptr
+      categorical_sizes__ptr,
+      categorical_storage__ptr
     };
   }
 
  private:
   // Data
-  kayak::multi_tree<layout, offset_type> node_offsets;
-  kayak::multi_flat_array<kayak::array_encoding::dense, node_value_type> node_values;
-  kayak::multi_flat_array<kayak::array_encoding::dense, feature_index_type> node_features;
-  kayak::multi_flat_array<kayak::array_encoding::dense, bool> default_distant;
-  std::optional<kayak::multi_flat_array<kayak::array_encoding::dense, output_type>> node_outputs;
-  std::optional<kayak::multi_flat_array<kayak::array_encoding::dense, raw_index_t>> categorical_sizes;
-  std::optional<kayak::buffer<uint8_t>> categorical_storage;
+  // TODO(wphicks): Currently assuming no padding in any of these
+  kayak::multi_tree<layout, offset_type> node_offsets_;
+  kayak::buffer<node_value_type> node_values_;
+  kayak::buffer<feature_index_type> node_features_;
+  kayak::buffer<bool> default_distant_;
+  std::optional<kayak::buffer<output_type>> node_outputs_;
+  std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
+  std::optional<kayak::buffer<uint8_t>> categorical_storage_;
   // TODO(wphicks): Non-inclusive thresholds will be made inclusive via
   // next-representable trick
 
   // Metadata
-  std::size_t num_class_;
-  std::size_t num_features_;
-  std::size_t output_size_;
+  raw_index_t num_class_;
+  raw_index_t num_features_;
+  raw_index_t output_size_;
 };
 
 template<
