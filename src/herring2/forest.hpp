@@ -28,7 +28,7 @@ struct forest {
 
   forest()
     : trees_{}, values_{nullptr}, features_{nullptr},
-    default_distant_{nullptr}, tree_count_{},
+    default_distant_{nullptr},
     output_size_{}, outputs_{nullptr},
     categorical_sizes_{nullptr}, categorical_storage_{nullptr} { }
 
@@ -37,14 +37,13 @@ struct forest {
     node_value_type* node_values,
     feature_index_t* node_features,
     bool* default_distant,
-    index_type tree_count,
     index_type output_size = raw_index_t{1},
     output_t* outputs = nullptr,
     raw_index_t* categorical_sizes = nullptr,
     uint8_t* categorical_storage = nullptr
   ) : trees_{std::move(distant_child_offsets)}, values_{node_values},
     features_{node_features}, default_distant_{default_distant},
-    tree_count_{tree_count}, output_size_{output_size}, outputs_{outputs},
+    output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes},
     categorical_storage_{categorical_storage} { }
 
@@ -76,8 +75,6 @@ struct forest {
   node_value_type* values_;
   feature_index_t* features_;
   bool* default_distant_;
-
-  raw_index_t tree_count_;
 
   raw_index_t output_size_;
   // Optional data (may be null)
@@ -117,8 +114,8 @@ struct forest {
     kayak::data_array<input_layout, input_t> const& input
   ) const {
     // TODO(wphicks): Consider specialization for if tree is categorical
-    auto& tree = get_tree(tree_index);
-    auto root_index_forest = tree.data() - trees_.at(0).data();
+    auto const& tree = get_tree(tree_index);
+    auto root_index_forest = raw_index_t{index_type{tree.data() - trees_.at(0).data()}};
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 
@@ -159,8 +156,8 @@ struct forest {
     kayak::data_array<input_layout, input_t> const& input,
     kayak::data_array<input_layout, bool> const& missing_values
   ) const {
-    auto tree = get_tree(tree_index);
-    auto root_index_forest = tree.data() - trees_.at(0).data();
+    auto const& tree = get_tree(tree_index);
+    auto root_index_forest = raw_index_t{index_type{tree.data() - trees_.at(0).data()}};
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 
@@ -194,7 +191,7 @@ struct forest {
     return root_index_forest + node_index_tree;
   }
 
-  HOST DEVICE [[nodiscard]] auto get_tree(index_type tree_index) const {
+  HOST DEVICE [[nodiscard]] auto const& get_tree(index_type tree_index) const {
     return trees_.at(tree_index);
   }
 

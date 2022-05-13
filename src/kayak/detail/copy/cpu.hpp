@@ -10,6 +10,7 @@ namespace detail {
 
 template<device_type dst_type, device_type src_type, typename T>
 std::enable_if_t<dst_type == device_type::cpu && src_type == device_type::cpu, void> copy(T* dst, T const* src, uint32_t size, cuda_stream stream) {
+  // TODO(wphicks): Just do a straight std::copy here
   std::memcpy(dst, src, size * sizeof(T));
 }
 
