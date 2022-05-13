@@ -40,10 +40,8 @@ struct index_type {
       if (index > MAX_INDEX) {
         kayak::host_only_throw<bad_index>("Index exceeds maximum allowed value");
       }
-      result = universal_min(index, MAX_INDEX);
-    } else {
-      result = index;
     }
+    result = universal_min(index, MAX_INDEX);
     return result;
   }()} {}
   HOST DEVICE index_type(int index) noexcept(!bounds_check) : val{[index]() {
@@ -52,22 +50,8 @@ struct index_type {
       if (index < 0 || index > MAX_INDEX) {
         kayak::host_only_throw<bad_index>("Invalid value for index");
       }
-      result = universal_min(static_cast<raw_index_t>(universal_max(0, index)), MAX_INDEX);
-    } else {
-      result = index;
     }
-    return result;
-  }()} {}
-  HOST DEVICE index_type(int64_t index) noexcept(!bounds_check) : val{[index]() {
-    auto result = value_type{};
-    if constexpr (bounds_check) {
-      if (index < 0 || index > MAX_INDEX) {
-        kayak::host_only_throw<bad_index>("Invalid value for index");
-      }
-      result = universal_min(static_cast<raw_index_t>(universal_max(0, index)), MAX_INDEX);
-    } else {
-      result = index;
-    }
+    result = universal_min(static_cast<raw_index_t>(universal_max(0, index)), MAX_INDEX);
     return result;
   }()} {}
   HOST DEVICE constexpr operator value_type&() noexcept { return val; }
@@ -91,10 +75,8 @@ struct diff_type {
       if (index < MIN_DIFF || index > MAX_DIFF) {
         kayak::host_only_throw<bad_index>("Invalid value for diff");
       }
-      result = universal_min(universal_max(index, MIN_DIFF), MAX_DIFF);
-    } else {
-      result = index;
     }
+    result = universal_min(universal_max(index, MIN_DIFF), MAX_DIFF);
     return result;
   }()} {}
   HOST DEVICE operator value_type&() noexcept { return val; }

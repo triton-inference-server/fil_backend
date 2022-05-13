@@ -8,8 +8,6 @@
 #include <kayak/tree.hpp>
 #include <kayak/tree_layout.hpp>
 
-// TODO(wphicks): Currently assumes 0 padding in trees
-
 namespace herring {
 
 using kayak::raw_index_t;
@@ -26,28 +24,29 @@ struct forest {
   using node_value_type = node_value<value_t, output_index_t>;
   using offset_type = offset_t;
   using output_index_type = output_index_t;
-  using tree_array = kayak::flat_array<kayak::array_encoding::dense, kayak::tree<layout, offset_type>>;
 
   forest()
-    : trees_{}, values_{nullptr}, features_{nullptr},
-    default_distant_{nullptr},
-    output_size_{}, outputs_{nullptr},
+    : node_count_{}, values_{nullptr}, features_{nullptr},
+    distant_offsets_{nullptr}, default_distant_{nullptr}, tree_count_{},
+    tree_offsets_{nullptr}, output_size_{}, outputs_{nullptr},
     categorical_sizes_{nullptr}, categorical_storage_{nullptr} { }
 
   forest(
-    tree_array distant_child_offsets,
+    index_type node_count,
     node_value_type* node_values,
     feature_index_t* node_features,
+    offset_type* distant_child_offsets,
     bool* default_distant,
+    index_type tree_count,
+    raw_index_t* tree_offsets,
     index_type output_size = raw_index_t{1},
     output_t* outputs = nullptr,
     raw_index_t* categorical_sizes = nullptr,
     uint8_t* categorical_storage = nullptr
-  ) : trees_{std::move(distant_child_offsets)}, values_{node_values},
-    features_{node_features}, default_distant_{default_distant},
-    output_size_{output_size}, outputs_{outputs},
-    categorical_sizes_{categorical_sizes},
-    categorical_storage_{categorical_storage} { }
+  ) : node_count_{node_count}, values_{node_values}, features_{node_features},
+    distant_offsets_{distant_child_offsets}, default_distant_{default_distant}, tree_count_{tree_count},
+    tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
+    categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
   template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto evaluate_tree(
@@ -73,10 +72,14 @@ struct forest {
   }
 
  private:
-  tree_array trees_;
+  raw_index_t node_count_;
   node_value_type* values_;
   feature_index_t* features_;
+  offset_type* distant_offsets_;
   bool* default_distant_;
+
+  raw_index_t tree_count_;
+  raw_index_t* tree_offsets_;  // TODO(wphicks): Worth precomputing trees?
 
   raw_index_t output_size_;
   // Optional data (may be null)
@@ -116,8 +119,8 @@ struct forest {
     kayak::data_array<input_layout, input_t> const& input
   ) const {
     // TODO(wphicks): Consider specialization for if tree is categorical
-    auto const& tree = get_tree(tree_index);
-    auto root_index_forest = raw_index_t{index_type{tree.data() - trees_.at(0).data()}};
+    auto tree = get_tree(tree_index);
+    auto root_index_forest = tree_offsets_[tree_index];
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 
@@ -158,8 +161,8 @@ struct forest {
     kayak::data_array<input_layout, input_t> const& input,
     kayak::data_array<input_layout, bool> const& missing_values
   ) const {
-    auto const& tree = get_tree(tree_index);
-    auto root_index_forest = raw_index_t{index_type{tree.data() - trees_.at(0).data()}};
+    auto tree = get_tree(tree_index);
+    auto root_index_forest = tree_offsets_[tree_index];
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
 
@@ -193,8 +196,10 @@ struct forest {
     return root_index_forest + node_index_tree;
   }
 
-  HOST DEVICE [[nodiscard]] auto const& get_tree(index_type tree_index) const {
-    return trees_.at(tree_index);
+  HOST DEVICE [[nodiscard]] auto get_tree(index_type tree_index) const {
+    auto min_index = tree_offsets_[tree_index];
+    auto max_index = tree_index + 1 >= tree_count_ ? node_count_ : tree_offsets_[tree_index + 1];
+    return kayak::tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
   }
 
   template <bool categorical, kayak::data_layout input_layout, typename input_t>

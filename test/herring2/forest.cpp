@@ -33,25 +33,12 @@ TEST(FilBackend, small_host_forest)
 {
   using forest_type = forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>;
 
-  auto offsets = std::vector<std::vector<typename forest_type::offset_type>>{
-    {6, 2, 0, 2, 0, 0, 0},
-    {4, 2, 0, 0, 2, 0, 2, 0, 0},
-    {2, 0, 0}
+  auto offsets = std::vector<typename forest_type::offset_type>{
+    6, 2, 0, 2, 0, 0, 0,
+    4, 2, 0, 0, 2, 0, 2, 0, 0,
+    2, 0, 0
   };
-  auto tree_sizes = std::vector<typename forest_type::index_type>{};
-  std::transform(
-    std::begin(offsets),
-    std::end(offsets),
-    std::back_inserter(tree_sizes), 
-    [](auto&& entry) { return entry.size(); }
-  );
-  auto tree_storage = kayak::make_multi_tree<kayak::tree_layout::depth_first, typename forest_type::offset_type>(std::begin(tree_sizes), std::end(tree_sizes));
-  for (auto i = uint32_t{}; i < tree_storage.size(); ++i) {
-    kayak::copy<true>(
-      kayak::buffer(tree_storage.obj(i).data(), tree_storage.obj(i).size(), tree_storage.buffer().memory_type()),
-      kayak::buffer(offsets[i].data(), offsets[i].size(), kayak::device_type::cpu)
-    );
-  }
+  auto offsets_buf = kayak::buffer(offsets.data(), offsets.size());
   auto cat1_data = typename forest_type::output_index_type{};
   auto categories1 = typename forest_type::category_set_type{&cat1_data};
   categories1.set(0);
@@ -105,10 +92,13 @@ TEST(FilBackend, small_host_forest)
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
   auto test_forest = forest_type{
-    tree_storage.objs(),
+    offsets_buf.size(),
     values_buf.data(),
     features_buf.data(),
+    offsets_buf.data(),
     distant_buf.data(),
+    tree_offsets_buf.size(),
+    tree_offsets_buf.data(),
     uint32_t{1},
     nullptr,
     categorical_sizes_buf.data()
@@ -160,27 +150,12 @@ TEST(FilBackend, large_host_forest)
 {
   using forest_type = forest<kayak::tree_layout::depth_first, double, uint32_t, uint32_t, uint32_t, uint64_t, true>;
 
-  auto offsets = std::vector<std::vector<typename forest_type::offset_type>>{
-    {6, 2, 0, 2, 0, 0, 0},
-    {4, 2, 0, 0, 2, 0, 2, 0, 0},
-    {2, 0, 0}
+  auto offsets = std::vector<typename forest_type::offset_type>{
+    6, 2, 0, 2, 0, 0, 0,
+    4, 2, 0, 0, 2, 0, 2, 0, 0,
+    2, 0, 0
   };
-  auto tree_sizes = std::vector<typename forest_type::index_type>{};
-  std::transform(
-    std::begin(offsets),
-    std::end(offsets),
-    std::back_inserter(tree_sizes), 
-    [](auto&& entry) { return entry.size(); }
-  );
-
-  // TODO(wphicks): Test non-zero padding when implemented
-  auto tree_storage = kayak::make_multi_tree<kayak::tree_layout::depth_first, typename forest_type::offset_type>(std::begin(tree_sizes), std::end(tree_sizes));
-  for (auto i = uint32_t{}; i < tree_storage.size(); ++i) {
-    kayak::copy<true>(
-      kayak::buffer(tree_storage.obj(i).data(), tree_storage.obj(i).size(), tree_storage.buffer().memory_type()),
-      kayak::buffer(offsets[i].data(), offsets[i].size(), kayak::device_type::cpu)
-    );
-  }
+  auto offsets_buf = kayak::buffer(offsets.data(), offsets.size());
 
   auto categorical_sizes = std::vector<uint32_t>{
     0, 0, 0, 0, 0, 0, 0,
@@ -256,10 +231,13 @@ TEST(FilBackend, large_host_forest)
   };
   auto outputs_buf = kayak::buffer(output_vals.data(), output_vals.size());
   auto test_forest = forest_type{
-    tree_storage.objs(),
+    offsets_buf.size(),
     values_buf.data(),
     features_buf.data(),
+    offsets_buf.data(),
     distant_buf.data(),
+    tree_offsets_buf.size(),
+    tree_offsets_buf.data(),
     uint32_t{2},
     outputs_buf.data(),
     categorical_sizes_buf.data(),

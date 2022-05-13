@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <iostream>
 #include <stdint.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -80,37 +79,14 @@ TEST(FilBackend, small_dev_forest)
 {
   using forest_type = small_forest_type;
 
-  auto offsets = std::vector<std::vector<typename forest_type::offset_type>>{
-    {6, 2, 0, 2, 0, 0, 0},
-    {4, 2, 0, 0, 2, 0, 2, 0, 0},
-    {2, 0, 0}
+  auto offsets = std::vector<typename forest_type::offset_type>{
+    6, 2, 0, 2, 0, 0, 0,
+    4, 2, 0, 0, 2, 0, 2, 0, 0,
+    2, 0, 0
   };
-  auto tree_sizes = std::vector<typename forest_type::index_type>{};
-  std::transform(
-    std::begin(offsets),
-    std::end(offsets),
-    std::back_inserter(tree_sizes), 
-    [](auto&& entry) { return entry.size(); }
+  auto offsets_buf = kayak::buffer<typename forest_type::offset_type>(
+    std::begin(offsets), std::end(offsets), kayak::device_type::gpu
   );
-  auto tree_storage = kayak::make_multi_tree<kayak::tree_layout::depth_first, typename forest_type::offset_type>(
-    std::begin(tree_sizes),
-    std::end(tree_sizes),
-    0u,
-    kayak::device_type::gpu
-  );
-  auto tree_offset = uint32_t{};
-  for (auto i = uint32_t{}; i < tree_storage.size(); ++i) {
-    kayak::copy<true>(
-      kayak::buffer(
-        tree_storage.buffer().data() + tree_offset,
-        tree_sizes[i],
-        tree_storage.buffer().memory_type()
-      ),
-      kayak::buffer(offsets[i].data(), offsets[i].size(), kayak::device_type::cpu)
-    );
-    tree_offset += tree_sizes[i];
-  }
-
   auto cat1_data = typename forest_type::output_index_type{};
   auto categories1 = typename forest_type::category_set_type{&cat1_data};
   categories1.set(0);
@@ -175,10 +151,13 @@ TEST(FilBackend, small_dev_forest)
     kayak::device_type::gpu
   );
   auto test_forest = forest_type{
-    tree_storage.objs(),
+    offsets_buf.size(),
     values_buf.data(),
     features_buf.data(),
+    offsets_buf.data(),
     distant_buf.data(),
+    tree_offsets_buf.size(),
+    tree_offsets_buf.data(),
     uint32_t{1},
     nullptr,
     categorical_sizes_buf.data()
@@ -266,36 +245,14 @@ TEST(FilBackend, large_dev_forest)
 {
   using forest_type = large_forest_type;
 
-  auto offsets = std::vector<std::vector<typename forest_type::offset_type>>{
-    {6, 2, 0, 2, 0, 0, 0},
-    {4, 2, 0, 0, 2, 0, 2, 0, 0},
-    {2, 0, 0}
+  auto offsets = std::vector<typename forest_type::offset_type>{
+    6, 2, 0, 2, 0, 0, 0,
+    4, 2, 0, 0, 2, 0, 2, 0, 0,
+    2, 0, 0
   };
-  auto tree_sizes = std::vector<typename forest_type::index_type>{};
-  std::transform(
-    std::begin(offsets),
-    std::end(offsets),
-    std::back_inserter(tree_sizes), 
-    [](auto&& entry) { return entry.size(); }
+  auto offsets_buf = kayak::buffer<typename forest_type::offset_type>(
+    std::begin(offsets), std::end(offsets), kayak::device_type::gpu
   );
-  auto tree_storage = kayak::make_multi_tree<kayak::tree_layout::depth_first, typename forest_type::offset_type>(
-    std::begin(tree_sizes),
-    std::end(tree_sizes),
-    0u,
-    kayak::device_type::gpu
-  );
-  auto tree_offset = uint32_t{};
-  for (auto i = uint32_t{}; i < tree_storage.size(); ++i) {
-    kayak::copy<true>(
-      kayak::buffer(
-        tree_storage.buffer().data() + tree_offset,
-        tree_sizes[i],
-        tree_storage.buffer().memory_type()
-      ),
-      kayak::buffer(offsets[i].data(), offsets[i].size(), kayak::device_type::cpu)
-    );
-    tree_offset += tree_sizes[i];
-  }
 
   auto categorical_sizes = std::vector<uint32_t>{
     0, 0, 0, 0, 0, 0, 0,
@@ -339,27 +296,27 @@ TEST(FilBackend, large_dev_forest)
     kayak::device_type::gpu
   );
 
-  auto values = std::vector<typename forest_type::node_value_type>{
-    {.value = 1.0f},  // Tree: 0, Node 0
-    {.value = 5.0f},  // Tree: 0, Node 1
-    {.value = 6.0f},  // Tree: 0, Node 2
-    {.value = 3.0f},  // Tree: 0, Node 3
-    {.index = 2},  // Tree: 0, Node 4
-    {.index = 4},  // Tree: 0, Node 5
-    {.index = 6},  // Tree: 0, Node 6
-    {.value = 5.0f},  // Tree: 1, Node 0
-    {.index = 0},  // Tree: 1, Node 1, (Categories 0 and 6)
-    {.index = 8},  // Tree: 1, Node 2
-    {.index = 10},  // Tree: 1, Node 3
-    {.index = 1},  // Tree: 1, Node 4 (Category 4)
-    {.index = 12},  // Tree: 1, Node 5
-    {.value = 2.0f},  // Tree: 1, Node 6
-    {.index = 14},  // Tree: 1, Node 7
-    {.index = 16},  // Tree: 1, Node 8
-    {.value = 1.0f},  // Tree: 2, Node 0
-    {.index = 18},  // Tree: 2, Node 1
-    {.index = 20}  // Tree: 2, Node 2
-  };
+  auto values = std::vector<typename forest_type::node_value_type>(offsets_buf.size());
+  values[0].value = 1.0;
+  values[1].value = 5.0;
+  values[2].index = 0;
+  values[3].value = 3.0;
+  values[4].index = 2;
+  values[5].index = 4;
+  values[6].index = 6;
+  values[7 + 0].value = 5.0;
+  values[7 + 1].index = 0;
+  values[7 + 2].index = 8;
+  values[7 + 3].index = 10;
+  values[7 + 4].index = 1;
+  values[7 + 5].index = 12;
+  values[7 + 6].value = 2.0;
+  values[7 + 7].index = 14;
+  values[7 + 8].index = 16;
+  values[16 + 0].value = 1.0;
+  values[16 + 1].index = 18;
+  values[16 + 2].index = 20;
+
   auto values_buf = kayak::buffer<typename forest_type::node_value_type>(
     std::begin(values), std::end(values), kayak::device_type::gpu
   );
@@ -393,10 +350,13 @@ TEST(FilBackend, large_dev_forest)
     kayak::device_type::gpu
   );
   auto test_forest = forest_type{
-    tree_storage.objs(),
+    offsets_buf.size(),
     values_buf.data(),
     features_buf.data(),
+    offsets_buf.data(),
     distant_buf.data(),
+    tree_offsets_buf.size(),
+    tree_offsets_buf.data(),
     uint32_t{2},
     outputs_buf.data(),
     categorical_sizes_buf.data(),
