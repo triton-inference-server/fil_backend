@@ -29,6 +29,19 @@ TEST_PROFILE=${TEST_PROFILE:-ci}
 if [ ! -d "${LOG_DIR}" ]
 then
   mkdir -p "${LOG_DIR}"
+  if [ ! -z $OWNER_ID ] && [ ! -z $OWNER_GID ]
+  then
+    echo "Updating permissions on $LOG_DIR"
+    chown -R "${OWNER_ID}:${OWNER_GID}" "${LOG_DIR}"
+  fi
+fi
+
+touch $SERVER_LOG
+echo "Server output will be logged to $SERVER_LOG"
+if [ ! -z $OWNER_ID ] && [ ! -z $OWNER_GID ]
+then
+  echo "Updating permissions on $SERVER_LOG"
+  chown "${OWNER_ID}:${OWNER_GID}" "${SERVER_LOG}"
 fi
 
 if [ -z $MODEL_REPO ]
