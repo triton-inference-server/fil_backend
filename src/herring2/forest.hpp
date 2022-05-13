@@ -8,6 +8,8 @@
 #include <kayak/tree.hpp>
 #include <kayak/tree_layout.hpp>
 
+// TODO(wphicks): Currently assumes 0 padding in trees
+
 namespace herring {
 
 using kayak::raw_index_t;

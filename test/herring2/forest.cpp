@@ -172,6 +172,8 @@ TEST(FilBackend, large_host_forest)
     std::back_inserter(tree_sizes), 
     [](auto&& entry) { return entry.size(); }
   );
+
+  // TODO(wphicks): Test non-zero padding when implemented
   auto tree_storage = kayak::make_multi_tree<kayak::tree_layout::depth_first, typename forest_type::offset_type>(std::begin(tree_sizes), std::end(tree_sizes));
   for (auto i = uint32_t{}; i < tree_storage.size(); ++i) {
     kayak::copy<true>(

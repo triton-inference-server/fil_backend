@@ -32,18 +32,6 @@ struct structured_multidata {
   auto buffer_size() const { return data_.size(); }
   auto bytes_size() const { return buffer_size() * sizeof(value_type); }
 
-  template<bool bounds_check=false>
-  structured_multidata(
-    structured_multidata<obj_type> const& other,
-    device_type mem_type=device_type::cpu,
-    int device=0,
-    cuda_stream stream=cuda_stream{}
-  ) : data_{other.buffer().size(), mem_type, device, stream},
-      objs_{other.objs_.size(), mem_type, device, stream} {
-    copy<bounds_check>(data_, other.buffer());
-    copy<bounds_check>(objs_, other.objs_);
-  }
-
   auto objs() {
     return detail::flat_array<detail::array_encoding::dense, obj_type>{
       objs_.data(), objs_.size()
