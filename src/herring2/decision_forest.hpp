@@ -50,65 +50,6 @@ struct decision_forest {
   using node_value_type = typename forest_type::node_value_type;
   using category_set_type = typename forest_type::category_set_type;
 
-  decision_forest() :
-    node_offsets_{},
-    node_values_{},
-    node_features_{},
-    default_distant_{},
-    node_outputs_{},
-    categorical_sizes_{},
-    categorical_storage_{},
-    num_class_{},
-    num_features_{},
-    output_size_{}
-  {
-  }
-
-  decision_forest(
-    kayak::multi_tree<layout, offset_type>&& node_offsets,
-    kayak::buffer<node_value_type>&& node_values,
-    kayak::buffer<feature_index_type>&& node_features,
-    kayak::buffer<bool>&& default_distant,
-    std::optional<kayak::buffer<output_type>>&& node_outputs,
-    std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
-    std::optional<kayak::buffer<uint8_t>>&& categorical_storage
-  ) :
-    node_offsets_{std::move(node_offsets)},
-    node_values_{std::move(node_values)},
-    node_features_{std::move(node_features)},
-    default_distant_{std::move(default_distant)},
-    node_outputs_{std::move(node_outputs)},
-    categorical_sizes_{std::move(categorical_sizes)},
-    categorical_storage_{std::move(categorical_storage)}
-  {
-  }
-
-  template<typename iter>
-  decision_forest(
-    iter tree_sizes_begin,
-    iter tree_sizes_end,
-    index_type num_class,
-    index_type num_features,
-    index_type output_size=index_type{1},
-    index_type align_to_bytes=index_type{}
-  ) :
-    node_offsets_{make_multi_tree(
-      tree_sizes_begin,
-      tree_sizes_end,
-      align_to_bytes
-    )},
-    node_values_{node_offsets_.buffer_size()},
-    node_features_{node_offsets_.buffer_size()},
-    default_distant_{node_offsets_.buffer_size()},
-    node_outputs_{},
-    categorical_sizes_{},
-    categorical_storage_{},
-    num_class_{num_class},
-    num_features_{num_features},
-    output_size_{output_size}
-  {
-  }
-
   void set_offset(index_type tree_index, index_type node_index, offset_type value) {
     // TODO(wphicks)
   }
@@ -152,7 +93,8 @@ struct decision_forest {
     if (categorical_storage_) {
       categorical_storage__ptr = categorical_storage_->data();
     }
-    return forest{
+    // TODO (wphicks)
+    /* return forest{
       node_offsets_,
       node_values_.data(),
       node_features_.data(),
@@ -163,15 +105,15 @@ struct decision_forest {
       node_output_ptr,
       categorical_sizes__ptr,
       categorical_storage__ptr
-    };
+    }; */
   }
 
  private:
   // Data
-  // TODO(wphicks): Currently assuming no padding in any of these
-  kayak::multi_tree<layout, offset_type> node_offsets_;
+  kayak::buffer<raw_index_t> tree_offsets;
   kayak::buffer<node_value_type> node_values_;
   kayak::buffer<feature_index_type> node_features_;
+  kayak::buffer<offset_type> node_offsets_;
   kayak::buffer<bool> default_distant_;
   std::optional<kayak::buffer<output_type>> node_outputs_;
   std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
