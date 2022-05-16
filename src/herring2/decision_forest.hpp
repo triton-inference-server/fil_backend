@@ -78,7 +78,7 @@ struct decision_forest {
 
 
   auto num_features() const { return num_features_; }
-  auto outputs_per_sample() const { return output_size_; }
+  auto leaf_size() const { return leaf_size_; }
 
   auto obj() const {
     auto node_output_ptr = static_cast<output_type*>(nullptr);
@@ -101,16 +101,82 @@ struct decision_forest {
       node_offsets_.data(),
       default_distant_.data(),
       node_offsets_.size(),
-      output_size_,
+      leaf_size_,
       node_output_ptr,
       categorical_sizes__ptr,
       categorical_storage__ptr
     }; */
   }
 
+  template<typename iter>
+  decision_forest(
+    index_type num_class,
+    index_type num_features,
+    iter tree_sizes_begin,
+    iter tree_sizes_end,
+    index_type align_bytes=raw_index_t{},
+    kayak::device_type mem_type=kayak::device_type::cpu,
+    int device=0,
+    kayak::cuda_stream stream=kayak::cuda_stream{},
+    index_type leaf_size=raw_index_t{1},
+    std::optional<index_type> leaf_count=std::nullopt
+  ) :
+      tree_offsets_{[this, &tree_sizes_begin, &tree_sizes_end, align_bytes, mem_type, device, &stream]() {
+      auto offsets = std::vector<raw_index_t>{raw_index_t{}};
+      offsets.reserve(std::distance(tree_sizes_begin, tree_sizes_end) + 1);
+      auto alignment = std::lcm(align_unit, align_bytes);
+      std::transform(
+        tree_sizes_begin,
+        tree_sizes_end,
+        std::back_inserter(offsets),
+        [this, align_bytes, mem_type, device, &stream, &offsets](auto&& current) {
+          auto result = raw_index_t{};
+          auto const& cumulative = offsets.back();
+          if (align_bytes == 0) {
+            result = cumulative + current;
+          } else {
+            result = cumulative + current + (alignment - current % alignment);
+          }
+        }
+      );
+      offsets.pop_back();
+      return kayak::buffer<raw_index_t>{
+        std::begin(offsets), std::end(offsets), mem_type, device, stream
+      };
+    }()},
+    node_values_{tree_offsets_.size(), mem_type, device, stream},
+    node_features_{tree_offsets_.size(), mem_type, device, stream},
+    default_distant_{tree_offsets_.size(), mem_type, device, stream},
+    node_outputs_{[this, leaf_size, &leaf_count, mem_type, device, &stream](){
+      auto result = std::optional<kayak::buffer<output_type>>{};
+      if constexpr (std::is_same_v<value_type, output_type> || std::is_same_v<output_index_type, output_type>) {
+        if (leaf_size != raw_index_t{1}) {
+          // If caller has not supplied leaf count, assume maximum number of
+          // leaves for given model size
+          auto output_elements = raw_index_t{
+            leaf_count.value_or(tree_offsets_.size() / 2u + 1u)
+          } * leaf_size;
+          result = std::make_optional<kayak::buffer<output_type>>(
+            output_elements, mem_type, device, stream
+          );
+        }
+      } else {
+        auto output_elements = raw_index_t{
+          leaf_count.value_or(tree_offsets_.size() / 2u + 1u)
+        } * leaf_size;
+        result = std::make_optional<kayak::buffer<output_type>>(
+          output_elements, mem_type, device, stream
+        );
+      }
+      return result;
+    }()},
+    categorical_sizes_{},
+    categorical_storage_{} {
+  }
+
  private:
   // Data
-  kayak::buffer<raw_index_t> tree_offsets;
+  kayak::buffer<raw_index_t> tree_offsets_;
   kayak::buffer<node_value_type> node_values_;
   kayak::buffer<feature_index_type> node_features_;
   kayak::buffer<offset_type> node_offsets_;
@@ -118,13 +184,22 @@ struct decision_forest {
   std::optional<kayak::buffer<output_type>> node_outputs_;
   std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
   std::optional<kayak::buffer<uint8_t>> categorical_storage_;
-  // TODO(wphicks): Non-inclusive thresholds will be made inclusive via
-  // next-representable trick
+
+  auto constexpr static const align_unit = std::lcm(
+    sizeof(raw_index_t),
+    std::lcm(
+      sizeof(node_value_type),
+      std::lcm(
+        sizeof(feature_index_type),
+        sizeof(offset_type)
+      )
+    )
+  );
 
   // Metadata
   raw_index_t num_class_;
   raw_index_t num_features_;
-  raw_index_t output_size_;
+  raw_index_t leaf_size_;
 };
 
 template<
