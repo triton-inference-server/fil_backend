@@ -41,7 +41,6 @@ struct decision_forest {
     output_t,
     categorical_lookup
   >;
-  using value_type = typename forest_type::value_type;
   using index_type = typename forest_type::index_type;
   using feature_index_type = typename forest_type::feature_index_type;
   using offset_type = typename forest_type::offset_type;
@@ -108,6 +107,16 @@ struct decision_forest {
     }; */
   }
 
+  decision_forest() :
+    tree_offsets_{},
+    node_values_{},
+    node_features_{},
+    node_offsets_{},
+    default_distant_{},
+    node_outputs_{},
+    categorical_sizes_{},
+    categorical_storage_{} {}
+
   template<typename iter>
   decision_forest(
     index_type num_class,
@@ -117,9 +126,7 @@ struct decision_forest {
     index_type align_bytes=raw_index_t{},
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
-    kayak::cuda_stream stream=kayak::cuda_stream{},
-    index_type leaf_size=raw_index_t{1},
-    std::optional<index_type> leaf_count=std::nullopt
+    kayak::cuda_stream stream=kayak::cuda_stream{}
   ) :
       tree_offsets_{[this, &tree_sizes_begin, &tree_sizes_end, align_bytes, mem_type, device, &stream]() {
       auto offsets = std::vector<raw_index_t>{raw_index_t{}};
@@ -147,29 +154,7 @@ struct decision_forest {
     node_values_{tree_offsets_.size(), mem_type, device, stream},
     node_features_{tree_offsets_.size(), mem_type, device, stream},
     default_distant_{tree_offsets_.size(), mem_type, device, stream},
-    node_outputs_{[this, leaf_size, &leaf_count, mem_type, device, &stream](){
-      auto result = std::optional<kayak::buffer<output_type>>{};
-      if constexpr (std::is_same_v<value_type, output_type> || std::is_same_v<output_index_type, output_type>) {
-        if (leaf_size != raw_index_t{1}) {
-          // If caller has not supplied leaf count, assume maximum number of
-          // leaves for given model size
-          auto output_elements = raw_index_t{
-            leaf_count.value_or(tree_offsets_.size() / 2u + 1u)
-          } * leaf_size;
-          result = std::make_optional<kayak::buffer<output_type>>(
-            output_elements, mem_type, device, stream
-          );
-        }
-      } else {
-        auto output_elements = raw_index_t{
-          leaf_count.value_or(tree_offsets_.size() / 2u + 1u)
-        } * leaf_size;
-        result = std::make_optional<kayak::buffer<output_type>>(
-          output_elements, mem_type, device, stream
-        );
-      }
-      return result;
-    }()},
+    node_outputs_{},
     categorical_sizes_{},
     categorical_storage_{} {
   }
@@ -224,66 +209,114 @@ namespace detail {
 auto constexpr static const preferred_tree_layout = kayak::tree_layout::depth_first;
 }
 
-template <typename output_t>
 using forest_model_variant = std::variant<
-  forest_model<output_t, detail::preferred_tree_layout, false, false, false, false>,
-  forest_model<output_t, detail::preferred_tree_layout, false, false, false, true>,
-  forest_model<output_t, detail::preferred_tree_layout, false, false, true, false>,
-  forest_model<output_t, detail::preferred_tree_layout, false, false, true, true>,
-  forest_model<output_t, detail::preferred_tree_layout, false, true, false, false>,
-  forest_model<output_t, detail::preferred_tree_layout, false, true, false, true>,
-  forest_model<output_t, detail::preferred_tree_layout, false, true, true, false>,
-  forest_model<output_t, detail::preferred_tree_layout, false, true, true, true>,
-  forest_model<output_t, detail::preferred_tree_layout, true, false, false, false>,
-  forest_model<output_t, detail::preferred_tree_layout, true, false, false, true>,
-  forest_model<output_t, detail::preferred_tree_layout, true, false, true, false>,
-  forest_model<output_t, detail::preferred_tree_layout, true, false, true, true>,
-  forest_model<output_t, detail::preferred_tree_layout, true, true, false, false>,
-  forest_model<output_t, detail::preferred_tree_layout, true, true, false, true>,
-  forest_model<output_t, detail::preferred_tree_layout, true, true, true, false>,
-  forest_model<output_t, detail::preferred_tree_layout, true, true, true, true>
+  forest_model<float, detail::preferred_tree_layout, false, false, false, false>,
+  forest_model<float, detail::preferred_tree_layout, false, false, false, true>,
+  forest_model<float, detail::preferred_tree_layout, false, false, true, false>,
+  forest_model<float, detail::preferred_tree_layout, false, false, true, true>,
+  forest_model<float, detail::preferred_tree_layout, false, true, false, false>,
+  forest_model<float, detail::preferred_tree_layout, false, true, false, true>,
+  forest_model<float, detail::preferred_tree_layout, false, true, true, false>,
+  forest_model<float, detail::preferred_tree_layout, false, true, true, true>,
+  forest_model<float, detail::preferred_tree_layout, true, false, false, false>,
+  forest_model<float, detail::preferred_tree_layout, true, false, false, true>,
+  forest_model<float, detail::preferred_tree_layout, true, false, true, false>,
+  forest_model<float, detail::preferred_tree_layout, true, false, true, true>,
+  forest_model<float, detail::preferred_tree_layout, true, true, false, false>,
+  forest_model<float, detail::preferred_tree_layout, true, true, false, true>,
+  forest_model<float, detail::preferred_tree_layout, true, true, true, false>,
+  forest_model<float, detail::preferred_tree_layout, true, true, true, true>,
+  forest_model<double, detail::preferred_tree_layout, false, false, false, false>,
+  forest_model<double, detail::preferred_tree_layout, false, false, false, true>,
+  forest_model<double, detail::preferred_tree_layout, false, false, true, false>,
+  forest_model<double, detail::preferred_tree_layout, false, false, true, true>,
+  forest_model<double, detail::preferred_tree_layout, false, true, false, false>,
+  forest_model<double, detail::preferred_tree_layout, false, true, false, true>,
+  forest_model<double, detail::preferred_tree_layout, false, true, true, false>,
+  forest_model<double, detail::preferred_tree_layout, false, true, true, true>,
+  forest_model<double, detail::preferred_tree_layout, true, false, false, false>,
+  forest_model<double, detail::preferred_tree_layout, true, false, false, true>,
+  forest_model<double, detail::preferred_tree_layout, true, false, true, false>,
+  forest_model<double, detail::preferred_tree_layout, true, false, true, true>,
+  forest_model<double, detail::preferred_tree_layout, true, true, false, false>,
+  forest_model<double, detail::preferred_tree_layout, true, true, false, true>,
+  forest_model<double, detail::preferred_tree_layout, true, true, true, false>,
+  forest_model<double, detail::preferred_tree_layout, true, true, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, false, false, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, false, false, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, false, true, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, false, true, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, true, false, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, true, false, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, true, true, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, false, true, true, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, false, false, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, false, false, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, false, true, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, false, true, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, true, false, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, true, false, true>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, true, true, false>,
+  forest_model<uint64_t, detail::preferred_tree_layout, true, true, true, true>
 >;
 
-template <typename output_t>
-auto get_forest_variant_index(
-  std::size_t max_nodes_per_tree,
-  std::size_t max_depth,
+inline auto get_forest_variant_index(
+  std::size_t max_node_offset,
   std::size_t num_features,
   std::size_t max_num_categories,
-  bool use_double_thresholds
+  bool use_double_thresholds,
+  bool use_double_output,
+  bool use_integer_output
 ) {
   auto constexpr small_value = std::size_t{0};
   auto constexpr large_value = std::size_t{1};
 
+  auto constexpr output_integer_bit = std::size_t{5};
+  auto constexpr output_precision_bit = std::size_t{4};
   auto constexpr precision_bit = std::size_t{3};
 
   auto constexpr features_bit = std::size_t{2};
   auto constexpr max_few_features = std::numeric_limits<typename std::variant_alternative_t<
-    (small_value << features_bit), forest_model_variant<output_t>
+    (small_value << features_bit), forest_model_variant
   >::feature_index_type>::max();
   auto constexpr max_many_features = std::numeric_limits<typename std::variant_alternative_t<
-    (large_value << features_bit), forest_model_variant<output_t>
+    (large_value << features_bit), forest_model_variant
   >::feature_index_type>::max();
 
   auto constexpr tree_bit = std::size_t{1};
   auto constexpr max_small_trees = std::numeric_limits<typename std::variant_alternative_t<
-    (small_value << tree_bit), forest_model_variant<output_t>
+    (small_value << tree_bit), forest_model_variant
   >::offset_type>::max();
   auto constexpr max_large_trees = std::numeric_limits<typename std::variant_alternative_t<
-    (large_value << tree_bit), forest_model_variant<output_t>
+    (large_value << tree_bit), forest_model_variant
   >::offset_type>::max();
 
   auto constexpr category_bit = std::size_t{0};
-  auto constexpr max_few_categories = std::variant_alternative_t<
-    (small_value << category_bit), forest_model_variant<output_t>
-  >::category_set_type::size();
+  auto max_few_categories = std::variant_alternative_t<
+    (small_value << category_bit), forest_model_variant
+  >::category_set_type{}.size();
   auto constexpr max_many_categories = std::numeric_limits<raw_index_t>::max();
 
   if (num_features > max_many_features) {
     throw unusable_model_exception("Model contains too many features");
   }
 
-  auto max_node_offset = std::min(max_nodes_per_tree, (std::size_t{1} << max_depth));
   if (max_node_offset > max_large_trees) {
     throw unusable_model_exception("Model contains too large of trees");
   }
@@ -297,6 +330,8 @@ auto get_forest_variant_index(
   auto has_many_features = std::size_t{num_features > max_few_features};
   
   return std::size_t{
+    (std::size_t{use_integer_output} << output_integer_bit) +
+    (std::size_t{use_double_output} << output_precision_bit) +
     (std::size_t{use_double_thresholds} << precision_bit) +
     (has_many_features << features_bit) +
     (has_large_trees << tree_bit) +

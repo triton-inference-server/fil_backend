@@ -16,6 +16,7 @@ template<kayak::tree_layout layout, typename value_t, typename feature_index_t, 
 struct forest {
   auto constexpr static const bounds_check = kayak::DEBUG_ENABLED && !kayak::GPU_ENABLED;
   using index_type = kayak::detail::index_type<bounds_check>;
+  using feature_index_type = feature_index_t;
   using category_set_type = std::conditional_t<
     categorical_lookup,
     kayak::bitset<uint8_t>,
@@ -24,6 +25,7 @@ struct forest {
   using node_value_type = node_value<value_t, output_index_t>;
   using offset_type = offset_t;
   using output_index_type = output_index_t;
+  using output_type = output_t;
 
   forest()
     : node_count_{}, values_{nullptr}, features_{nullptr},
