@@ -30,8 +30,9 @@ struct unusable_model_exception : std::exception {
   std::string msg_;
 };
 
-template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
+template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup_v>
 struct decision_forest {
+  auto constexpr static const categorical_lookup = categorical_lookup_v;
   using forest_type = forest<
     layout,
     value_t,
@@ -48,32 +49,6 @@ struct decision_forest {
   using output_type = typename forest_type::output_type;
   using node_value_type = typename forest_type::node_value_type;
   using category_set_type = typename forest_type::category_set_type;
-
-  void set_offset(index_type tree_index, index_type node_index, offset_type value) {
-    // TODO(wphicks)
-  }
-  void set_value(index_type tree_index, index_type node_index, typename node_value_type::value_type value) {
-    // TODO(wphicks)
-  }
-  void set_value(index_type tree_index, index_type node_index, typename node_value_type::output_index_type value) {
-    // TODO(wphicks)
-  }
-  void set_feature(index_type tree_index, index_type node_index, feature_index_type value) {
-    // TODO(wphicks)
-  }
-  void set_default_distant(index_type tree_index, index_type node_index, bool value) {
-    // TODO(wphicks)
-  }
-  void set_output(index_type tree_index, index_type node_index, output_type value) {
-    // TODO(wphicks)
-  }
-  template<kayak::array_encoding output_layout>
-  void set_output(index_type tree_index, index_type node_index, kayak::flat_array<output_layout, output_type> value) {
-    // TODO(wphicks)
-  }
-  void set_categories(index_type tree_index, index_type node_index, kayak::flat_array<kayak::array_encoding::dense, typename category_set_type::index_type> value) {
-    // TODO(wphicks)
-  }
 
 
   auto num_features() const { return num_features_; }
@@ -117,50 +92,31 @@ struct decision_forest {
     categorical_sizes_{},
     categorical_storage_{} {}
 
-  template<typename iter>
   decision_forest(
     index_type num_class,
     index_type num_features,
-    iter tree_sizes_begin,
-    iter tree_sizes_end,
-    index_type align_bytes=raw_index_t{},
-    kayak::device_type mem_type=kayak::device_type::cpu,
-    int device=0,
-    kayak::cuda_stream stream=kayak::cuda_stream{}
+    kayak::buffer<raw_index_t>&& tree_offsets,
+    kayak::buffer<node_value_type>&& node_values,
+    kayak::buffer<feature_index_type>&& node_features,
+    kayak::buffer<offset_type>&& node_offsets,
+    kayak::buffer<bool>&& default_distant,
+    std::optional<kayak::buffer<output_type>>&& node_outputs,
+    std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
+    std::optional<kayak::buffer<uint8_t>>&& categorical_storage,
+    index_type leaf_size=index_type{1u}
   ) :
-      tree_offsets_{[this, &tree_sizes_begin, &tree_sizes_end, align_bytes, mem_type, device, &stream]() {
-      auto offsets = std::vector<raw_index_t>{raw_index_t{}};
-      offsets.reserve(std::distance(tree_sizes_begin, tree_sizes_end) + 1);
-      auto alignment = std::lcm(align_unit, align_bytes);
-      std::transform(
-        tree_sizes_begin,
-        tree_sizes_end,
-        std::back_inserter(offsets),
-        [this, align_bytes, mem_type, device, &stream, &offsets](auto&& current) {
-          auto result = raw_index_t{};
-          auto const& cumulative = offsets.back();
-          if (align_bytes == 0) {
-            result = cumulative + current;
-          } else {
-            result = cumulative + current + (alignment - current % alignment);
-          }
-        }
-      );
-      offsets.pop_back();
-      return kayak::buffer<raw_index_t>{
-        std::begin(offsets), std::end(offsets), mem_type, device, stream
-      };
-    }()},
-    node_values_{tree_offsets_.size(), mem_type, device, stream},
-    node_features_{tree_offsets_.size(), mem_type, device, stream},
-    default_distant_{tree_offsets_.size(), mem_type, device, stream},
-    node_outputs_{},
-    categorical_sizes_{},
-    categorical_storage_{} {
+    tree_offsets_{std::move(tree_offsets)},
+    node_values_{std::move(node_values)},
+    node_features_{std::move(node_features)},
+    node_offsets_{std::move(node_offsets)},
+    default_distant_{std::move(default_distant)},
+    node_outputs_{std::move(node_outputs)},
+    categorical_sizes_{std::move(categorical_sizes)},
+    categorical_storage_{std::move(categorical_storage)}
+  {
   }
 
  private:
-  // Data
   kayak::buffer<raw_index_t> tree_offsets_;
   kayak::buffer<node_value_type> node_values_;
   kayak::buffer<feature_index_type> node_features_;
@@ -169,17 +125,6 @@ struct decision_forest {
   std::optional<kayak::buffer<output_type>> node_outputs_;
   std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
   std::optional<kayak::buffer<uint8_t>> categorical_storage_;
-
-  auto constexpr static const align_unit = std::lcm(
-    sizeof(raw_index_t),
-    std::lcm(
-      sizeof(node_value_type),
-      std::lcm(
-        sizeof(feature_index_type),
-        sizeof(offset_type)
-      )
-    )
-  );
 
   // Metadata
   raw_index_t num_class_;

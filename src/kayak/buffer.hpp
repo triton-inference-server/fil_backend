@@ -319,6 +319,11 @@ const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src, typename buff
 }
 
 template<bool bounds_check, typename T, typename U>
+const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src, typename buffer<T>::index_type dst_offset, cuda_stream stream) {
+  copy<bounds_check>(dst, src, dst_offset, 0, src.size(), stream);
+}
+
+template<bool bounds_check, typename T, typename U>
 const_agnostic_same_t<T, U> copy(buffer<T>&& dst, buffer<U>&& src, cuda_stream stream) {
   copy<bounds_check>(dst, src, 0, 0, src.size(), stream);
 }

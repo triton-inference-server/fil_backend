@@ -5,6 +5,7 @@
 #include <treelite/tree.h>
 #include <treelite/typeinfo.h>
 #include <herring2/decision_forest.hpp>
+#include <herring2/decision_forest_builder.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
 
@@ -30,6 +31,15 @@ struct traversal_container {
   >;
   void add(T const& val) {
     data_.push(val);
+  }
+  void add(T const& hot, T const& distant) {
+    if constexpr (layout == kayak::tree_layout::depth_first) {
+      data_.push(distant);
+      data_.push(hot);
+    } else {
+      data_.push(hot);
+      data_.push(distant);
+    }
   }
   auto next() {
     if constexpr (std::is_same_v<backing_container_t, std::stack<T>>) {
@@ -68,8 +78,54 @@ struct treelite_importer {
     std::size_t parent_index;
     std::size_t own_index;
 
+    auto is_leaf() {
+      return tree.isLeaf(node_id);
+    }
+
+    auto get_output() {
+      auto result = std::vector<tl_output_t>{};
+      if (tree.HasLeafVector(node_id)) {
+        result = tree.LeafVector(node_id);
+      } else {
+        result.push_back(tree.LeafValue(node_id));
+      }
+      return result;
+    }
+
+    auto get_categories() {
+      return tree.MatchingCategories(node_id);
+    }
+
+    auto get_feature() {
+      return tree.SplitIndex(node_id);
+    }
+
     auto is_categorical() {
       return tree.SplitType(node_id) == treelite::SplitFeatureType::kCategorical;
+    }
+
+    auto default_distant() {
+      auto result = false;
+      auto default_child = tree.DefaultChild(node_id);
+      if (is_categorical()) {
+        if (tree.CategoriesListRightChild(node_id)) {
+          result = (default_child == tree.RightChild(node_id));
+        } else {
+          result = (default_child == tree.LeftChild(node_id));
+        }
+      } else {
+        auto tl_operator = tree.ComparisonOp(node_id);
+        if (tl_operator == treelite::Operator::kLT || tl_operator == treelite::Operator::kLE) {
+          result = (default_child == tree.LeftChild(node_id));
+        } else {
+          result = (default_child == tree.RightChild(node_id));
+        }
+      }
+      return result;
+    }
+
+    auto threshold() {
+      return tree.Threshold(node_id);
     }
 
     auto categories() {
@@ -82,7 +138,7 @@ struct treelite_importer {
 
     auto is_inclusive() {
       auto tl_operator = tree.ComparisonOp(node_id);
-      return tl_operator == treelite::Operator::kGE || tl_operator == treelite::Operator::kLE;
+      return tl_operator == treelite::Operator::kGT || tl_operator == treelite::Operator::kLE;
     }
   };
 
@@ -109,25 +165,20 @@ struct treelite_importer {
         auto tl_operator = tl_tree.ComparisonOp(node_id);
         if (!tl_node.is_categorical()) {
           if (tl_operator == treelite::Operator::kLT || tl_operator == treelite::Operator::kLE) {
-            to_be_visited.add(tl_left_id);
-            to_be_visited.add(tl_right_id);
+            to_be_visited.add(tl_right_id, tl_left_id);
           } else if (tl_operator == treelite::Operator::kGT || tl_operator == treelite::Operator::kGE) {
-            to_be_visited.add(tl_right_id);
-            to_be_visited.add(tl_left_id);
+            to_be_visited.add(tl_left_id, tl_right_id);
           } else {
             throw model_import_error("Unrecognized Treelite operator");
           }
         } else {
           if (tl_tree.CategoriesListRightChild(node_id)) {
-            to_be_visited.add(tl_right_id);
-            to_be_visited.add(tl_left_id);
+            to_be_visited.add(tl_left_id, tl_right_id);
           } else {
-            to_be_visited.add(tl_left_id);
-            to_be_visited.add(tl_right_id);
+            to_be_visited.add(tl_right_id, tl_left_id);
           }
         }
-        parent_indices.add(cur_index);
-        parent_indices.add(cur_index);
+        parent_indices.add(cur_index, cur_index);
       }
       ++cur_index;
     }
@@ -325,15 +376,91 @@ struct treelite_importer {
     return result;
   }
 
-  auto import(treelite::Model const& tl_model, kayak::detail::index_type<true> align_bytes = raw_index_t{}) {
+  template<std::size_t variant_index>
+  auto import_to_specific_variant(
+    std::size_t target_variant_index,
+    treelite::Model const& tl_model,
+    kayak::detail::index_type<true> num_class,
+    kayak::detail::index_type<true> num_feature,
+    std::vector<std::vector<raw_index_t>> const& offsets,
+    kayak::detail::index_type<true> align_bytes = raw_index_t{},
+    kayak::device_type mem_type=kayak::device_type::cpu,
+    int device=0,
+    kayak::cuda_stream stream=kayak::cuda_stream{}
+  ) {
+    auto result = forest_model_variant{};
+    if constexpr (variant_index != std::variant_size_v<forest_model_variant>) {
+      if (variant_index == target_variant_index) {
+        using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
+        auto builder = decision_forest_builder<forest_model_t>(align_bytes);
+        auto tree_count = num_trees(tl_model);
+        auto tree_index = std::size_t{};
+        tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
+          builder.start_new_tree();
+          auto node_index = std::size_t{};
+          node_for_each(tree, [&builder, &tree_index, &node_index, &offsets](auto&& node) {
+            if (node.is_leaf()) {
+              auto output = node.get_output();
+              builder.add_leaf_node(std::begin(output), std::end(output));
+            } else {
+              if (node.is_categorical()) {
+                auto categories = node.get_categories();
+                builder.add_categorical_node(
+                  offsets[tree_index][node_index],
+                  node.get_feature(),
+                  std::begin(categories),
+                  std::end(categories),
+                  node.default_distant()
+                );
+              } else {
+                builder.add_threshold_node(
+                  offsets[tree_index][node_index],
+                  node.get_feature(),
+                  node.threshold(),
+                  node.default_distant(),
+                  node.is_inclusive()
+                );
+              }
+            }
+            ++node_index;
+          });
+          ++tree_index;
+        });
+        result = builder.get_decision_forest(num_class, num_feature, mem_type, device, stream);
+      } else {
+        result = import_to_specific_variant<variant_index +1>(
+          target_variant_index,
+          tl_model,
+          align_bytes
+        );
+      }
+    }
+    return result;
+  }
+
+  auto import(
+    treelite::Model const& tl_model,
+    kayak::detail::index_type<true> align_bytes = raw_index_t{},
+    kayak::device_type mem_type=kayak::device_type::cpu,
+    int device=0,
+    kayak::cuda_stream stream=kayak::cuda_stream{}
+  ) {
     auto result = forest_model_variant{};
     auto num_feature = get_num_feature(tl_model);
     auto max_num_categories = get_max_num_categories(tl_model);
     auto use_double_thresholds = uses_double_thresholds(tl_model);
-    auto use_double_outputs = uses_double_outputs(tl_model);
-    auto use_integer_outputs = uses_integer_outputs(tl_model);
+    auto use_double_output = uses_double_outputs(tl_model);
+    auto use_integer_output = uses_integer_outputs(tl_model);
 
     auto offsets = get_offsets(tl_model);
+    auto max_offset = std::accumulate(
+      std::begin(offsets),
+      std::end(offsets),
+      raw_index_t{},
+      [](auto&& cur_max, auto&& tree_offsets) {
+        return std::max(cur_max, std::max_element(std::begin(offsets), std::end(offsets)));
+      }
+    );
     auto tree_sizes = std::vector<raw_index_t>{};
     try {
       std::transform(
@@ -349,9 +476,25 @@ struct treelite_importer {
         "Tree too large to be represented in Herring format"
       );
     }
-    return result;
+    auto variant_index = get_forest_variant_index(
+      max_offset,
+      num_feature,
+      max_num_categories,
+      use_double_output,
+      use_integer_output
+    );
+    auto num_class = get_num_class(tl_model);
+    return import_to_specific_variant<std::size_t{}>(
+      variant_index,
+      tl_model,
+      num_class,
+      num_feature,
+      align_bytes,
+      mem_type,
+      device,
+      stream
+    );
   }
-
 };
 
 }
