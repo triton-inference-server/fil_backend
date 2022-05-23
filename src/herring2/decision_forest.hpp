@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <cstddef>
-#include <exception>
+#include <herring2/exceptions.hpp>
 #include <herring2/forest.hpp>
 #include <kayak/bitset.hpp>
 #include <kayak/buffer.hpp>
@@ -14,21 +14,6 @@
 #include <variant>
 
 namespace herring {
-
-struct unusable_model_exception : std::exception {
-  unusable_model_exception () : msg_{"Model is not compatible with Herring"}
-  {
-  }
-  unusable_model_exception (std::string msg) : msg_{msg}
-  {
-  }
-  unusable_model_exception (char const* msg) : msg_{msg}
-  {
-  }
-  virtual char const* what() const noexcept { return msg_.c_str(); }
- private:
-  std::string msg_;
-};
 
 template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup_v>
 struct decision_forest {
@@ -59,27 +44,38 @@ struct decision_forest {
     if (node_outputs_) {
       node_output_ptr = node_outputs_->data();
     }
-    auto categorical_sizes__ptr = static_cast<raw_index_t*>(nullptr);
+    auto categorical_sizes_ptr = static_cast<raw_index_t*>(nullptr);
     if (categorical_sizes_) {
-      categorical_sizes__ptr = categorical_sizes_->data();
+      categorical_sizes_ptr = categorical_sizes_->data();
     }
-    auto categorical_storage__ptr = static_cast<uint8_t*>(nullptr);
+    auto categorical_storage_ptr = static_cast<uint8_t*>(nullptr);
     if (categorical_storage_) {
-      categorical_storage__ptr = categorical_storage_->data();
+      categorical_storage_ptr = categorical_storage_->data();
     }
-    // TODO (wphicks)
-    /* return forest{
-      node_offsets_,
+    return forest{
+      node_values_.size(),
       node_values_.data(),
       node_features_.data(),
       node_offsets_.data(),
       default_distant_.data(),
-      node_offsets_.size(),
-      leaf_size_,
       node_output_ptr,
-      categorical_sizes__ptr,
-      categorical_storage__ptr
-    }; */
+      categorical_sizes_ptr,
+      categorical_storage_ptr
+    };
+  }
+
+  auto memory_type() { return tree_offsets_.memory_type(); }
+
+  template<typename io_t>
+  void predict(
+    kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
+    kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in
+  ) {
+    if (memory_type() == kayak::device_type::gpu) {
+      predict<kayak::device_type::gpu>(obj(), out, in, num_class_, leaf_size_);
+    } else {
+      predict<kayak::device_type::cpu>(obj(), out, in, num_class_, leaf_size_);
+    }
   }
 
   decision_forest() :
@@ -90,7 +86,10 @@ struct decision_forest {
     default_distant_{},
     node_outputs_{},
     categorical_sizes_{},
-    categorical_storage_{} {}
+    categorical_storage_{},
+    num_class_{},
+    num_features_{},
+    leaf_size_{} {}
 
   decision_forest(
     index_type num_class,
@@ -112,8 +111,12 @@ struct decision_forest {
     default_distant_{std::move(default_distant)},
     node_outputs_{std::move(node_outputs)},
     categorical_sizes_{std::move(categorical_sizes)},
-    categorical_storage_{std::move(categorical_storage)}
+    categorical_storage_{std::move(categorical_storage)},
+    num_class_{num_class},
+    num_features_{num_features},
+    leaf_size_{leaf_size}
   {
+    // TODO: Check for inconsistent memory type
   }
 
  private:
@@ -203,22 +206,22 @@ using forest_model_variant = std::variant<
   forest_model<uint32_t, detail::preferred_tree_layout, true, true, false, true>,
   forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, false>,
   forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, false, false, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, false, false, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, false, true, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, false, true, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, true, false, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, true, false, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, true, true, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, false, true, true, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, false, false, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, false, false, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, false, true, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, false, true, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, true, false, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, true, false, true>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, true, true, false>,
-  forest_model<uint64_t, detail::preferred_tree_layout, true, true, true, true>
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, false, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, false, true, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, false, true, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, false, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, false, true>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, false>,
+  forest_model<uint32_t, detail::preferred_tree_layout, true, true, true, true>
 >;
 
 inline auto get_forest_variant_index(

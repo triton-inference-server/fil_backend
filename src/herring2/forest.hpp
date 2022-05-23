@@ -1,4 +1,5 @@
 #pragma once
+#include <math.h>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/bitset.hpp>
@@ -50,7 +51,7 @@ struct forest {
     tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
-  template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, bool lookup, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto evaluate_tree(
     index_type tree_index,
     index_type row_index,
@@ -58,7 +59,7 @@ struct forest {
   ) const {
     // TODO(wphicks): host_only_throw if bounds_check enabled and tree index
     // OOB
-    return get_output<lookup>(find_leaf<categorical>(tree_index, row_index, input));
+    return get_output<lookup>(find_leaf<categorical, precomputed_missing>(tree_index, row_index, input));
   }
 
   template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
@@ -73,6 +74,11 @@ struct forest {
     );
   }
 
+  HOST DEVICE auto tree_count() { return tree_count_; }
+  HOST DEVICE auto is_categorical() { return categorical_sizes_ != nullptr; }
+  HOST DEVICE auto requires_output_lookup() { return outputs_ != nullptr; }
+  HOST DEVICE auto has_vector_leaves() { return output_size_ > raw_index_t{1}; }
+
  private:
   raw_index_t node_count_;
   node_value_type* values_;
@@ -81,7 +87,7 @@ struct forest {
   bool* default_distant_;
 
   raw_index_t tree_count_;
-  raw_index_t* tree_offsets_;  // TODO(wphicks): Worth precomputing trees?
+  raw_index_t* tree_offsets_;
 
   raw_index_t output_size_;
   // Optional data (may be null)
@@ -114,13 +120,12 @@ struct forest {
     }
   }
 
-  template <bool categorical, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE auto find_leaf(
     index_type tree_index,
     index_type row_index,
     kayak::data_array<input_layout, input_t> const& input
   ) const {
-    // TODO(wphicks): Consider specialization for if tree is categorical
     auto tree = get_tree(tree_index);
     auto root_index_forest = tree_offsets_[tree_index];
     auto node_index_tree = raw_index_t{};
@@ -130,16 +135,16 @@ struct forest {
       auto condition = false;
       if constexpr (categorical) {
         if (categorical_sizes_[root_index_forest + node_index_tree] == 0) {
-          condition = evaluate_node<false>(
+          condition = evaluate_node<false, precomputed_missing>(
             root_index_forest + node_index_tree, row_index, input
           );
         } else {
-          condition = evaluate_node<true>(
+          condition = evaluate_node<true, precomputed_missing>(
             root_index_forest + node_index_tree, row_index, input
           );
         }
       } else {
-        condition = evaluate_node<false>(
+        condition = evaluate_node<false, precomputed_missing>(
           root_index_forest + node_index_tree, row_index, input
         );
       }
@@ -204,7 +209,7 @@ struct forest {
     return kayak::tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
   }
 
-  template <bool categorical, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, kayak::data_layout input_layout, typename input_t>
   HOST DEVICE [[nodiscard]] auto evaluate_node(
     index_type node_index,
     index_type row_index,
@@ -212,28 +217,36 @@ struct forest {
   ) const {
     auto result = false;
     auto value = input.at(row_index, features_[node_index]);
-    if constexpr (!categorical) {
-      result = value < values_[node_index].value;
-    } else {
-      auto categories = category_set_type{};
-      if constexpr (categorical_lookup) {
-        categories = category_set_type{
-          categorical_storage_ + values_[node_index].index,
-          categorical_sizes_[node_index]
-        };
+    if constexpr (!precomputed_missing) {
+      if (isnan(value)) {
+        result = default_distant_[node_index];
       } else {
-        categories = category_set_type{&(values_[node_index].index)};
+        result = evaluate_node<categorical, true>(node_index, row_index, input);
       }
-      if (value >=0 && value < categories.size()) {
-        // NOTE: This cast aligns with the convention used in LightGBM and
-        // other frameworks to cast floats when converting to integral
-        // categories. This can have surprising effects with floating point
-        // arithmetic, but it is kept this way for now in order to provide
-        // consistency with results obtained from the training frameworks.
-        auto categorical_value = static_cast<raw_index_t>(value);
-        // Too many categories for size of bitset storage; look up categories
-        // in external storage
-        result = categories.test(categorical_value);
+    } else {
+      if constexpr (!categorical) {
+        result = value < values_[node_index].value;
+      } else {
+        auto categories = category_set_type{};
+        if constexpr (categorical_lookup) {
+          categories = category_set_type{
+            categorical_storage_ + values_[node_index].index,
+            categorical_sizes_[node_index]
+          };
+        } else {
+          categories = category_set_type{&(values_[node_index].index)};
+        }
+        if (value >=0 && value < categories.size()) {
+          // NOTE: This cast aligns with the convention used in LightGBM and
+          // other frameworks to cast floats when converting to integral
+          // categories. This can have surprising effects with floating point
+          // arithmetic, but it is kept this way for now in order to provide
+          // consistency with results obtained from the training frameworks.
+          auto categorical_value = static_cast<raw_index_t>(value);
+          // Too many categories for size of bitset storage; look up categories
+          // in external storage
+          result = categories.test(categorical_value);
+        }
       }
     }
     return result;
