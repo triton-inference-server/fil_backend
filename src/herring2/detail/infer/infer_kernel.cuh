@@ -1,10 +1,13 @@
 #pragma once
 #include <herring2/detail/gpu_constants.hpp>
 #include <kayak/data_array.hpp>
+#include <kayak/detail/index_type.hpp>
 
 namespace herring {
 namespace detail {
 namespace inference {
+
+using kayak::raw_index_t;
 
 template <
   bool categorical,
@@ -26,6 +29,15 @@ __global__ void infer_kernel(forest_t forest,
   auto const warp_remainder = task_id % WARP_SIZE;
 
   extern __shared__ typename forest_t::output_type workspace_mem[];
+
+  auto rows_per_block = padded_size(
+    padded_size(in.rows(), CHUNK_SIZE) / CHUNK_SIZE, gridDim.x
+  ) / gridDim.x;
+
+  auto workspace = kayak::data_array<kayak::data_layout::dense_row_major, typename forest_t::output_t>(
+    workspace_mem, rows_per_block, num_class
+  );
+  auto loop_index = 0u;
   for (
     auto chunk_index = warp_remainder + WARP_SIZE * blockIdx.x;
     chunk_index < num_chunks;
@@ -45,16 +57,21 @@ __global__ void infer_kernel(forest_t forest,
           row_index,
           input
         );
+        auto output_index = (
+          (loop_index * WARP_SIZE + warp_remainder) * CHUNK_SIZE
+          + row - row_start
+        );
         if constexpr (vector_leaf) {
           for (auto class_index = 0u; class_index < num_class; ++class_index) {
-            // TODO: Store into workspace
+            workspace.at(output_index, class_index) = tree_out.at(class_index);
           }
         } else {
           auto class_index = tree_index % num_class;
-          // TODO: Store into workspace
+          workspace.at(output_index, class_index) = tree_out.at(0);
         }
       }
     }
+    ++loop_index;
   }
 
   __syncthreads();
@@ -63,6 +80,7 @@ __global__ void infer_kernel(forest_t forest,
    * can now aggregate the results from each tree back into the provided output
    * memory for rows assigned to this block. */
 
+  loop_index = 0u;
   for (
     auto chunk_index = (
       warp_remainder + int{task_id * INV_WARP_SIZE} * WARP_SIZE * gridDim.x
@@ -76,6 +94,7 @@ __global__ void infer_kernel(forest_t forest,
 
     // TODO(wphicks): Aggregate results from each tree for each row from
     // workspace into out
+    ++loop_index;
   }
 }
 
