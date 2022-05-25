@@ -7,6 +7,7 @@
 #include <herring2/exceptions.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_check.hpp>
+#include <kayak/cuda_stream.hpp>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/device_type.hpp>
@@ -78,17 +79,14 @@ std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predi
   kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
   kayak::raw_index_t num_class,
-  kayak::raw_index_t leaf_size,
-  int device_id=0
+  int device_id=0,
+  kayak::cuda_stream stream = kayak::cuda_stream{}
 ) {
-  auto categorical = forest.is_categorical();
-  auto lookup = forest.requires_output_lookup();
-  auto vector_leaf = forest.has_vector_leaves();
-  auto algorithm_selector = (
-    (kayak::raw_index_t{categorical} << 2u) +
-    (kayak::raw_index_t{lookup} << 1u) +
-    kayak::raw_index_t{vector_leaf}
-  );
+  // TODO (wphicks): I'm not sure if all of this tuning to get the optimal
+  // shared memory configuration will actually be worthwhile, especially for
+  // large batches. It may be better to just take the hit of writing to global
+  // memory or using atomic adds rather than risk having configurations with
+  // too many blocks or too few threads per block.
 
   // Chunk size is chosen such that each warp reads from memory aligned to the
   // size of a cache line
@@ -102,13 +100,14 @@ std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predi
   );
   std::cout << "GPU can store " << max_shared_mem_entries_per_block << " entries per block in shared memory\n";
 
-  // Need at least enough memory to handle output for a single chunk
-  if (max_shared_mem_entries_per_block < num_class * CHUNK_SIZE) {
-    // TODO(whicks): Allocate global workspace memory rather than throwing
+  // Need at least enough memory to handle output for a single warp
+  if (max_shared_mem_entries_per_block < num_class * WARP_SIZE) {
+    // TODO(wphicks): Allocate global workspace memory rather than throwing
     throw unusable_model_exception(
       "Too many classes for available shared memory"
     );
   }
+
   // Each block processes a warp's worth of chunks per pass, and we wish to
   // minimize the number of passes, so ideally we would have as many blocks as
   // there are chunks divided by the size of a warp.
@@ -116,57 +115,81 @@ std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predi
     padded_size(chunks, WARP_SIZE) / WARP_SIZE,
     sm_count
   );
-  // If we can't fit enough output in shared memory for the number of rows per
-  // block, we increase the number of blocks to reduce the required shared
-  // memory per block.
-  if(num_class * in.rows() > max_shared_mem_entries_per_block * blocks) {
-    blocks = padded_size(
-      num_class * in.rows() / (max_shared_mem_entries_per_block - num_class),
-      sm_count
+  auto chunks_per_block = padded_size(chunks, blocks) / blocks;
+  auto rows_per_block = chunks_per_block * CHUNK_SIZE;
+
+  auto threads_per_block = std::min(downpadded_size(
+    max_shared_mem_entries_per_block / (rows_per_block * num_class),
+    WARP_SIZE
+  ), get_max_threads_per_block(device_id));
+
+  if (threads_per_block == 0u) {
+    // In this case, we are using too much shared memory per block, so we must
+    // increase the number of blocks and process fewer chunks on each block. We
+    // will compute the minimum number of blocks required to bring the shared
+    // memory under the hardware limit.
+    threads_per_block = WARP_SIZE;
+    auto min_smem = threads_per_block * num_class;
+    // We know that this will not be zero, since we already checked if we have
+    // enough memory for the minimum memory consumption configuration
+    rows_per_block = downpadded_size(
+      max_shared_mem_entries_per_block / min_smem, CHUNK_SIZE
+    );
+    chunks_per_block = rows_per_block / CHUNK_SIZE;
+    blocks = (
+      chunks / chunks_per_block +
+      raw_index_t{chunks % chunks_per_block == 0}
     );
   }
   std::cout << "Distributing " << in.rows() << " rows as " << chunks << " chunks over " << blocks << " blocks\n";
-  // We want as many threads per block as possible without going over hardware
-  // limits. Ideally, there will be one thread per chunk assigned to the block.
-  auto chunks_per_block = padded_size(chunks, blocks) / blocks;
-  auto rows_per_block = chunks_per_block * CHUNK_SIZE;
+
   std::cout << "Each block will process " << rows_per_block << " rows or " << chunks_per_block << " chunks\n";
+
   // Ensure that we have a minimum of one warp and a maximum no larger than the
   // maximum allowed per block or the maximum to fully occupy all SMs
-  auto threads_per_block = std::max(
+  threads_per_block = std::max(
     std::min(
-      std::min(chunks_per_block, get_max_threads_per_block(device_id)),
+      std::min(threads_per_block, get_max_threads_per_block(device_id)),
       get_max_threads(device_id) / blocks
     ),
     WARP_SIZE
   );
   std::cout << forest.tree_count() << " trees will be distributed over " << threads_per_block / WARP_SIZE << " warps\n";
 
-  auto shared_memory_per_block = rows_per_block * num_class * sizeof(io_t);
-  std::cout << "Each block will be given enough shared memory for " << rows_per_block * num_class << " entries to accommodate " << num_class << " class for " << rows_per_block " rows\n";
+  auto shared_memory_per_block = (
+    rows_per_block * num_class * threads_per_block * sizeof(typename forest_t::output_type)
+  );
 
-  // TODO: Stream
+  auto categorical = forest.is_categorical();
+  auto lookup = forest.requires_output_lookup();
+  auto vector_leaf = forest.has_vector_leaves();
+  auto algorithm_selector = (
+    (kayak::raw_index_t{categorical} << 2u) +
+    (kayak::raw_index_t{lookup} << 1u) +
+    kayak::raw_index_t{vector_leaf}
+  );
+
   switch(algorithm_selector) {
     case ((0u << 2) + (0u << 1) + 0u):
-      infer_kernel<false, false, false><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<false, false, false><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((0u << 2) + (0u << 1) + 1u):
-      infer_kernel<false, false, true><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<false, false, true><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((0u << 2) + (1u << 1) + 0u):
-      infer_kernel<false, true, false><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<false, true, false><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((0u << 2) + (1u << 1) + 1u):
-      infer_kernel<false, true, true><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<false, true, true><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((1u << 2) + (0u << 1) + 0u):
-      infer_kernel<true, false, false><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<true, false, false><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((1u << 2) + (0u << 1) + 1u):
-      infer_kernel<true, false, true><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<true, false, true><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     case ((1u << 2) + (1u << 1) + 0u):
-      infer_kernel<true, true, true><<<blocks, threads_per_block, shared_memory_per_block>>>(forest, out, in);
+      infer_kernel<true, true, true><<<blocks, threads_per_block, shared_memory_per_block, stream>>>(forest, out, in, num_class);
       break;
     default:
       throw unusable_model_exception("Unexpected algorithm selection");

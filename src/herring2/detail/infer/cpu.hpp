@@ -42,8 +42,11 @@ std::enable_if_t<D == kayak::device_type::cpu, void> predict(
   auto const num_groves = num_trees / cpu::GROVE_SIZE + (num_trees % cpu::GROVE_SIZE != 0);
   auto const num_tasks = num_chunks * num_groves;
 
-  auto workspace_buf = kayak::buffer<typename forest_t::output_type>(
+  auto workspace_vec = std::vector<typename forest_t::output_type>(
     num_rows * num_class * num_groves
+  );
+  auto workspace_buf = kayak::buffer<typename forest_t::output_type>(
+    workspace_vec.data(), num_rows * num_class * num_groves
   );
   // PERF (whicks): Try 0, 2, 1 layout
   auto workspace = kayak::ndarray<typename forest_t::output_t, 0, 1, 2>(workspace_buf.data(), num_rows, num_class, num_groves);
@@ -69,10 +72,10 @@ std::enable_if_t<D == kayak::device_type::cpu, void> predict(
         auto tree_out = forest.evaluate_tree(tree_index, row_index, in);
         if constexpr (!vector_leaf) {
           auto class_index = tree_index % num_class;
-          workspace.at(row_index, class_index, grove_index) = tree_out.at(0);
+          workspace.at(row_index, class_index, grove_index) += tree_out.at(0);
         } else {
           for (auto class_index = raw_index_t{}; class_index < num_class; ++class_index) {
-            workspace.at(row_index, class_index, grove_index) = tree_out.at(class_index);
+            workspace.at(row_index, class_index, grove_index) += tree_out.at(class_index);
           }
         }
       }
