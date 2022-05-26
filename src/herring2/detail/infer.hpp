@@ -21,9 +21,15 @@ template<
   kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
   raw_index_t num_class,
-  raw_index_t leaf_size
+  element_op element_postproc,
+  row_op row_postproc,
+  io_t average_factor,
+  io_t bias,
+  io_t postproc_constant,
+  int device_id=0,
+  kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
-  inference::predict<D>(forest, out, in, num_class, leaf_size);
+  inference::predict<D>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, device_id, stream);
 }
 
 }

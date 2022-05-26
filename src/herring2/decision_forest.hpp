@@ -2,12 +2,13 @@
 #include <stdint.h>
 #include <algorithm>
 #include <cstddef>
+#include <herring/output_ops.hpp>
+#include <herring2/detail/infer.hpp>
+#include <herring2/detail/preferred_tree_layout.hpp>
 #include <herring2/exceptions.hpp>
 #include <herring2/forest.hpp>
-#include <kayak/bitset.hpp>
 #include <kayak/buffer.hpp>
-#include <herring2/node_value.hpp>
-#include <kayak/tree.hpp>
+#include <kayak/cuda_stream.hpp>
 #include <kayak/tree_layout.hpp>
 #include <limits>
 #include <optional>
@@ -69,12 +70,38 @@ struct decision_forest {
   template<typename io_t>
   void predict(
     kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
-    kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in
+    kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
+    int device_id=0,
+    kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
     if (memory_type() == kayak::device_type::gpu) {
-      predict<kayak::device_type::gpu>(obj(), out, in, num_class_, leaf_size_);
+      predict<kayak::device_type::gpu>(
+        obj(),
+        out,
+        in,
+        num_class_,
+        element_postproc_,
+        row_postproc_,
+        io_t{average_factor_},
+        io_t{bias_},
+        io_t{postproc_constant_},
+        device_id,
+        stream
+      );
     } else {
-      predict<kayak::device_type::cpu>(obj(), out, in, num_class_, leaf_size_);
+      predict<kayak::device_type::gpu>(
+        obj(),
+        out,
+        in,
+        num_class_,
+        element_postproc_,
+        row_postproc_,
+        io_t{average_factor_},
+        io_t{bias_},
+        io_t{postproc_constant_},
+        device_id,
+        stream
+      );
     }
   }
 
@@ -133,6 +160,12 @@ struct decision_forest {
   raw_index_t num_class_;
   raw_index_t num_features_;
   raw_index_t leaf_size_;
+  element_op element_postproc_;
+  row_op row_postproc_;
+  double average_factor_;
+  double bias_;
+  double postproc_constant_;
+  // TODO: Gather postproc metadata
 };
 
 template<
@@ -152,10 +185,6 @@ using forest_model = decision_forest<
   output_t,
   many_categories
 >;
-
-namespace detail {
-auto constexpr static const preferred_tree_layout = kayak::tree_layout::depth_first;
-}
 
 using forest_model_variant = std::variant<
   forest_model<float, detail::preferred_tree_layout, false, false, false, false>,
