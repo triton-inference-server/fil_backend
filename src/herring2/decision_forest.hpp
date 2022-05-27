@@ -129,6 +129,11 @@ struct decision_forest {
     std::optional<kayak::buffer<output_type>>&& node_outputs,
     std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
     std::optional<kayak::buffer<uint8_t>>&& categorical_storage,
+    element_op element_postproc=element_op::disable,
+    row_op row_postproc=row_op::disable,
+    double average_factor=1.0,
+    double bias=0.0,
+    double postproc_constant=1.0,
     index_type leaf_size=index_type{1u}
   ) :
     tree_offsets_{std::move(tree_offsets)},
@@ -141,6 +146,11 @@ struct decision_forest {
     categorical_storage_{std::move(categorical_storage)},
     num_class_{num_class},
     num_features_{num_features},
+    element_postproc_{element_postproc},
+    row_postproc_{row_postproc},
+    average_factor_{average_factor},
+    bias_{bias},
+    postproc_constant_{postproc_constant},
     leaf_size_{leaf_size}
   {
     // TODO: Check for inconsistent memory type
@@ -159,12 +169,12 @@ struct decision_forest {
   // Metadata
   raw_index_t num_class_;
   raw_index_t num_features_;
-  raw_index_t leaf_size_;
   element_op element_postproc_;
   row_op row_postproc_;
   double average_factor_;
   double bias_;
   double postproc_constant_;
+  raw_index_t leaf_size_;
   // TODO: Gather postproc metadata
 };
 

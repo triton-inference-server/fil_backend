@@ -5,6 +5,7 @@
 #include <numeric>
 #include <optional>
 #include <vector>
+#include <herring/output_ops.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
@@ -148,10 +149,21 @@ struct decision_forest_builder {
     add_node();
   }
 
+  void set_element_postproc(element_op val) { element_postproc_ = val; }
+  void set_row_postproc(row_op val) { row_postproc_ = val; }
+  void set_average_factor(double val) { average_factor_ = val; }
+  void set_bias(double val) { bias_ = val; }
+  void set_postproc_constant(double val) { postproc_constant_ = val; }
+
   decision_forest_builder(index_type align_bytes=index_type{}) :
     cur_tree_size_{},
     alignment_{std::lcm(align_bytes.value(), align_unit)},
     output_size_{},
+    element_postproc_{},
+    row_postproc_{},
+    average_factor_{},
+    bias_{},
+    postproc_constant_{},
     tree_offsets_{},
     node_storage_size{},
     node_values_{},
@@ -220,6 +232,11 @@ struct decision_forest_builder {
       std::move(node_outputs_buf),
       std::move(categorical_sizes_buf),
       std::move(categorical_storage_buf),
+      element_postproc_,
+      row_postproc_,
+      average_factor_,
+      bias_,
+      postproc_constant_,
       output_size_.value_or(1u)
     };
   }
@@ -229,6 +246,11 @@ struct decision_forest_builder {
   std::size_t cur_tree_size_;
   raw_index_t alignment_;
   std::optional<raw_index_t> output_size_;
+  element_op element_postproc_;
+  row_op row_postproc_;
+  double average_factor_;
+  double bias_;
+  double postproc_constant_;
 
   std::vector<raw_index_t> tree_offsets_;
   raw_index_t node_storage_size;

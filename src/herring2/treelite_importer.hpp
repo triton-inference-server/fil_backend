@@ -69,6 +69,14 @@ struct traversal_container {
   backing_container_t data_;
 };
 
+namespace detail {
+  struct postproc_params_t {
+    element_op element = element_op::disable;
+    row_op row = row_op::disable;
+    double constant = 1.0;
+  };
+}
+
 template<kayak::tree_layout layout>
 struct treelite_importer {
   template<typename tl_threshold_t, typename tl_output_t>
@@ -322,7 +330,67 @@ struct treelite_importer {
         return result;
       });
     });
+  }
 
+  auto get_average_factor(treelite::Model const& tl_model) {
+    auto result = double{};
+    tl_model.Dispatch([&result](auto&& concrete_tl_model) {
+      if (concrete_tl_model.average_tree_output) {
+        if (concrete_tl_model.task_type == treelite::TaskType::kMultiClfGrovePerClass) {
+          result = concrete_tl_model.trees.size() / concrete_tl_model.task_param.num_class;
+        } else {
+          result = concrete_tl_model.trees.size();
+        }
+      } else {
+        result = 1.0;
+      }
+    });
+    return result;
+  }
+
+  auto get_bias(treelite::Model const& tl_model) {
+    auto result = double{};
+    tl_model.Dispatch([&result](auto&& concrete_tl_model) {
+      result = concrete_tl_model.param.global_bias;
+    });
+    return result;
+  }
+
+  auto get_postproc_params(treelite::Model const& tl_model) {
+    auto result = detail::postproc_params_t{};
+    tl_model.Dispatch([&result](auto&& concrete_tl_model) {
+      auto tl_pred_transform = std::string{concrete_tl_model.param.pred_transform};
+      if (
+          tl_pred_transform == std::string{"identity"} ||
+          tl_pred_transform == std::string{"identity_multiclass"}) {
+        result.element = element_op::disable;
+        result.row = row_op::disable;
+      } else if (tl_pred_transform == std::string{"signed_square"}) {
+        result.element = element_op::signed_square;
+      } else if (tl_pred_transform == std::string{"hinge"}) {
+        result.element = element_op::hinge;
+      } else if (tl_pred_transform == std::string{"sigmoid"}) {
+        result.constant = concrete_tl_model.param.sigmoid_alpha;
+        result.element = element_op::sigmoid;
+      } else if (tl_pred_transform == std::string{"exponential"}) {
+        result.element = element_op::exponential;
+      } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
+        result.constant = concrete_tl_model.param.ratio_c;
+        result.element = element_op::exponential_standard_ratio;
+      } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
+        result.element = element_op::logarithm_one_plus_exp;
+      } else if (tl_pred_transform == std::string{"max_index"}) {
+        result.row = row_op::max_index;
+      } else if (tl_pred_transform == std::string{"softmax"}) {
+        result.row = row_op::softmax;
+      } else if (tl_pred_transform == std::string{"multiclass_ova"}) {
+        result.constant = concrete_tl_model.param.sigmoid_alpha;
+        result.element = element_op::sigmoid;
+      } else {
+        throw model_import_error{"Unrecognized Treelite pred_transform string"};
+      }
+    });
+    return result;
   }
 
   auto uses_double_thresholds(treelite::Model const& tl_model) {
@@ -426,6 +494,14 @@ struct treelite_importer {
           });
           ++tree_index;
         });
+
+        builder.set_average_factor(get_average_factor(tl_model));
+        builder.set_bias(get_bias(tl_model));
+        auto postproc_params = get_postproc_params(tl_model);
+        builder.set_element_postproc(postproc_params.element);
+        builder.set_row_postproc(postproc_params.row);
+        builder.set_postproc_constant(postproc_params.constant);
+
         result = builder.get_decision_forest(num_class, num_feature, mem_type, device, stream);
       } else {
         result = import_to_specific_variant<variant_index +1>(
