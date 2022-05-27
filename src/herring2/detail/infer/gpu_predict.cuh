@@ -2,12 +2,16 @@
 #include <iostream>
 #include <herring2/detail/gpu_constants.hpp>  // Can be removed with iostream
 #include <herring2/detail/infer/algorithm_selector.hpp>
+#include <herring2/detail/infer/block_thread_selector.hpp>
 #include <herring2/detail/infer/infer_kernel.cuh>
 #include <herring2/exceptions.hpp>
+#include <herring2/forest.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/device_type.hpp>
+#include <kayak/gpu_support.hpp>
+#include <type_traits>
 
 namespace herring {
 namespace detail {
@@ -18,8 +22,8 @@ template<
   typename forest_t,
   typename io_t
 >
-void predict(
-  forest_t const& forest, 
+std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predict(
+  forest_t const& model_forest, 
   kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
   kayak::raw_index_t num_class,
@@ -32,32 +36,44 @@ void predict(
   kayak::cuda_stream stream
 ) {
 
-  auto kernel_params = block_thread_selector(in, device_id);
+  auto kernel_params = block_thread_selector(in, num_class, device_id);
 
-  std::cout << forest.tree_count() << " trees will be distributed over " << kernel_params.threads_per_block / gpu::WARP_SIZE << " warps\n";
+  std::cout << model_forest.tree_count() << " trees will be distributed over " << kernel_params.threads_per_block / gpu::WARP_SIZE << " warps\n";
 
+  auto constexpr must_lookup = !(
+    std::is_same_v<typename forest_t::output_type, typename forest_t::value_type> ||
+    std::is_same_v<typename forest_t::output_index_type, typename forest_t::value_type>
+  );
+  if (must_lookup && !model_forest.requires_output_lookup()) {
+    throw unusable_model_exception{
+      "Model output must be stored separately, but no separate storage location provided"
+    };
+  }
 
-  switch(select_prediction_algorithm(forest)) {
+  switch(select_prediction_algorithm(model_forest)) {
     case ((0u << 2) + (0u << 1) + 0u):
-      gpu::infer_kernel<false, false, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<false, must_lookup, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((0u << 2) + (0u << 1) + 1u):
-      gpu::infer_kernel<false, false, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<false, must_lookup, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((0u << 2) + (1u << 1) + 0u):
-      gpu::infer_kernel<false, true, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<false, true, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((0u << 2) + (1u << 1) + 1u):
-      gpu::infer_kernel<false, true, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<false, true, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((1u << 2) + (0u << 1) + 0u):
-      gpu::infer_kernel<true, false, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<true, must_lookup, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((1u << 2) + (0u << 1) + 1u):
-      gpu::infer_kernel<true, false, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<true, must_lookup, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     case ((1u << 2) + (1u << 1) + 0u):
-      gpu::infer_kernel<true, true, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      gpu::infer_kernel<true, true, false><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
+      break;
+    case ((1u << 2) + (1u << 1) + 1u):
+      gpu::infer_kernel<true, true, true><<<kernel_params.blocks, kernel_params.threads_per_block, kernel_params.shared_memory_bytes_per_block, stream>>>(model_forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, kernel_params.shared_memory_bytes_per_block);
       break;
     default:
       throw unusable_model_exception("Unexpected algorithm selection");

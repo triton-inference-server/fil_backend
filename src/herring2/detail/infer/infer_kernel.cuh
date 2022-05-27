@@ -1,10 +1,12 @@
 #pragma once
+#include <stddef.h>
 #include <herring/output_ops.hpp>
 #include <herring2/detail/gpu_constants.hpp>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <herring2/detail/postprocess.hpp>
 #include <kayak/ndarray.hpp>
+#include <kayak/padding.hpp>
 
 namespace herring {
 namespace detail {
@@ -29,7 +31,8 @@ __global__ void infer_kernel(
     row_op row_postproc,
     io_t average_factor,
     io_t bias,
-    io_t postproc_constant
+    io_t postproc_constant,
+    size_t shared_memory_bytes
 ) {
   auto task_id = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -37,49 +40,51 @@ __global__ void infer_kernel(
 
   auto const warp_remainder = task_id % WARP_SIZE;
   auto const grove_index = __double2uint_ru(threadIdx.x * INV_WARP_SIZE);
+  auto const num_warps = __double2uint_ru(blockDim.x * INV_WARP_SIZE);
+  auto const num_groves = forest.tree_count() / num_warps;
 
   extern __shared__ io_t workspace_mem[];
   // Zero-initialize workspace
   for (
     auto i = threadIdx.x;
-    i < sizeof(workspace_mem) / sizeof(io_t);
-    i += blockDim.x;
+    i < shared_memory_bytes / sizeof(io_t{});
+    i += blockDim.x
   ) {
     workspace_mem[i] = io_t{};
   }
 
   __syncthreads();
 
-  auto rows_per_block = CHUNK_SIZE * padded_size(
-    padded_size(in.rows(), CHUNK_SIZE) / CHUNK_SIZE, gridDim.x
+  auto rows_per_block = CHUNK_SIZE * kayak::padded_size(
+    kayak::padded_size(in.rows(), CHUNK_SIZE) / CHUNK_SIZE, gridDim.x
   ) / gridDim.x;
 
-  auto workspace = kayak::ndarray<typename forest_t::output_t, 2, 0, 1>(
-    workspace_mem, rows_per_block, num_class, num_groves
+  auto workspace = kayak::ndarray<io_t, 2, 0, 1>(
+    static_cast<io_t*>(workspace_mem), rows_per_block, num_class, num_groves
   );
   auto chunk_loop_index = 0u;
   for (
     auto chunk_index = warp_remainder + WARP_SIZE * blockIdx.x;
     chunk_index < num_chunks;
-    chunk_index += WARP_SIZE * gridDim.x;
+    chunk_index += WARP_SIZE * gridDim.x
   ) {
     auto row_start = chunk_index * CHUNK_SIZE;
     auto row_end = (chunk_index + 1) * CHUNK_SIZE;
     row_end = row_end > in.rows() ? in.rows() : row_end;
     for (
-      auto tree_index = int{task_id * INV_WARP_SIZE};
+      auto tree_index = int(task_id * INV_WARP_SIZE);
       tree_index < forest.tree_count();
-      tree_index += WARP_SIZE * blockDim.x;
+      tree_index += WARP_SIZE * blockDim.x
     ) {
-      for (auto row_index = row_start; row_index < row_end; ++row) {
-        auto tree_out = forest.evaluate_tree<categorical, false, lookup>(
+      for (auto row_index = row_start; row_index < row_end; ++row_index) {
+        auto tree_out = forest.template evaluate_tree<categorical, false, lookup>(
           tree_index,
           row_index,
-          input
+          in
         );
         auto output_index = (
           chunk_loop_index * CHUNK_SIZE
-          + row - row_start
+          + row_index - row_start
         );
         // Every thread within the warp has a different output_index and every
         // warp has a different grove_index, so there will be no collisions for
@@ -106,10 +111,10 @@ __global__ void infer_kernel(
   auto loop_index = 0u;
   for (
     auto chunk_index = (
-      warp_remainder + int{task_id * INV_WARP_SIZE} * WARP_SIZE * gridDim.x
+      warp_remainder + int(task_id * INV_WARP_SIZE) * WARP_SIZE * gridDim.x
     );
     chunk_index < num_chunks;
-    chunk_index += blockDim.x * gridDim.x;
+    chunk_index += blockDim.x * gridDim.x
   ) {
     auto workspace_chunk_index = (
       threadIdx.x + loop_index * blockDim.x * gridDim.x
@@ -117,7 +122,7 @@ __global__ void infer_kernel(
     auto row_start = chunk_index * CHUNK_SIZE;
     auto row_end = (chunk_index + 1) * CHUNK_SIZE;
     row_end = row_end > in.rows() ? in.rows() : row_end;
-    for (auto row_index = row_start; row_index < row_end; ++row) {
+    for (auto row_index = row_start; row_index < row_end; ++row_index) {
       auto workspace_row_index = (
         workspace_chunk_index * CHUNK_SIZE + row_index - row_start
       );

@@ -53,12 +53,15 @@ struct decision_forest {
     if (categorical_storage_) {
       categorical_storage_ptr = categorical_storage_->data();
     }
-    return forest{
+    return forest_type{
       node_values_.size(),
       node_values_.data(),
       node_features_.data(),
       node_offsets_.data(),
       default_distant_.data(),
+      tree_offsets_.size(),
+      tree_offsets_.data(),
+      leaf_size_,
       node_output_ptr,
       categorical_sizes_ptr,
       categorical_storage_ptr
@@ -75,30 +78,30 @@ struct decision_forest {
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
     if (memory_type() == kayak::device_type::gpu) {
-      predict<kayak::device_type::gpu>(
+      herring::detail::predict<kayak::device_type::gpu>(
         obj(),
         out,
         in,
         num_class_,
         element_postproc_,
         row_postproc_,
-        io_t{average_factor_},
-        io_t{bias_},
-        io_t{postproc_constant_},
+        io_t(average_factor_),
+        io_t(bias_),
+        io_t(postproc_constant_),
         device_id,
         stream
       );
     } else {
-      predict<kayak::device_type::gpu>(
+      herring::detail::predict<kayak::device_type::gpu>(
         obj(),
         out,
         in,
         num_class_,
         element_postproc_,
         row_postproc_,
-        io_t{average_factor_},
-        io_t{bias_},
-        io_t{postproc_constant_},
+        io_t(average_factor_),
+        io_t(bias_),
+        io_t(postproc_constant_),
         device_id,
         stream
       );

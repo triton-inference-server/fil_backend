@@ -1,4 +1,4 @@
-#include <herring2/detail/infer/cpu_predict.cuh>
+#include <herring2/detail/infer/cpu_predict.hpp>
 #include <kayak/device_type.hpp>
 #include <kayak/tree.hpp>
 

@@ -1,11 +1,12 @@
 #pragma once
+#include <kayak/gpu_support.hpp>
 
 namespace kayak {
 
 /* Return the value that must be added to val to equal the next multiple of
  * alignment greater than or equal to val */
-template <typename int_t>
-auto padding_size(int_t val, int_t alignment) {
+template <typename T, typename U>
+HOST DEVICE auto padding_size(T val, U alignment) {
   auto result = val;
   if (alignment != 0) {
     result = alignment - (val % alignment);
@@ -14,15 +15,15 @@ auto padding_size(int_t val, int_t alignment) {
 }
 
 /* Return the next multiple of alignment >= val */
-template <typename int_t>
-auto padded_size(int_t val, int_t alignment) {
+template <typename T, typename U>
+HOST DEVICE auto padded_size(T val, U alignment) {
   return val + padding_size(val, alignment);
 }
 
 /* Return the value that must be added to val to equal the next multiple of
  * alignment less than or equal to val */
-template <typename int_t>
-auto downpadding_size(int_t val, int_t alignment) {
+template <typename T, typename U>
+HOST DEVICE auto downpadding_size(T val, U alignment) {
   auto result = val;
   if (alignment != 0) {
     result = val % alignment;
@@ -31,8 +32,8 @@ auto downpadding_size(int_t val, int_t alignment) {
 }
 
 /* Return the next multiple of alignment <= val */
-template <typename int_t>
-auto downpadded_size(int_t val, int_t alignment) {
+template <typename T, typename U>
+HOST DEVICE auto downpadded_size(T val, U alignment) {
   return val - downpadding_size(val, alignment);
 }
 

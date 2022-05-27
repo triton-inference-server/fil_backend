@@ -13,10 +13,11 @@ enum class data_layout {
 };
 
 /** A 2D array of values */
-template <data_layout layout, typename T>
+template <data_layout layout_v, typename T>
 struct data_array {
   using value_type = T;
   using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
+  auto constexpr static const layout = layout_v;
 
   HOST DEVICE data_array(T* data, index_type row_count, index_type col_count)
     : data_{data}, rows_{row_count}, cols_{col_count}

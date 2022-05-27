@@ -41,8 +41,25 @@ add_executable(test_kayak
 )
 
 add_executable(test_herring
+    src/herring2/detail/infer/specializations/double_io_double_threshold_few_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_double_threshold_few_features.cu>
+    src/herring2/detail/infer/specializations/double_io_double_threshold_many_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_double_threshold_many_features.cu>
+    src/herring2/detail/infer/specializations/double_io_single_threshold_few_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_single_threshold_few_features.cu>
+    src/herring2/detail/infer/specializations/double_io_single_threshold_many_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_single_threshold_many_features.cu>
+    src/herring2/detail/infer/specializations/single_io_double_threshold_few_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_double_threshold_few_features.cu>
+    src/herring2/detail/infer/specializations/single_io_double_threshold_many_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_double_threshold_many_features.cu>
+    src/herring2/detail/infer/specializations/single_io_single_threshold_few_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_single_threshold_few_features.cu>
+    src/herring2/detail/infer/specializations/single_io_single_threshold_many_features.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_single_threshold_many_features.cu>
     test/herring2/forest.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
+    test/herring2/decision_forest.cpp
 )
 
 IF(TRITON_ENABLE_GPU)
@@ -92,12 +109,12 @@ else()
 endif()
 
 target_compile_options(test_kayak
-  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
-  "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
+  PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS} -Wfatal-errors>
+  $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -Xcompiler -Wfatal-errors>
 )
 target_compile_options(test_herring
-  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
-  "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
+  PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS} -Wfatal-errors>
+  $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -Xcompiler -Wfatal-errors>
 )
 
 target_include_directories(test_kayak
@@ -126,5 +143,6 @@ PRIVATE
   GTest::gtest
   GTest::gtest_main
   $<TARGET_NAME_IF_EXISTS:conda_env>
+  OpenMP::OpenMP_CXX
 )
 

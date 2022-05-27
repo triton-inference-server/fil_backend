@@ -68,22 +68,22 @@ struct ndarray {
   }
 
   template<typename... Args, typename = typename std::enable_if_t<N == sizeof...(Args)>>
-  HOST DEVICE [[nodiscard]] auto get_index(Args&&... args) const {
+  HOST DEVICE [[nodiscard]] auto get_index(Args... args) const {
     return get_index(detail::raw_array<raw_index_t, N>{args...});
   }
 
   template<typename... Args, typename = typename std::enable_if_t<N == sizeof...(Args)>>
-  HOST DEVICE [[nodiscard]] auto const& at(Args&&... args) const {
+  HOST DEVICE [[nodiscard]] auto const& at(Args... args) const {
     return at(detail::raw_array<raw_index_t, N>{args...});
   }
 
   template<typename... Args, typename = typename std::enable_if_t<N == sizeof...(Args)>>
-  HOST DEVICE [[nodiscard]] auto& at(Args&&... args) {
+  HOST DEVICE [[nodiscard]] auto& at(Args... args) {
     return at(detail::raw_array<raw_index_t, N>{args...});
   }
 
   template<typename U, typename... Args, typename = typename std::enable_if_t<N == sizeof...(Args)>>
-  HOST DEVICE [[nodiscard]] auto& other_at(U* other_data, Args&&... args) const {
+  HOST DEVICE [[nodiscard]] auto& other_at(U* other_data, Args... args) const {
     return other_at(other_data, detail::raw_array<raw_index_t, N>{args...});
   }
 
@@ -101,7 +101,7 @@ struct ndarray {
   }
 
   HOST DEVICE [[nodiscard]] auto const& at(detail::raw_array<raw_index_t, N>&& indices) const {
-    return data()[get_index(indices)];
+    return data()[get_index(std::move(indices))];
   }
 
   HOST DEVICE [[nodiscard]] auto& at(detail::raw_array<raw_index_t, N>&& indices) {

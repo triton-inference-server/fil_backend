@@ -1,7 +1,7 @@
 #pragma once
 #include <herring2/detail/infer/cpu.hpp>
 #ifdef ENABLE_GPU
-#include <kayak/detail/infer/gpu.hpp>
+#include <herring2/detail/infer/gpu.hpp>
 #endif
 #include <kayak/detail/index_type.hpp>
 #include <kayak/device_type.hpp>

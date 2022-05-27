@@ -53,8 +53,8 @@ void infer_kernel(
       in.cols()
   );
   auto has_missing = false;
-  for (auto row_index = std::size_t{}; row_index < in.rows(); ++row_index) {
-    for (auto col_index = std::size_t{}; col_index < in.cols(); ++col_index) {
+  for (auto row_index = raw_index_t{}; row_index < in.rows(); ++row_index) {
+    for (auto col_index = raw_index_t{}; col_index < in.cols(); ++col_index) {
       auto nan_value = std::isnan(in.at(row_index, col_index));
       missing_values.at(row_index, col_index) = nan_value;
       has_missing = has_missing || nan_value;
@@ -62,7 +62,7 @@ void infer_kernel(
   }
 
 #pragma omp parallel
-  for(auto task_index = std::size_t{}; task_index < num_tasks; ++task_index) {
+  for(auto task_index = raw_index_t{}; task_index < num_tasks; ++task_index) {
     auto const grove_index = task_index / num_chunks;
     auto const chunk_index = task_index % num_chunks;
     auto const row_start = chunk_index * CHUNK_SIZE;
@@ -72,11 +72,11 @@ void infer_kernel(
 
     for (auto row_index = row_start; row_index < row_end; ++row_index) {
       for (auto tree_index = tree_start; tree_index < tree_end; ++tree_index) {
-        auto tree_out = kayak::flat_array<kayak::array_encoding::dense, io_t>{};
+        auto tree_out = kayak::flat_array<kayak::array_encoding::dense, typename forest_t::output_type const>{};
         if (!has_missing) {
-          tree_out = forest.evaluate_tree<categorical, true, lookup>(tree_index, row_index, in);
+          tree_out = forest.template evaluate_tree<categorical, true, lookup>(tree_index, row_index, in);
         } else {
-          tree_out = forest.evaluate_tree<categorical, lookup>(tree_index, row_index, in, missing_values);
+          tree_out = forest.template evaluate_tree<categorical, lookup>(tree_index, row_index, in, missing_values);
         }
         if (tree_out.size() == 0) {
           auto class_index = tree_index % num_class;
@@ -91,7 +91,7 @@ void infer_kernel(
   }
 
 #pragma omp parallel
-  for (auto chunk_index = std::size_t{}; chunk_index < num_chunks; ++chunk_index) {
+  for (auto chunk_index = raw_index_t{}; chunk_index < num_chunks; ++chunk_index) {
     for (auto row_index = chunk_index * CHUNK_SIZE; row_index < in.rows() && row_index < (chunk_index + 1) * CHUNK_SIZE; ++row_index) {
       auto final_output = postprocess(
         workspace,
@@ -102,7 +102,7 @@ void infer_kernel(
         bias,
         postproc_constant
       );
-      for (auto i = std::size_t{}; i < final_output.size(); ++i) {
+      for (auto i = raw_index_t{}; i < final_output.size(); ++i) {
         out.at(row_index, i) = final_output.at(i);
       }
     }

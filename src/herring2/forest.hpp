@@ -27,6 +27,7 @@ struct forest {
   using offset_type = offset_t;
   using output_index_type = output_index_t;
   using output_type = output_t;
+  using value_type = value_t;
 
   forest()
     : node_count_{}, values_{nullptr}, features_{nullptr},
@@ -74,10 +75,10 @@ struct forest {
     );
   }
 
-  HOST DEVICE auto tree_count() { return tree_count_; }
-  HOST DEVICE auto is_categorical() { return categorical_sizes_ != nullptr; }
-  HOST DEVICE auto requires_output_lookup() { return outputs_ != nullptr; }
-  HOST DEVICE auto has_vector_leaves() { return output_size_ > raw_index_t{1}; }
+  HOST DEVICE auto tree_count() const { return tree_count_; }
+  HOST DEVICE auto is_categorical() const { return categorical_sizes_ != nullptr; }
+  HOST DEVICE auto requires_output_lookup() const { return outputs_ != nullptr; }
+  HOST DEVICE auto has_vector_leaves() const { return output_size_ > raw_index_t{1}; }
 
  private:
   raw_index_t node_count_;

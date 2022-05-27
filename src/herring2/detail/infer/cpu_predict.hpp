@@ -1,6 +1,8 @@
 #pragma once
 #include <herring/output_ops.hpp>
+#include <herring2/detail/infer/algorithm_selector.hpp>
 #include <herring2/detail/infer/infer_kernel.hpp>
+#include <herring2/exceptions.hpp>
 #include <herring2/forest.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/data_array.hpp>
@@ -31,12 +33,21 @@ void predict(
   int device_id,
   kayak::cuda_stream stream
 ) {
+  auto constexpr must_lookup = !(
+    std::is_same_v<typename forest_t::output_type, typename forest_t::value_type> ||
+    std::is_same_v<typename forest_t::output_index_type, typename forest_t::value_type>
+  );
+  if (must_lookup && !forest.requires_output_lookup()) {
+    throw unusable_model_exception{
+      "Model output must be stored separately, but no separate storage location provided"
+    };
+  }
   switch(select_prediction_algorithm(forest)) {
     case ((0u << 2) + (0u << 1) + 0u):
-      cpu::infer_kernel<false, false, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      cpu::infer_kernel<false, must_lookup, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     case ((0u << 2) + (0u << 1) + 1u):
-      cpu::infer_kernel<false, false, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      cpu::infer_kernel<false, must_lookup, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     case ((0u << 2) + (1u << 1) + 0u):
       cpu::infer_kernel<false, true, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
@@ -45,16 +56,19 @@ void predict(
       cpu::infer_kernel<false, true, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     case ((1u << 2) + (0u << 1) + 0u):
-      cpu::infer_kernel<true, false, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      cpu::infer_kernel<true, must_lookup, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     case ((1u << 2) + (0u << 1) + 1u):
-      cpu::infer_kernel<true, false, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      cpu::infer_kernel<true, must_lookup, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     case ((1u << 2) + (1u << 1) + 0u):
+      cpu::infer_kernel<true, true, false>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      break;
+    case ((1u << 2) + (1u << 1) + 1u):
       cpu::infer_kernel<true, true, true>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant);
       break;
     default:
-      throw unusable_model_exception("Unexpected algorithm selection", element_postproc, row_postproc, average_factor, bias, postproc_constant);
+      throw unusable_model_exception("Unexpected algorithm selection");
   }
 }
 
