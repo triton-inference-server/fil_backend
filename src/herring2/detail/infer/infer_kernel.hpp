@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <cmath>
 #include <herring/output_ops.hpp>
 #include <herring2/detail/cpu_constants.hpp>
@@ -61,7 +62,7 @@ void infer_kernel(
     }
   }
 
-#pragma omp parallel
+#pragma omp parallel for
   for(auto task_index = raw_index_t{}; task_index < num_tasks; ++task_index) {
     auto const grove_index = task_index / num_chunks;
     auto const chunk_index = task_index % num_chunks;
@@ -78,7 +79,7 @@ void infer_kernel(
         } else {
           tree_out = forest.template evaluate_tree<categorical, lookup>(tree_index, row_index, in, missing_values);
         }
-        if (tree_out.size() == 0) {
+        if (tree_out.size() == 1u) {
           auto class_index = tree_index % num_class;
           workspace.at(row_index, class_index, grove_index) += tree_out.at(0);
         } else {
@@ -90,7 +91,7 @@ void infer_kernel(
     }
   }
 
-#pragma omp parallel
+#pragma omp parallel for
   for (auto chunk_index = raw_index_t{}; chunk_index < num_chunks; ++chunk_index) {
     for (auto row_index = chunk_index * CHUNK_SIZE; row_index < in.rows() && row_index < (chunk_index + 1) * CHUNK_SIZE; ++row_index) {
       auto final_output = postprocess(

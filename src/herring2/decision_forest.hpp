@@ -92,7 +92,7 @@ struct decision_forest {
         stream
       );
     } else {
-      herring::detail::predict<kayak::device_type::gpu>(
+      herring::detail::predict<kayak::device_type::cpu>(
         obj(),
         out,
         in,

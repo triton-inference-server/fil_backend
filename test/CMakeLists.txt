@@ -60,6 +60,7 @@ add_executable(test_herring
     test/herring2/forest.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
     test/herring2/decision_forest.cpp
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/decision_forest.cu>
 )
 
 IF(TRITON_ENABLE_GPU)

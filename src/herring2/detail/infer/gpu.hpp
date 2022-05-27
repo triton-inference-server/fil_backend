@@ -16,7 +16,7 @@ template<
   typename io_t
 >
 std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predict(
-  forest_t const& forest, 
+  forest_t const& model_forest, 
   kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
   kayak::raw_index_t num_class,

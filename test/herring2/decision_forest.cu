@@ -19,10 +19,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <cmath>
+#include <herring2/decision_forest.hpp>
 #include <kayak/bitset.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/data_array.hpp>
-#include <herring2/decision_forest.hpp>
+#include <kayak/device_type.hpp>
+#include <kayak/cuda_check.hpp>
 #include <kayak/tree_layout.hpp>
 #include <iterator>
 #include <numeric>
@@ -30,7 +32,7 @@
 
 namespace herring {
 
-TEST(FilBackend, host_forest_model)
+TEST(FilBackend, dev_forest_model)
 {
   using forest_type = forest_model<float, kayak::tree_layout::depth_first, false, false, false, false>;
 
@@ -93,29 +95,38 @@ TEST(FilBackend, host_forest_model)
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
   auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
-  auto input_values_buf = kayak::buffer(input_values.data(), input_values.size());
+  auto input_values_buf = kayak::buffer<float>(
+    std::begin(input_values),
+    std::end(input_values),
+    kayak::device_type::gpu
+  );
   auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
 
   auto test_forest = forest_type{
     1,
     input.cols(),
-    std::move(tree_offsets_buf),
-    std::move(values_buf),
-    std::move(features_buf),
-    std::move(offsets_buf),
-    std::move(distant_buf),
+    kayak::buffer{tree_offsets_buf, kayak::device_type::gpu},
+    kayak::buffer{values_buf, kayak::device_type::gpu},
+    kayak::buffer{features_buf, kayak::device_type::gpu},
+    kayak::buffer{offsets_buf, kayak::device_type::gpu},
+    kayak::buffer{distant_buf, kayak::device_type::gpu},
     std::nullopt,
-    std::move(categorical_sizes_buf),
+    kayak::buffer{categorical_sizes_buf, kayak::device_type::gpu},
     std::nullopt
   };
 
-  auto output_values_buf = kayak::buffer<float>(input.rows());
+  auto output_values_buf = kayak::buffer<float>(input.rows(), kayak::device_type::gpu);
   auto output = kayak::data_array<kayak::data_layout::dense_row_major, float>{output_values_buf.data(), input.rows(), 1};
 
   test_forest.predict(output, input);
-  ASSERT_FLOAT_EQ(output.at(0, 0), 13.0f);
-  ASSERT_FLOAT_EQ(output.at(1, 0), 6.0f);
-  ASSERT_FLOAT_EQ(output.at(2, 0), 4.0f);
+
+  auto output_host_buf = kayak::buffer<float>(output_values_buf, kayak::device_type::cpu);
+  auto output_host = kayak::data_array<kayak::data_layout::dense_row_major, float>{output_host_buf.data(), output.rows(), output.cols()};
+  kayak::cuda_check(cudaStreamSynchronize(0));
+
+  ASSERT_FLOAT_EQ(output_host.at(0, 0), 13.0f);
+  ASSERT_FLOAT_EQ(output_host.at(1, 0), 6.0f);
+  ASSERT_FLOAT_EQ(output_host.at(2, 0), 4.0f);
 }
 
 }

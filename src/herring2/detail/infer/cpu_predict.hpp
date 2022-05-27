@@ -20,7 +20,7 @@ template<
   typename forest_t,
   typename io_t
 >
-void predict(
+std::enable_if_t<D == kayak::device_type::cpu, void> predict(
   forest_t const& forest, 
   kayak::data_array<kayak::data_layout::dense_row_major, io_t>& out,
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
