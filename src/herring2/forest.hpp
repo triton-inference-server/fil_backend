@@ -263,7 +263,7 @@ struct forest {
     if (missing_values.at(row_index, col)) {
       return default_distant_[node_index];
     } else {
-      return evaluate_node<categorical>(node_index, row_index, input);
+      return evaluate_node<categorical, true>(node_index, row_index, input);
     }
   }
 };

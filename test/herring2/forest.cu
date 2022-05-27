@@ -41,38 +41,48 @@ __global__ void check_small_forest(
     kayak::data_array<kayak::data_layout::dense_row_major, bool> missing_input
   ) {
 
-  auto output = test_forest.evaluate_tree<true, false>(0, 0, input);
+  auto output = test_forest.evaluate_tree<true, true, false>(0, 0, input);
   out[0] = (output.at(0) == 6.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 0, input);
+  output = test_forest.evaluate_tree<false, true, false>(0, 0, input);
   out[1] = (output.at(0) == 6.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 0, input);
+  output = test_forest.evaluate_tree<true, true, false>(1, 0, input);
   out[2] = (output.at(0) == 7.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 0, input);
+  output = test_forest.evaluate_tree<true, true, false>(2, 0, input);
   out[3] = (output.at(0) == 0.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 0, input);
+  output = test_forest.evaluate_tree<false, true, false>(2, 0, input);
   out[4] = (output.at(0) == 0.0f);
 
-  output = test_forest.evaluate_tree<true, false>(0, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(0, 1, input);
   out[5] = (output.at(0) == 0.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 1, input);
+  output = test_forest.evaluate_tree<false, true, false>(0, 1, input);
   out[6] = (output.at(0) == 0.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(1, 1, input);
   out[7] = (output.at(0) == 4.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(2, 1, input);
   out[8] = (output.at(0) == 2.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 1, input);
+  output = test_forest.evaluate_tree<false, true, false>(2, 1, input);
   out[9] = (output.at(0) == 2.0f);
 
   output = test_forest.evaluate_tree<true, false>(0, 2, input, missing_input);
   out[10] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<true, false, false>(0, 2, input);
+  out[10] = (out[10] && (output.at(0) == 0.0f));
   output = test_forest.evaluate_tree<false, false>(0, 2, input, missing_input);
   out[11] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false, false>(0, 2, input);
+  out[11] = (out[11] && (output.at(0) == 0.0f));
   output = test_forest.evaluate_tree<true, false>(1, 2, input, missing_input);
   out[12] = (output.at(0) == 4.0f);
+  output = test_forest.evaluate_tree<true, false, false>(1, 2, input);
+  out[12] = (out[12] && (output.at(0) == 4.0f));
   output = test_forest.evaluate_tree<true, false>(2, 2, input, missing_input);
   out[13] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<true, false, false>(2, 2, input);
+  out[13] = (out[13] && (output.at(0) == 0.0f));
   output = test_forest.evaluate_tree<false, false>(2, 2, input, missing_input);
   out[14] = (output.at(0) == 0.0f);
+  output = test_forest.evaluate_tree<false, false, false>(2, 2, input);
+  out[14] = (out[14] && (output.at(0) == 0.0f));
 }
 
 TEST(FilBackend, small_dev_forest)
@@ -192,35 +202,35 @@ __global__ void check_large_forest(
     kayak::data_array<kayak::data_layout::dense_row_major, bool> missing_input
   ) {
 
-  auto output = test_forest.evaluate_tree<true, true>(0, 0, input);
+  auto output = test_forest.evaluate_tree<true, true, true>(0, 0, input);
   out[0] = (output.at(0) == 6.0f);
   out[1] = (output.at(1) == 6.0f);
-  output = test_forest.evaluate_tree<false, true>(0, 0, input);
+  output = test_forest.evaluate_tree<false, true, true>(0, 0, input);
   out[2] = (output.at(0) == 6.0f);
   out[3] = (output.at(1) == 6.0f);
-  output = test_forest.evaluate_tree<true, true>(1, 0, input);
+  output = test_forest.evaluate_tree<true, true, true>(1, 0, input);
   out[4] = (output.at(0) == 7.0f);
   out[5] = (output.at(1) == 7.0f);
-  output = test_forest.evaluate_tree<true, true>(2, 0, input);
+  output = test_forest.evaluate_tree<true, true, true>(2, 0, input);
   out[6] = (output.at(0) == 0.0f);
   out[7] = (output.at(1) == 0.0f);
-  output = test_forest.evaluate_tree<false, true>(2, 0, input);
+  output = test_forest.evaluate_tree<false, true, true>(2, 0, input);
   out[8] = (output.at(0) == 0.0f);
   out[9] = (output.at(1) == 0.0f);
 
-  output = test_forest.evaluate_tree<true, true>(0, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(0, 1, input);
   out[10] = (output.at(0) == 0.0f);
   out[11] = (output.at(1) == 0.0f);
-  output = test_forest.evaluate_tree<false, true>(0, 1, input);
+  output = test_forest.evaluate_tree<false, true, true>(0, 1, input);
   out[12] = (output.at(0) == 0.0f);
   out[13] = (output.at(1) == 0.0f);
-  output = test_forest.evaluate_tree<true, true>(1, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(1, 1, input);
   out[14] = (output.at(0) == 4.0f);
   out[15] = (output.at(1) == 4.0f);
-  output = test_forest.evaluate_tree<true, true>(2, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(2, 1, input);
   out[16] = (output.at(0) == 2.0f);
   out[17] = (output.at(1) == 2.0f);
-  output = test_forest.evaluate_tree<false, true>(2, 1, input);
+  output = test_forest.evaluate_tree<false, true, true>(2, 1, input);
   out[18] = (output.at(0) == 2.0f);
   out[19] = (output.at(1) == 2.0f);
 
