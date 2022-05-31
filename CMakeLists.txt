@@ -79,7 +79,8 @@ else()
   ##############################################################################
   # - User Options  ------------------------------------------------------------
 
-  option(BUILD_BACKEND_TESTS "Build RAPIDS_TRITON_BACKEND unit-tests" ON)
+  option(BUILD_TESTS "Build FIL_BACKEND unit-tests" ON)
+  option(BUILD_MICROBENCHMARK "Build FIL_BACKEND microbenchmarks" ON)
   option(CUDA_ENABLE_KERNEL_INFO "Enable kernel resource usage info" OFF)
   option(CUDA_ENABLE_LINE_INFO "Enable lineinfo in nvcc" OFF)
   option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)

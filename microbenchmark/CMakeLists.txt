@@ -1,4 +1,20 @@
 add_executable(forest_bench
+  src/herring2/detail/infer/specializations/double_io_double_threshold_few_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_double_threshold_few_features.cu>
+  src/herring2/detail/infer/specializations/double_io_double_threshold_many_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_double_threshold_many_features.cu>
+  src/herring2/detail/infer/specializations/double_io_single_threshold_few_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_single_threshold_few_features.cu>
+  src/herring2/detail/infer/specializations/double_io_single_threshold_many_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/double_io_single_threshold_many_features.cu>
+  src/herring2/detail/infer/specializations/single_io_double_threshold_few_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_double_threshold_few_features.cu>
+  src/herring2/detail/infer/specializations/single_io_double_threshold_many_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_double_threshold_many_features.cu>
+  src/herring2/detail/infer/specializations/single_io_single_threshold_few_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_single_threshold_few_features.cu>
+  src/herring2/detail/infer/specializations/single_io_single_threshold_many_features.cpp
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_single_threshold_many_features.cu>
   microbenchmark/src/forest_bench.cpp
 )
 
@@ -11,6 +27,9 @@ if(TRITON_ENABLE_GPU)
                CUDA_STANDARD_REQUIRED ON
                POSITION_INDEPENDENT_CODE ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+  target_compile_definitions(
+    forest_bench PUBLIC ENABLE_GPU
   )
 else()
   set_target_properties(forest_bench

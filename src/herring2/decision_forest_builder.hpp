@@ -109,7 +109,7 @@ struct decision_forest_builder {
 
   template<typename iter_t>
   void add_categorical_node(offset_type distant_child_offset, feature_index_type fea, iter_t begin_categories, iter_t end_categories, bool default_distant) {
-    auto max_category = std::max_element(begin_categories, end_categories) + 1;
+    auto max_category = *std::max_element(begin_categories, end_categories) + 1;
     if constexpr (decision_forest_t::categorical_lookup) {
       if (!categorical_sizes_) {
         categorical_storage_ = std::vector<uint8_t>{};
@@ -128,16 +128,16 @@ struct decision_forest_builder {
         &((*categorical_storage_)[node_values_.back().index]),
         max_category
       };
-      std::for_each(begin_categories, end_categories, [](auto&& cat) {
+      std::for_each(begin_categories, end_categories, [&category_bitset](auto&& cat) {
         category_bitset.set(cat);
       });
     } else {
       node_values_.push_back({.index=output_index_type{}});
-      auto category_bitset = category_set_type{&node_values_.back(), max_category};
+      auto category_bitset = category_set_type(&(node_values_.back().index), max_category);
       if (max_category > category_bitset.bin_width) {
         throw model_builder_error("Too many categories for non-lookup categorical node");
       }
-      std::for_each(begin_categories, end_categories, [](auto&& cat) {
+      std::for_each(begin_categories, end_categories, [&category_bitset](auto&& cat) {
         category_bitset.set(cat);
       });
     }

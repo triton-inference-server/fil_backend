@@ -87,7 +87,7 @@ struct treelite_importer {
     std::size_t own_index;
 
     auto is_leaf() {
-      return tree.isLeaf(node_id);
+      return tree.IsLeaf(node_id);
     }
 
     auto get_output() {
@@ -152,7 +152,7 @@ struct treelite_importer {
 
   template<typename tl_threshold_t, typename tl_output_t, typename lambda_t>
   void node_for_each(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, lambda_t&& lambda) {
-    using node_index_t = decltype(tl_tree.LeftChild());
+    using node_index_t = decltype(tl_tree.LeftChild(0));
     auto to_be_visited = traversal_container<layout, node_index_t>{};
     to_be_visited.add(node_index_t{});
 
@@ -164,7 +164,9 @@ struct treelite_importer {
       auto node_id = to_be_visited.next();
       auto remaining_size = to_be_visited.size();
 
-      auto tl_node = treelite_node{tl_tree, node_id, parent_indices.next(), cur_index};
+      auto tl_node = treelite_node<tl_threshold_t, tl_output_t>{
+        tl_tree, node_id, parent_indices.next(), cur_index
+      };
       lambda(tl_node);
 
       if (!tl_tree.IsLeaf(node_id)) {
@@ -193,7 +195,7 @@ struct treelite_importer {
   }
 
   template<typename tl_threshold_t, typename tl_output_t, typename iter_t, typename lambda_t>
-  void node_transform(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, iter_t& output_iter, lambda_t&& lambda) {
+  void node_transform(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, iter_t output_iter, lambda_t&& lambda) {
     node_for_each(
       tl_tree,
       [&output_iter, &lambda](auto&& tl_node) {
@@ -204,7 +206,7 @@ struct treelite_importer {
   }
 
   template<typename tl_threshold_t, typename tl_output_t, typename T, typename lambda_t>
-  void node_accumulate(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, T init, lambda_t&& lambda) {
+  auto node_accumulate(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, T init, lambda_t&& lambda) {
     auto result = init;
     node_for_each(
       tl_tree,
@@ -225,7 +227,7 @@ struct treelite_importer {
 
   template<typename tl_threshold_t, typename tl_output_t>
   auto get_offsets(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree) {
-    auto result = std::vector<raw_index_t>{tl_tree.num_nodes};
+    auto result = std::vector<raw_index_t>(tl_tree.num_nodes);
     auto nodes = get_nodes(tl_tree);
     try {
       for (auto i = std::size_t{}; i < nodes.size(); ++i) {
@@ -267,7 +269,7 @@ struct treelite_importer {
   }
 
   template<typename T, typename lambda_t>
-  void tree_accumulate(treelite::Model const& tl_model, T init, lambda_t&& lambda) {
+  auto tree_accumulate(treelite::Model const& tl_model, T init, lambda_t&& lambda) {
     auto result = init;
     tree_for_each(
       tl_model,
@@ -292,6 +294,7 @@ struct treelite_importer {
     tree_transform(tl_model, std::back_inserter(result), [this](auto&&tree) {
       return get_offsets(tree);
     });
+    return result;
   }
 
   auto get_tree_sizes(treelite::Model const& tl_model) {
@@ -322,7 +325,7 @@ struct treelite_importer {
 
   auto get_max_num_categories(treelite::Model const& tl_model) {
     return tree_accumulate(tl_model, raw_index_t{}, [this](auto&& accum, auto&& tree) {
-      node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
+      return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
         auto result = cur_accum;
         for (auto&& cat : tl_node.categories()) {
           result = (cat + 1 > result) ? cat + 1 : result;
@@ -502,12 +505,18 @@ struct treelite_importer {
         builder.set_row_postproc(postproc_params.row);
         builder.set_postproc_constant(postproc_params.constant);
 
-        result = builder.get_decision_forest(num_class, num_feature, mem_type, device, stream);
+        result.template emplace<variant_index>(builder.get_decision_forest(num_class, num_feature, mem_type, device, stream));
       } else {
         result = import_to_specific_variant<variant_index +1>(
           target_variant_index,
           tl_model,
-          align_bytes
+          num_class,
+          num_feature,
+          offsets,
+          align_bytes,
+          mem_type,
+          device,
+          stream
         );
       }
     }
@@ -533,8 +542,8 @@ struct treelite_importer {
       std::begin(offsets),
       std::end(offsets),
       raw_index_t{},
-      [](auto&& cur_max, auto&& tree_offsets) {
-        return std::max(cur_max, std::max_element(std::begin(offsets), std::end(offsets)));
+      [&offsets](auto&& cur_max, auto&& tree_offsets) {
+        return std::max(cur_max, *std::max_element(std::begin(tree_offsets), std::end(tree_offsets)));
       }
     );
     auto tree_sizes = std::vector<raw_index_t>{};
@@ -556,6 +565,7 @@ struct treelite_importer {
       max_offset,
       num_feature,
       max_num_categories,
+      use_double_thresholds,
       use_double_output,
       use_integer_output
     );
@@ -565,6 +575,7 @@ struct treelite_importer {
       tl_model,
       num_class,
       num_feature,
+      offsets,
       align_bytes,
       mem_type,
       device,
