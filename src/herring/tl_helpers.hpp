@@ -1,7 +1,22 @@
+/*
+ * Copyright (c) 2022, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 
 #include <exception>
-#include <iostream>
 #include <stack>
 #include <string>
 #include <variant>
@@ -31,14 +46,17 @@ struct unconvertible_model_exception : std::exception {
   std::string msg_;
 };
 
-// TODO(wphicks): Currently, the model use_inclusive_threshold parameter is
-// changed as a side-effect of this function. This is messy and confusing, and
-// it should be fixed in a later refactor
+// TODO(wphicks): Currently, the model use_inclusive_threshold and
+// has_categorical_trees parameters are changed as a side-effect of this
+// function. This is messy and confusing, and it should be fixed in a later
+// refactor https://github.com/triton-inference-server/fil_backend/issues/205
 template<typename tree_t, typename tl_threshold_t, typename tl_output_t>
-auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold) {
+auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bool& use_inclusive_threshold, bool& categorical_model) {
   auto result = tree_t{};
   result.nodes.reserve(tl_tree.num_nodes);
   result.default_distant.reserve(tl_tree.num_nodes);
+  result.categorical_node.reserve(tl_tree.num_nodes);
+  result.has_categorical_nodes = false;
 
   // TL node id for current node
   auto cur_node_id = int{};
@@ -53,6 +71,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
   auto parent_stack = std::stack<std::size_t, std::vector<std::size_t>>{};
   // TODO(wphicks): Just store a reference to the parent directly rather than
   // an index
+  // https://github.com/triton-inference-server/fil_backend/issues/205
 
   // Start at TL node id 0
   node_stack.push(cur_node_id);
@@ -100,6 +119,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
         }
       }
       result.default_distant.push_back(false);
+      result.categorical_node.push_back(false);
     } else {
       cur_node.feature = tl_tree.SplitIndex(cur_node_id);
 
@@ -110,7 +130,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
       auto tl_split = tl_tree.SplitType(cur_node_id);
       auto categorical = (tl_split == treelite::SplitFeatureType::kCategorical);
 
-      // Hot child is always less-than or in-category condition
+      // Distant child is always less-than or in-category condition
       if (!categorical) {
         cur_node.value.value = tl_tree.Threshold(cur_node_id);
         auto inclusive_threshold_node = (
@@ -133,10 +153,28 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
           throw unconvertible_model_exception{"Unsupported comparison operator"};
         }
       } else {
-        throw unconvertible_model_exception{"Categorical nodes not yet implemented"};
+        if (tl_tree.CategoriesListRightChild(cur_node_id)) {
+          hot_child = left_id;
+          distant_child = right_id;
+        } else {
+          hot_child = right_id;
+          distant_child = left_id;
+        }
+        auto tl_categories = tl_tree.MatchingCategories(cur_node_id);
+        auto constexpr max_category = typename tree_t::node_type::category_set_type{}.size();
+        cur_node.value.categories = typename tree_t::node_type::category_set_type{};
+        for (auto category : tl_categories) {
+          if (category >= max_category) {
+            throw unconvertible_model_exception{"Too many categories for categorical storage size"};
+          }
+          cur_node.value.categories[category] = true;
+        }
       }
 
       result.default_distant.push_back(distant_child == default_child);
+      result.categorical_node.push_back(categorical);
+      result.has_categorical_nodes |= categorical;
+      categorical_model |= categorical;
 
       node_stack.push(distant_child);
       node_stack.push(hot_child);
@@ -203,7 +241,7 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
     std::begin(tl_model.trees),
     std::end(tl_model.trees),
     std::back_inserter(result.trees),
-    [&result](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree, result.use_inclusive_threshold); }
+    [&result](auto&& tl_tree) { return convert_tree<typename model_type::tree_type>(tl_tree, result.use_inclusive_threshold, result.has_categorical_trees); }
   );
 
   result.num_class = tl_model.task_param.num_class;
@@ -219,30 +257,38 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
   }
   result.bias = tl_model.param.global_bias;
 
-  result.element_postproc = element_op::disable;
+  result.set_element_postproc(element_op::disable);
   result.row_postproc = row_op::disable;
 
   auto tl_pred_transform = std::string{tl_model.param.pred_transform};
-  if (tl_pred_transform == std::string{"signed_square"}) {
-    result.element_postproc = element_op::signed_square;
+  if (
+      tl_pred_transform == std::string{"identity"} ||
+      tl_pred_transform == std::string{"identity_multiclass"}) {
+    result.set_element_postproc(element_op::disable);
+    result.row_postproc = row_op::disable;
+  } else if (tl_pred_transform == std::string{"signed_square"}) {
+    result.set_element_postproc(element_op::signed_square);
   } else if (tl_pred_transform == std::string{"hinge"}) {
-    result.element_postproc = element_op::hinge;
+    result.set_element_postproc(element_op::hinge);
   } else if (tl_pred_transform == std::string{"sigmoid"}) {
-    result.element_postproc = element_op::sigmoid;
     result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.set_element_postproc(element_op::sigmoid);
   } else if (tl_pred_transform == std::string{"exponential"}) {
-    result.element_postproc = element_op::exponential;
+    result.set_element_postproc(element_op::exponential);
   } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
-    result.element_postproc = element_op::exponential_standard_ratio;
-    // TODO (wphicks): Update with Treelite 2.3.0
-    // result.postproc_constant = tl_model.param.ratio_c;
-    result.postproc_constant = 1;
+    result.postproc_constant = tl_model.param.ratio_c;
+    result.set_element_postproc(element_op::exponential_standard_ratio);
   } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
-    result.element_postproc = element_op::logarithm_one_plus_exp;
+    result.set_element_postproc(element_op::logarithm_one_plus_exp);
   } else if (tl_pred_transform == std::string{"max_index"}) {
     result.row_postproc = row_op::max_index;
   } else if (tl_pred_transform == std::string{"softmax"}) {
     result.row_postproc = row_op::softmax;
+  } else if (tl_pred_transform == std::string{"multiclass_ova"}) {
+    result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.set_element_postproc(element_op::sigmoid);
+  } else {
+    throw unconvertible_model_exception{"Unrecognized Treelite pred_transform string"};
   }
 
   return result;
@@ -282,12 +328,15 @@ auto convert_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_mo
   // are just always using std::uint32_t for offset_t because using
   // std::uint16_t or lower will not reduce the overall size of the node with
   // padding.
+  // https://github.com/triton-inference-server/fil_backend/issues/206
 
   auto constexpr large_threshold = std::size_t{std::is_same_v<tl_threshold_t, double>};
   auto const large_num_feature = std::size_t{tl_model.num_feature >= std::numeric_limits<std::uint16_t>::max()};
   auto const large_max_offset = std::size_t{max_offset >= std::numeric_limits<std::uint16_t>::max()};
   auto constexpr non_integer_output = std::size_t{!std::is_same_v<tl_output_t, std::uint32_t>};
-  auto const has_vector_leaves = std::size_t{tl_model.task_param.num_class > 1};
+  auto const has_vector_leaves = std::size_t{
+    tl_model.task_param.leaf_vector_size > 1
+  };
 
   auto variant_index = std::size_t{
     (large_threshold << 4) +

@@ -10,7 +10,7 @@ dependencies:
   - cudatoolkit=11.4
   - cuml=22.04
   - flake8
-  - hypothesis
+  - hypothesis<6.46.8
   - lightgbm
   - matplotlib
   - pip

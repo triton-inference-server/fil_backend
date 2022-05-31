@@ -1,13 +1,29 @@
+/*
+ * Copyright (c) 2022, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 
 #include<cstddef>
 #include<functional>
-#include<iostream>
 #include<new>
 #include<numeric>
 #include<type_traits>
 #include<vector>
 
+#include<herring/omp_helpers.hpp>
 #include<herring/output_ops.hpp>
 #include<herring/tree.hpp>
 #include<herring/type_helpers.hpp>
@@ -31,17 +47,102 @@ namespace herring {
       simple_tree_t,
       lookup_tree_t
     >;
+    using sum_elem_type = typename is_container_specialization<output_t, std::vector>::value_type;
 
     std::vector<tree_type> trees;
     std::size_t num_class;
     std::size_t num_feature;
-    element_op element_postproc;
     row_op row_postproc;
     float average_factor;
     float bias;
     float postproc_constant;
     std::vector<bool> mutable row_has_missing;
     bool use_inclusive_threshold;
+    bool has_categorical_trees;
+
+    void predict(float const* input, std::size_t num_row, float* output, thread_count<int> nthread) const {
+      // This dispatch structure is designed to determine as early as possible
+      // whether a "slow" path is required and to convert booleans that
+      // determine slow/fast path execution to compile-time constants such that
+      // the compiled fast path never has to make checks required by the slow
+      // path. Within the implementation of predict_, there is further
+      // dispatching of the same sort to allow subsets of the model to use as
+      // much fast-path coode as possible.
+      //
+      // TODO (wphicks): Much of this could be cleaned up with some template
+      // metaprogramming and a few helper functions for switching to various
+      // compile-time paths based on runtime boolean values.
+      // (https://github.com/triton-inference-server/fil_backend/issues/205)
+      //
+      if (!precompute_missing(input, num_row)) {
+        if (!use_inclusive_threshold) {
+          if (!has_categorical_trees) {
+            predict_<false, false, false>(input, output, num_row, nthread);
+          } else {
+            predict_<false, true, false>(input, output, num_row, nthread);
+          }
+        } else {
+          if (!has_categorical_trees) {
+            predict_<false, false, true>(input, output, num_row, nthread);
+          } else {
+            predict_<false, true, true>(input, output, num_row, nthread);
+          }
+        }
+      } else {
+        if (!use_inclusive_threshold) {
+          if (!has_categorical_trees) {
+            predict_<true, false, false>(input, output, num_row, nthread);
+          } else {
+            predict_<true, true, false>(input, output, num_row, nthread);
+          }
+        } else {
+          if (!has_categorical_trees) {
+            predict_<true, false, true>(input, output, num_row, nthread);
+          } else {
+            predict_<true, true, true>(input, output, num_row, nthread);
+          }
+        }
+      }
+    }
+
+    void set_element_postproc(element_op element_postproc) {
+      postprocess_element = [this, element_postproc]() -> std::function<void(sum_elem_type, float*)> {
+        auto constant = postproc_constant;
+        switch(element_postproc) {
+          case element_op::signed_square:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::copysign(elem * elem, elem);
+            };
+          case element_op::hinge:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem > sum_elem_type{} ? sum_elem_type{1} : sum_elem_type{0};
+            };
+          case element_op::sigmoid:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = sum_elem_type{1} / (sum_elem_type{1} + std::exp(-constant * elem));
+            };
+          case element_op::exponential:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::exp(elem);
+            };
+          case element_op::exponential_standard_ratio:
+            return [constant](sum_elem_type elem, float* out) {
+              *out = std::exp(-elem / constant);
+            };
+          case element_op::logarithm_one_plus_exp:
+            return [](sum_elem_type elem, float* out) {
+              *out = std::log1p(std::exp(elem));
+            };
+          default:
+            return [](sum_elem_type elem, float* out) {
+              *out = elem;
+            };
+        }
+      }();
+    }
+
+   private:
+    std::function<void(sum_elem_type, float*)> postprocess_element;
 
     auto precompute_missing(float const* input, std::size_t num_row) const {
       auto result = false;
@@ -61,64 +162,15 @@ namespace herring {
       return result;
     }
 
-    void predict(float const* input, std::size_t num_row, float* output) const {
-      if (!precompute_missing(input, num_row)) {
-        if (!use_inclusive_threshold) {
-          predict_<false, false>(input, output, num_row);
-        } else {
-          predict_<false, true>(input, output, num_row);
-        }
-      } else {
-        if (!use_inclusive_threshold) {
-          predict_<true, false>(input, output, num_row);
-        } else {
-          predict_<true, true>(input, output, num_row);
-        }
-      }
-    }
-
     void apply_postprocessing(
-        std::vector<output_t> const& grove_sum,
+        std::vector<sum_elem_type> const& grove_sum,
         float* output,
         std::size_t num_row,
-        std::size_t num_grove) const {
-
-      // TODO(wphicks): Precompute this
-      static auto const postprocess_element = [this]() -> std::function<void(output_t, float*)> {
-        switch(element_postproc) {
-          case element_op::signed_square:
-            return [this](output_t elem, float* out) {
-              *out = std::copysign(elem * elem, elem);
-            };
-          case element_op::hinge:
-            return [this](output_t elem, float* out) {
-              *out = elem > output_t{} ? output_t{1} : output_t{0};
-            };
-          case element_op::sigmoid:
-            return [this](output_t elem, float* out) {
-              *out = output_t{1} / (output_t{1} + std::exp(-postproc_constant * elem));
-            };
-          case element_op::exponential:
-            return [this](output_t elem, float* out) {
-              *out = std::exp(elem);
-            };
-          case element_op::exponential_standard_ratio:
-            return [this](output_t elem, float* out) {
-              *out = std::exp(-elem / postproc_constant);
-            };
-          case element_op::logarithm_one_plus_exp:
-            return [this](output_t elem, float* out) {
-              *out = std::log1p(std::exp(elem));
-            };
-          default:
-            return [this](output_t elem, float* out) {
-              *out = elem;
-            };
-        }
-      }();
+        std::size_t num_grove,
+        thread_count<int> nthread) const {
 
       if (row_postproc != row_op::max_index) {
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto const grove_output_index = row_index * num_class * num_grove;
           for (auto class_index = std::size_t{}; class_index < num_class; ++class_index) {
@@ -134,26 +186,28 @@ namespace herring {
             auto const row_begin = output + row_index;
             auto const row_end = row_begin + num_class;
             auto const max_value = *std::max_element(row_begin, row_end);
-            auto const normalization = std::transform_reduce(
+            std::transform(
               row_begin,
               row_end,
-              output_t{},
-              std::plus<>(),
+              row_begin,
               [&max_value](auto const& val) { return std::exp(val - max_value); }
             );
+            auto const normalization = std::reduce(row_begin, row_end);
             std::transform(
               row_begin,
               row_end,
               output + row_index,
-              [&normalization](auto const& val) { return val / normalization; }
+              [&normalization](auto const& val) {
+                return val / normalization;
+              }
             );
           }
         }
       } else {
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto grove_output_index = row_index * num_class * num_grove;
-          auto row_output = std::vector<output_t>(num_class, 0);
+          auto row_output = std::vector<float>(num_class, 0);
 
           for (auto class_index = std::size_t{}; class_index < num_class; ++class_index) {
             auto class_output_index = grove_output_index + class_index * num_grove;
@@ -173,8 +227,8 @@ namespace herring {
     }
 
 
-    template<bool missing_value_in_input, bool inclusive_threshold>
-    void predict_(float const* input, float* output, std::size_t num_row) const {
+    template<bool missing_value_in_input, bool categorical_model, bool inclusive_threshold>
+    void predict_(float const* input, float* output, std::size_t num_row, thread_count<int> nthread) const {
       // "Groves" are groups of trees which are processed together in a single
       // thread. Similarly, "blocks" are groups of rows that are processed
       // together
@@ -188,12 +242,12 @@ namespace herring {
       auto const num_grove = (num_tree / grove_size + (num_tree % grove_size != 0));
       auto const num_block = (num_row / block_size + (num_row % block_size != 0));
 
-      auto forest_sum = std::vector<output_t>(
+      auto forest_sum = std::vector<sum_elem_type>(
         num_row * num_class * num_grove,
-        output_t{}
+        sum_elem_type{}
       );
 
-#pragma omp parallel for
+#pragma omp parallel for num_threads(static_cast<int>(nthread))
       for (auto task_index = std::size_t{}; task_index < num_grove * num_block; ++task_index) {
         auto const grove_index = task_index / num_block;
         auto const block_index = task_index % num_block;
@@ -201,12 +255,10 @@ namespace herring {
         auto const starting_row = block_index * block_size;
         auto const max_row = std::min(starting_row + block_size, num_row);
         for (auto row_index = starting_row; row_index < max_row; ++row_index) {
-          // std::cout << "ROWS: " << row_index << " " << num_row << "\n";
 
           auto const starting_tree = grove_index * grove_size;
           auto const max_tree = std::min(starting_tree + grove_size, num_tree);
           for (auto tree_index = starting_tree; tree_index < max_tree; ++tree_index) {
-            // std::cout << "TREES: " << tree_index << " " << trees.size() << "\n";
             auto const& tree = trees[tree_index];
 
             // Find leaf node
@@ -214,18 +266,17 @@ namespace herring {
             while (tree.nodes[node_index].distant_offset != 0) {
               if constexpr (missing_value_in_input) {
                 if (not row_has_missing[row_index]) {
-                  node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  node_index += tree.template evaluate_tree_node<false, categorical_model, inclusive_threshold>(node_index, input + row_index * num_feature);
                 } else {
-                  node_index += tree.template evaluate_tree_node<true, inclusive_threshold>(node_index, input + row_index * num_feature);
+                  node_index += tree.template evaluate_tree_node<true, categorical_model, inclusive_threshold>(node_index, input + row_index * num_feature);
                 }
               } else {
-                node_index += tree.template evaluate_tree_node<false, inclusive_threshold>(node_index, input + row_index * num_feature);
+                node_index += tree.template evaluate_tree_node<false, categorical_model, inclusive_threshold>(node_index, input + row_index * num_feature);
               }
-              // std::cout << "NODES: " << node_index << " " << tree.nodes.size() << "\n";
             }
 
             // Add leaf contribution to output
-            if constexpr (is_specialization<output_t, std::vector>::value) {
+            if constexpr (is_container_specialization<output_t, std::vector>::value) {
               auto leaf_output = tree.get_leaf_value(node_index);
               for(auto class_index = std::size_t{}; class_index < num_class; ++class_index){
                 forest_sum[
@@ -237,8 +288,6 @@ namespace herring {
             } else {
                 auto class_index = tree_index % num_class;
                 auto cur_index = row_index * num_class * num_grove + class_index * num_grove + grove_index;
-                // std::cout << "SUM: " << cur_index << " " << forest_sum.size() << "\n";
-                // std::cout << "LEAF: " << tree.get_leaf_value(node_index) << "\n";
                 forest_sum[
                   row_index * num_class * num_grove +
                   class_index * num_grove
@@ -249,7 +298,7 @@ namespace herring {
         } // Rows in block
       } // Tasks (groves x blocks)
 
-      apply_postprocessing(forest_sum, output, num_row, num_grove);
+      apply_postprocessing(forest_sum, output, num_row, num_grove, nthread);
     }
   };
 }

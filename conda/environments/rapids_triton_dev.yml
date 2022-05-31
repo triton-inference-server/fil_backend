@@ -4,6 +4,8 @@ channels:
   - conda-forge
 dependencies:
   - ccache
-  - cmake>=3.21
+  - cmake>=3.21,<3.23
+  - libstdcxx-ng<=11.2.0
+  - libgcc-ng<=11.2.0
   - ninja
   - rapidjson

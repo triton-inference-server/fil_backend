@@ -15,17 +15,21 @@
  */
 
 #pragma once
+#include <omp.h>
 
-#include <type_traits>
-
-namespace herring {
-  template<typename T, template<typename...> class U>
-  struct is_container_specialization : std::false_type {
-    using value_type = T;
-  };
-
-  template<template<typename...> class U, typename... Args>
-  struct is_container_specialization<U<Args...>, U>: std::true_type {
-    using value_type = typename U<Args...>::value_type;
-  };
-}
+template <typename T>
+struct thread_count {
+  thread_count() : value{omp_get_max_threads()} {}
+  thread_count(T t) : value{
+    [](T t) {
+      auto result = T{t};
+      auto max_count = omp_get_max_threads();
+      if ( t < 1 || t > max_count) {
+        result = max_count;
+      }
+      return result;
+    }(t)} {}
+  operator int() const { return static_cast<int>(value); }
+ private:
+  T value;
+};

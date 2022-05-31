@@ -36,22 +36,32 @@ namespace triton { namespace backend { namespace NAMESPACE {
 struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
-      std::shared_ptr<treelite_config> tl_config)
-      : base_tl_model_{load_tl_base_model(model_file, format)},
-        num_classes_{tl_get_num_classes(*base_tl_model_)}, tl_config_{tl_config},
-        base_herring_model_{[this]() {
+      std::shared_ptr<treelite_config> tl_config, bool predict_proba, bool use_herring)
+      : tl_config_{tl_config},
+        base_tl_model_{[&model_file, &format, predict_proba, this](){
+          auto result = load_tl_base_model(model_file, format);
+          auto num_classes = tl_get_num_classes(*base_tl_model_);
+          if (!predict_proba && tl_config_->output_class && num_classes > 1) {
+            std::strcpy(result->param.pred_transform, "max_index");
+          }
+          return result;
+        }()},
+        num_classes_{tl_get_num_classes(*base_tl_model_)},
+        base_herring_model_{[this, use_herring]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
-          try {
-            result = base_tl_model_->Dispatch([](auto const& concrete_model) {
-              return herring::convert_model(concrete_model);
-            });
-            rapids::log_info(__FILE__, __LINE__) << "Loaded model to Herring format";
-          } catch (herring::unconvertible_model_exception const& herring_err) {
-            result = std::nullopt;
-            auto log_stream = rapids::log_info(__FILE__, __LINE__);
-            log_stream << "Herring load failed with error \"";
-            log_stream << herring_err.what();
-            log_stream <<"\"; falling back to GTIL";
+          if (use_herring) {
+            try {
+              result = base_tl_model_->Dispatch([](auto const& concrete_model) {
+                return herring::convert_model(concrete_model);
+              });
+              rapids::log_info(__FILE__, __LINE__) << "Loaded model to Herring format";
+            } catch (herring::unconvertible_model_exception const& herring_err) {
+              result = std::nullopt;
+              auto log_stream = rapids::log_info(__FILE__, __LINE__);
+              log_stream << "Herring load failed with error \"";
+              log_stream << herring_err.what();
+              log_stream <<"\"; falling back to GTIL";
+            }
           }
           return result;
         }()}
@@ -76,8 +86,18 @@ struct TreeliteModel {
         output.data(), output.size(), output.mem_type(), output.device(),
         output.stream()};
 
-    if (base_herring_model_ && base_herring_model_->index() == 2) {
-      std::get<2>(*base_herring_model_).predict(input.data(), samples, output_buffer.data());
+    if (base_herring_model_) {
+      std::visit(
+        [this, &input, &samples, &output_buffer](auto&& concrete_model) {
+          concrete_model.predict(
+            input.data(),
+            samples,
+            output_buffer.data(),
+            tl_config_->cpu_nthread
+          );
+        },
+        *base_herring_model_
+      );
     } else {
       auto gtil_output_size = output.size();
       // GTIL expects buffer of size samples * num_classes_ for multi-class
@@ -85,7 +105,6 @@ struct TreeliteModel {
       // temporary buffer
       if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
         gtil_output_size = samples * num_classes_;
-        std::strcpy(base_tl_model_->param.pred_transform, "max_index");
       }
 
       // If expected GTIL size is not the same as the size of `output`, create
@@ -130,9 +149,9 @@ struct TreeliteModel {
   }
 
  private:
+  std::shared_ptr<treelite_config> tl_config_;
   std::unique_ptr<treelite::Model> base_tl_model_;
   std::size_t num_classes_;
-  std::shared_ptr<treelite_config> tl_config_;
   std::optional<herring::tl_dispatched_model> base_herring_model_;
 };
 
