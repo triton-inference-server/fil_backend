@@ -2,9 +2,10 @@
 #include <stddef.h>
 #include <herring/output_ops.hpp>
 #include <herring2/detail/gpu_constants.hpp>
+#include <herring2/detail/postprocess.hpp>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>
-#include <herring2/detail/postprocess.hpp>
+#include <kayak/detail/universal_cmp.hpp>
 #include <kayak/ndarray.hpp>
 #include <kayak/padding.hpp>
 
@@ -41,7 +42,7 @@ __global__ void infer_kernel(
   auto const warp_remainder = task_id % WARP_SIZE;
   auto const grove_index = __double2uint_ru(threadIdx.x * INV_WARP_SIZE);
   auto const num_warps = __double2uint_ru(blockDim.x * INV_WARP_SIZE);
-  auto const num_groves = forest.tree_count() / num_warps;
+  auto const num_groves = kayak::detail::universal_min(forest.tree_count(), num_warps);
 
   extern __shared__ io_t workspace_mem[];
   // Zero-initialize workspace
@@ -74,7 +75,7 @@ __global__ void infer_kernel(
     for (
       auto tree_index = int(task_id * INV_WARP_SIZE);
       tree_index < forest.tree_count();
-      tree_index += WARP_SIZE * blockDim.x
+      tree_index += num_warps
     ) {
       for (auto row_index = row_start; row_index < row_end; ++row_index) {
         auto tree_out = forest.template evaluate_tree<categorical, false, lookup>(

@@ -22,7 +22,7 @@ inline auto get_max_shared_mem_per_block(int device_id) {
       device_id
     )
   );
-  return result;
+  return uint32_t(result);
 }
 
 inline auto get_sm_count(int device_id) {
@@ -34,7 +34,7 @@ inline auto get_sm_count(int device_id) {
       device_id
     )
   );
-  return result;
+  return uint32_t(result);
 }
 
 inline auto get_max_threads_per_sm(int device_id) {
@@ -46,7 +46,7 @@ inline auto get_max_threads_per_sm(int device_id) {
       device_id
     )
   );
-  return result;
+  return uint32_t(result);
 }
 
 inline auto get_max_threads(int device_id) {
@@ -62,7 +62,7 @@ inline auto get_max_threads_per_block(int device_id) {
       device_id
     )
   );
-  return result / gpu::WARP_SIZE;
+  return uint32_t(result);
 }
 
 struct kernel_params_t{
@@ -106,10 +106,10 @@ auto block_thread_selector(
   // Each block processes a warp's worth of chunks per pass, and we wish to
   // minimize the number of passes, so ideally we would have as many blocks as
   // there are chunks divided by the size of a warp.
-  auto blocks = kayak::padded_size(
-    kayak::padded_size(chunks, gpu::WARP_SIZE) / gpu::WARP_SIZE,
-    sm_count
-  );
+  auto blocks = kayak::padded_size(chunks, gpu::WARP_SIZE) / gpu::WARP_SIZE;
+  if (blocks > sm_count) {
+    blocks = kayak::downpadded_size(blocks, sm_count);
+  }
   auto chunks_per_block = kayak::padded_size(chunks, blocks) / blocks;
   auto rows_per_block = chunks_per_block * gpu::CHUNK_SIZE;
 
@@ -117,8 +117,9 @@ auto block_thread_selector(
     max_shared_mem_entries_per_block / (rows_per_block * num_class),
     gpu::WARP_SIZE
   );
+  std::cout << "Ideal threads per block: " << threads_per_block << "\n";
   auto max_threads_per_block = get_max_threads_per_block(device_id);
-  threads_per_block = threads_per_block > max_threads_per_block ? max_threads_per_block : threads_per_block;
+  threads_per_block = kayak::detail::universal_min(threads_per_block, max_threads_per_block);
 
   if (threads_per_block == 0u) {
     // In this case, we are using too much shared memory per block, so we must
@@ -144,6 +145,9 @@ auto block_thread_selector(
 
   // Ensure that we have a minimum of one warp and a maximum no larger than the
   // maximum allowed per block or the maximum to fully occupy all SMs
+  std::cout << "Current TPB: " << threads_per_block << "\n";
+  std::cout << "Max TPB: " << get_max_threads_per_block(device_id) << "\n";
+  std::cout << "Max threads: " << get_max_threads(device_id) << "\n";
   threads_per_block = kayak::detail::universal_max(
     kayak::detail::universal_min(
       kayak::detail::universal_min(threads_per_block, get_max_threads_per_block(device_id)),

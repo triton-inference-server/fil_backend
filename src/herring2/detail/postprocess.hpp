@@ -25,6 +25,7 @@ HOST DEVICE auto postprocess(
   auto max_index = raw_index_t{};
   auto max_value = workspace.at(row_index, max_index, 0u);
 
+
   for (auto class_index = raw_index_t{}; class_index < workspace.dims()[1]; ++class_index) {
     for (auto grove_index = raw_index_t{1}; grove_index < workspace.dims()[2]; ++grove_index) {
       workspace.at(row_index, class_index, 0u) += workspace.at(row_index, class_index, grove_index);
