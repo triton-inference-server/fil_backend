@@ -60,6 +60,7 @@ HELP="$0 [<target> ...] [<flag> ...]
                       simply be built with the current version of the code
    TREELITE_STATIC  - If ON, Treelite will be statically linked into the binaries
    RAPIDS_VERSION   - The version of RAPIDS to require for RAPIDS dependencies
+   BUILD_DIR        - The build directory for a host build
 "
 
 BUILD_TYPE=Release
@@ -236,10 +237,12 @@ else
 fi
 
 TESTS=0
+BUILD_TESTS='OFF'
 BACKEND=0
 if completeBuild
 then
   TESTS=1
+  BUILD_TESTS='ON'
   BACKEND=1
 elif hasArg server
 then
@@ -251,6 +254,7 @@ fi
 
 if [ $TESTS -eq 1 ]
 then
+  BUILD_TESTS='ON'
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_MICROBENCHMARK=ON"
 fi
@@ -309,15 +313,16 @@ buildpy () {
 
 hostbuild () {
   INSTALLDIR="$REPODIR/install/backends/fil"
-  BUILDDIR="$REPODIR/build"
+  [ -z BUILD_DIR ] && BUILD_DIR="$REPODIR/build"
   mkdir -p "$INSTALLDIR"
-  mkdir -p "$BUILDDIR"
-  pushd "$BUILDDIR"
+  mkdir -p "$BUILD_DIR"
+  pushd "$BUILD_DIR"
+  echo "BUILD_TESTS: $BUILD_TESTS"
   cmake \
     --log-level=VERBOSE \
     -GNinja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -DBUILD_TESTS="OFF" \
+    -DBUILD_TESTS="$BUILD_TESTS" \
     -DTRITON_CORE_REPO_TAG="$CORE_REF" \
     -DTRITON_COMMON_REPO_TAG="$COMMON_REF" \
     -DTRITON_BACKEND_REPO_TAG="$BACKEND_REF" \

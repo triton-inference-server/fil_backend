@@ -266,10 +266,9 @@ else()
   ##############################################################################
   # - build test executable ----------------------------------------------------
   
-  # TODO (wphicks)
-  # if(BUILD_TESTS)
-  #   include(test/CMakeLists.txt)
-  # endif()
+  if(BUILD_TESTS)
+    include(test/CMakeLists.txt)
+  endif()
 
   ##############################################################################
   # - build microbenchmark executable ------------------------------------------
