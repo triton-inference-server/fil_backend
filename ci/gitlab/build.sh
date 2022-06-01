@@ -100,6 +100,11 @@ else
   GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS})"
 fi
 
+if [ ! -z $RUNNER_ID ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --label RUNNER_ID=${RUNNER_ID}"
+fi
+
 echo "Generating example models..."
 docker run \
   -e RETRAIN=1 \
