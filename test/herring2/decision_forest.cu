@@ -94,13 +94,24 @@ TEST(FilBackend, dev_forest_model)
   auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
-  auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
+  auto num_features = 2u;
+  auto input_values = std::vector<float>{
+    7.0f, 6.0f,
+    0.0f, 1.0f,
+    NAN, 1.0f,
+  };
+  auto target_rows = 132u;
+  input_values.reserve(target_rows * num_features);
+  for (auto i = std::size_t{}; i + 6u < target_rows * num_features; ++i) {
+    input_values.push_back(input_values[i % (num_features * 3)]);
+  }
+
   auto input_values_buf = kayak::buffer<float>(
     std::begin(input_values),
     std::end(input_values),
     kayak::device_type::gpu
   );
-  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), input_values.size() / 2, 2};
 
   auto test_forest = forest_type{
     1,
@@ -124,9 +135,12 @@ TEST(FilBackend, dev_forest_model)
   auto output_host = kayak::data_array<kayak::data_layout::dense_row_major, float>{output_host_buf.data(), output.rows(), output.cols()};
   kayak::cuda_check(cudaStreamSynchronize(0));
 
-  ASSERT_FLOAT_EQ(output_host.at(0, 0), 13.0f);
-  ASSERT_FLOAT_EQ(output_host.at(1, 0), 6.0f);
-  ASSERT_FLOAT_EQ(output_host.at(2, 0), 4.0f);
+  auto expected = std::vector<float>{13, 6, 4};
+
+  for (auto i = std::size_t{}; i < output.rows(); ++i) {
+    ASSERT_FLOAT_EQ(output_host.at(i, 0), expected[i % expected.size()]);
+  }
+
 }
 
 }

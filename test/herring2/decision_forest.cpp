@@ -92,9 +92,20 @@ TEST(FilBackend, host_forest_model)
   auto categorical_sizes_buf = kayak::buffer<uint32_t>(
     std::begin(categorical_sizes), std::end(categorical_sizes)
   );
-  auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
+  auto num_features = 2u;
+  auto input_values = std::vector<float>{
+    7.0f, 6.0f,
+    0.0f, 1.0f,
+    NAN, 1.0f,
+  };
+  auto target_rows = 129u;
+  input_values.reserve(target_rows * num_features);
+  for (auto i = std::size_t{}; i +6u < target_rows * num_features; ++i) {
+    input_values.push_back(input_values[i % (num_features * 3)]);
+  }
+
   auto input_values_buf = kayak::buffer(input_values.data(), input_values.size());
-  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), input_values.size() / num_features, num_features};
 
   auto test_forest = forest_type{
     1,
@@ -113,9 +124,11 @@ TEST(FilBackend, host_forest_model)
   auto output = kayak::data_array<kayak::data_layout::dense_row_major, float>{output_values_buf.data(), input.rows(), 1};
 
   test_forest.predict(output, input);
-  ASSERT_FLOAT_EQ(output.at(0, 0), 13.0f);
-  ASSERT_FLOAT_EQ(output.at(1, 0), 6.0f);
-  ASSERT_FLOAT_EQ(output.at(2, 0), 4.0f);
+  auto expected = std::vector<float>{13, 6, 4};
+
+  for (auto i = std::size_t{}; i < output.rows(); ++i) {
+    ASSERT_FLOAT_EQ(output.at(i, 0), expected[i % expected.size()]);
+  }
 }
 
 }

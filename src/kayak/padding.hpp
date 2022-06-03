@@ -9,7 +9,9 @@ template <typename T, typename U>
 HOST DEVICE auto padding_size(T val, U alignment) {
   auto result = val;
   if (alignment != 0) {
-    result = alignment - (val % alignment);
+    auto remainder = val % alignment;
+    result = alignment - remainder;
+    result *= (remainder != 0);
   }
   return result;
 }

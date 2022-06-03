@@ -22,7 +22,7 @@ inline auto get_max_shared_mem_per_block(int device_id) {
       device_id
     )
   );
-  return uint32_t(result);
+  return uint32_t(result / 2);
 }
 
 inline auto get_sm_count(int device_id) {
@@ -86,6 +86,7 @@ auto block_thread_selector(
   // Chunk size is chosen such that each warp reads from memory aligned to the
   // size of a cache line
   auto chunks = kayak::padded_size(in.rows(), gpu::CHUNK_SIZE) / gpu::CHUNK_SIZE;
+  std::cout << "PADDED SIZE of " << in.rows() << " is " << kayak::padded_size(in.rows(), gpu::CHUNK_SIZE) << "\n";
   std::cout << "Processing " << in.rows() << " rows as " << chunks << " chunks\n";
   auto sm_count = get_sm_count(device_id);
   std::cout << "Processing on " << sm_count << " streaming multiprocessors\n";
@@ -93,7 +94,7 @@ auto block_thread_selector(
     get_max_shared_mem_per_block(device_id) /
     sizeof(io_t)
   );
-  std::cout << "GPU can store " << max_shared_mem_entries_per_block << " entries per block in shared memory\n";
+  std::cout << "GPU can store " << max_shared_mem_entries_per_block << " entries per block in  " << get_max_shared_mem_per_block(device_id) << " bytes of shared memory\n";
 
   // Need at least enough memory to handle output for a single warp
   if (max_shared_mem_entries_per_block < num_class * gpu::WARP_SIZE) {
@@ -122,6 +123,7 @@ auto block_thread_selector(
   threads_per_block = kayak::detail::universal_min(threads_per_block, max_threads_per_block);
 
   if (threads_per_block == 0u) {
+    std::cout << "Recomputing TPB for worst case...\n";
     // In this case, we are using too much shared memory per block, so we must
     // increase the number of blocks and process fewer chunks on each block. We
     // will compute the minimum number of blocks required to bring the shared
@@ -158,6 +160,7 @@ auto block_thread_selector(
   auto shared_memory_per_block = (
     rows_per_block * num_class * threads_per_block * sizeof(io_t)
   );
+  std::cout << "Each block will have enough smem for " << rows_per_block * num_class * threads_per_block << " entries to accommodate " << rows_per_block << " rows of " << num_class << " classes across " << threads_per_block << " threads\n";
   auto result = kernel_params_t{};
   result.blocks = blocks;
   result.threads_per_block = threads_per_block;

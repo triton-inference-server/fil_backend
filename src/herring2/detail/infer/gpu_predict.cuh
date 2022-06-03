@@ -38,7 +38,9 @@ std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predi
 
   auto kernel_params = block_thread_selector(in, num_class, device_id);
 
-  std::cout << model_forest.tree_count() << " trees will be distributed over " << kernel_params.threads_per_block / gpu::WARP_SIZE << " warps\n";
+  std::cout << model_forest.tree_count() << " trees will be distributed over "
+    << kernel_params.threads_per_block / gpu::WARP_SIZE << " warps with "
+    << kernel_params.shared_memory_bytes_per_block << " bytes of shared memory\n";
 
   auto constexpr must_lookup = !(
     std::is_same_v<typename forest_t::output_type, typename forest_t::value_type> ||

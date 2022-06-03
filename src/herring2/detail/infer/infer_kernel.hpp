@@ -62,7 +62,7 @@ void infer_kernel(
     }
   }
 
-#pragma omp parallel for
+// #pragma omp parallel for
   for(auto task_index = raw_index_t{}; task_index < num_tasks; ++task_index) {
     auto const grove_index = task_index / num_chunks;
     auto const chunk_index = task_index % num_chunks;
@@ -91,7 +91,7 @@ void infer_kernel(
     }
   }
 
-#pragma omp parallel for
+// #pragma omp parallel for
   for (auto chunk_index = raw_index_t{}; chunk_index < num_chunks; ++chunk_index) {
     for (auto row_index = chunk_index * CHUNK_SIZE; row_index < in.rows() && row_index < (chunk_index + 1) * CHUNK_SIZE; ++row_index) {
       auto final_output = postprocess(
@@ -105,6 +105,7 @@ void infer_kernel(
       );
       for (auto i = raw_index_t{}; i < final_output.size(); ++i) {
         out.at(row_index, i) = final_output.at(i);
+        // std::cout << row_index << ": " << final_output.at(i) << "\n";
       }
     }
   }
