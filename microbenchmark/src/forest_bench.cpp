@@ -156,13 +156,13 @@ int main(int argc, char** argv) {
   auto output = std::vector<float>(treelite::gtil::GetPredictOutputSize(tl_model.get(), input.rows));
   auto out_cols = output.size() / input.rows;
 
-  // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
-  auto batch_sizes = std::vector<std::size_t>{rows};
-  auto batch_timings = std::vector<std::vector<std::size_t>>(4);
+  auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
+  // auto batch_sizes = std::vector<std::size_t>{rows};
+  auto batch_timings = std::vector<std::vector<std::size_t>>(6);
 
   // Run benchmarks for each framework
   auto start = std::chrono::high_resolution_clock::now();
-  /* for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
     auto batch = batch_sizes[i];
     auto total_batches = rows / batch + (rows % batch != 0);
 
@@ -173,9 +173,13 @@ int main(int argc, char** argv) {
     }
     auto batch_end = std::chrono::high_resolution_clock::now();
     batch_timings[0].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
-  }*/
+  }
   auto end = std::chrono::high_resolution_clock::now();
-  /* auto gtil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count(); */
+  auto gtil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+  auto reference_output = std::vector<float>{};
+  reference_output.reserve(output.size());
+  std::copy(std::begin(output), std::end(output), std::back_inserter(reference_output));
 
   start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -186,26 +190,12 @@ int main(int argc, char** argv) {
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       auto cur_input = matrix{buffer.data() + j * batch, std::min(batch, rows - j * batch), features};
       run_herring(final_model, cur_input, output);
-      break;
     }
     auto batch_end = std::chrono::high_resolution_clock::now();
     batch_timings[1].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto herring_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-  std::cout << "HERRING:  \n";
-  for (auto i=0; i < std::min(output.size(), std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n";
-  auto start_index = std::size_t(std::max(0, int(output.size()) - 10));
-  for (auto i=start_index; i < std::min(output.size(), start_index + std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n";
 
   start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -216,26 +206,14 @@ int main(int argc, char** argv) {
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       auto cur_input = matrix{buffer.data() + j * batch, std::min(batch, rows - j * batch), features};
       // run_herring2(herring2_model, cur_input.data, output.data() + j * batch * out_cols, cur_input.rows, cur_input.cols, out_cols);
-      break;
     }
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[1].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[2].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto herring2_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-  /* std::cout << "HERRING2: \n";
-  for (auto i=0; i < std::min(output.size(), std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n";
-  for (auto i=start_index; i < std::min(output.size(), start_index + std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n"; */
 
-  /* start = std::chrono::high_resolution_clock::now();
+  start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
     auto batch = batch_sizes[i];
     auto total_batches = rows / batch + (rows % batch != 0);
@@ -246,12 +224,12 @@ int main(int argc, char** argv) {
       run_xgb(bst, cur_input, output);
     }
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[2].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto xgb_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-  xgb_check(XGBoosterFree(bst)); */
+  xgb_check(XGBoosterFree(bst));
 
 //  #ifdef TRITON_ENABLE_GPU
   auto fil_output = std::vector<float>(2 * output.size());
@@ -268,22 +246,15 @@ int main(int argc, char** argv) {
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
       run_fil(fil_model, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
-      break;
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[4].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  /* std::cout << "FIL:      ";
-  for (auto i=std::size_t{1}; i < std::min(output.size(), std::size_t{20}); i+=2) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n"; */
 
   gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
 
@@ -304,28 +275,22 @@ int main(int argc, char** argv) {
         out_cols,
         fil_model.get_stream()
       );
-      break;
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     kayak::cuda_check(cudaDeviceSynchronize());
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[5].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(output.data(), gpu_out_buffer.data(), output.size() * sizeof(float), cudaMemcpyDeviceToHost);
   std::cout << "HERRING2: \n";
-  for (auto i=0; i < std::min(output.size(), std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
+  for (auto i=0; i < reference_output.size(); ++i) {
+    if (round(output[i] * 1000) != round(reference_output[i]*1000)) {
+      std::cout << "MISMATCH\n";
+    }
   }
-  std::cout << "\n";
-  for (auto i=start_index; i < std::min(output.size(), start_index + std::size_t{10}); ++i) {
-    std::cout << output[i] << ", ";
-    output[i] = 0;
-  }
-  std::cout << "\n";
 // #endif
 
   // std::cout << "GTIL,Herring,XGBoost";
@@ -334,16 +299,16 @@ int main(int argc, char** argv) {
   // std::cout << ",FIL,";
 // #endif
   std::cout << "\n";
-  // std::cout << gtil_elapsed << ",";
+  std::cout << gtil_elapsed << ",";
   std::cout << herring_elapsed << ",";
   std::cout << herring2_elapsed << ",";
-  // std::cout << xgb_elapsed << ",";
+  std::cout << xgb_elapsed << ",";
 // #ifdef TRITON_ENABLE_GPU
   std::cout << fil_elapsed << ",";
   std::cout << her_gpu_elapsed << ",";
 // #endif
   std::cout << "\n";
-  /* std::cout << "GTIL";
+  std::cout << "GTIL";
   for (auto res : batch_timings[0]) {
     std::cout << "," << res;
   }
@@ -353,16 +318,26 @@ int main(int argc, char** argv) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "XGBoost";
+  std::cout << "Herring2";
   for (auto res : batch_timings[2]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "FIL";
+  std::cout << "XGBoost";
   for (auto res : batch_timings[3]) {
     std::cout << "," << res;
   }
-  std::cout << "\n"; */
+  std::cout << "\n";
+  std::cout << "FIL";
+  for (auto res : batch_timings[4]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "Herring2-GPU";
+  for (auto res : batch_timings[5]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
 
   return 0;
 }
