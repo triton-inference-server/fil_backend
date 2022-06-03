@@ -75,96 +75,69 @@ template <typename io_t>
 auto block_thread_selector(
   kayak::data_array<kayak::data_layout::dense_row_major, io_t> const& in,
   kayak::raw_index_t num_class,
+  kayak::raw_index_t num_trees,
   int device_id
 ) {
-  // TODO (wphicks): I'm not sure if all of this tuning to get the optimal
-  // shared memory configuration will actually be worthwhile, especially for
-  // large batches. It may be better to just take the hit of writing to global
-  // memory or using atomic adds rather than risk having configurations with
-  // too many blocks or too few threads per block.
 
-  // Chunk size is chosen such that each warp reads from memory aligned to the
-  // size of a cache line
-  auto chunks = kayak::padded_size(in.rows(), gpu::CHUNK_SIZE) / gpu::CHUNK_SIZE;
-  std::cout << "PADDED SIZE of " << in.rows() << " is " << kayak::padded_size(in.rows(), gpu::CHUNK_SIZE) << "\n";
-  std::cout << "Processing " << in.rows() << " rows as " << chunks << " chunks\n";
-  auto sm_count = get_sm_count(device_id);
-  std::cout << "Processing on " << sm_count << " streaming multiprocessors\n";
-  auto max_shared_mem_entries_per_block = (
-    get_max_shared_mem_per_block(device_id) /
-    sizeof(io_t)
+  // Must be able to process a warp's worth of chunks or the total number of
+  // rows in a single block, whichever is smaller
+  auto min_rows_per_block = kayak::detail::universal_min(
+    in.rows(),
+    gpu::WARP_SIZE * gpu::CHUNK_SIZE
   );
-  std::cout << "GPU can store " << max_shared_mem_entries_per_block << " entries per block in  " << get_max_shared_mem_per_block(device_id) << " bytes of shared memory\n";
 
-  // Need at least enough memory to handle output for a single warp
-  if (max_shared_mem_entries_per_block < num_class * gpu::WARP_SIZE) {
-    // TODO(wphicks): Allocate global workspace memory rather than throwing
-    throw unusable_model_exception(
-      "Too many classes for available shared memory"
-    );
+  auto max_smem_entries = get_max_shared_mem_per_block(device_id) / sizeof(io_t{});
+
+  // Each warp writes to a different memory location for each row that it
+  // processes. Having more warps means that we require more shared memory
+  // because we require more of these unique memory locations.
+  //
+  // Here, we use as much shared memory as possible without exceeding the
+  // number of trees, since any warps in excess of the number of trees will be
+  // wasted.
+  auto max_warps_per_block = kayak::detail::universal_min(
+    num_trees,
+    max_smem_entries / (min_rows_per_block * num_class)
+  );
+
+  if (max_warps_per_block == 0) {
+    // TODO: Allocate a global workspace instead
+    throw unusable_model_exception("Too many classes for available shared memory");
   }
 
-  // Each block processes a warp's worth of chunks per pass, and we wish to
-  // minimize the number of passes, so ideally we would have as many blocks as
-  // there are chunks divided by the size of a warp.
-  auto blocks = kayak::padded_size(chunks, gpu::WARP_SIZE) / gpu::WARP_SIZE;
-  if (blocks > sm_count) {
-    blocks = kayak::downpadded_size(blocks, sm_count);
+  // Make sure that we have not exceeded hardware limits on the number of warps
+  auto warps_per_block = kayak::detail::universal_min(
+    max_warps_per_block,
+    get_max_threads_per_block(device_id) / gpu::WARP_SIZE
+  );
+
+  // Now that we have fixed the number of warps per block, we determine the
+  // maximum number of chunks we can process on each block based on the available
+  // shared memory. Every warp writes to a unique location for each row that it
+  // processes, so we divide available memory by the amount of memory required
+  // for each warp to store the output for a single chunk.
+  auto max_chunks_per_block = max_smem_entries / (gpu::CHUNK_SIZE * num_class * warps_per_block);
+
+  if (max_chunks_per_block * gpu::CHUNK_SIZE < min_rows_per_block ) {
+    throw unusable_model_exception("Unexpected error calculating chunks per block");
   }
-  auto chunks_per_block = kayak::padded_size(chunks, blocks) / blocks;
-  auto rows_per_block = chunks_per_block * gpu::CHUNK_SIZE;
 
-  auto threads_per_block = kayak::downpadded_size(
-    max_shared_mem_entries_per_block / (rows_per_block * num_class),
-    gpu::WARP_SIZE
-  );
-  std::cout << "Ideal threads per block: " << threads_per_block << "\n";
-  auto max_threads_per_block = get_max_threads_per_block(device_id);
-  threads_per_block = kayak::detail::universal_min(threads_per_block, max_threads_per_block);
+  auto used_smem_entries = max_chunks_per_block * gpu::CHUNK_SIZE * num_class * warps_per_block;
 
-  if (threads_per_block == 0u) {
-    std::cout << "Recomputing TPB for worst case...\n";
-    // In this case, we are using too much shared memory per block, so we must
-    // increase the number of blocks and process fewer chunks on each block. We
-    // will compute the minimum number of blocks required to bring the shared
-    // memory under the hardware limit.
-    threads_per_block = gpu::WARP_SIZE;
-    auto min_smem = threads_per_block * num_class;
-    // We know that this will not be zero, since we already checked if we have
-    // enough memory for the minimum memory consumption configuration
-    rows_per_block = kayak::downpadded_size(
-      max_shared_mem_entries_per_block / min_smem, gpu::CHUNK_SIZE
-    );
-    chunks_per_block = rows_per_block / gpu::CHUNK_SIZE;
-    blocks = (
-      chunks / chunks_per_block +
-      kayak::raw_index_t{chunks % chunks_per_block == 0}
-    );
+  auto total_chunks = kayak::padded_size(in.rows(), gpu::CHUNK_SIZE) / gpu::CHUNK_SIZE;
+
+  // Now we just need enough blocks to process all chunks
+  auto total_blocks = kayak::padded_size(total_chunks, max_chunks_per_block) / max_chunks_per_block;
+
+  if (total_blocks == 0) {
+    throw unusable_model_exception("Unexpected error calculating total blocks");
   }
-  std::cout << "Distributing " << in.rows() << " rows as " << chunks << " chunks over " << blocks << " blocks\n";
 
-  std::cout << "Each block will process " << rows_per_block << " rows or " << chunks_per_block << " chunks\n";
-
-  // Ensure that we have a minimum of one warp and a maximum no larger than the
-  // maximum allowed per block or the maximum to fully occupy all SMs
-  std::cout << "Current TPB: " << threads_per_block << "\n";
-  std::cout << "Max TPB: " << get_max_threads_per_block(device_id) << "\n";
-  std::cout << "Max threads: " << get_max_threads(device_id) << "\n";
-  threads_per_block = kayak::detail::universal_max(
-    kayak::detail::universal_min(
-      kayak::detail::universal_min(threads_per_block, get_max_threads_per_block(device_id)),
-      get_max_threads(device_id) / blocks
-    ),
-    gpu::WARP_SIZE
-  );
-  auto shared_memory_per_block = (
-    rows_per_block * num_class * threads_per_block * sizeof(io_t)
-  );
-  std::cout << "Each block will have enough smem for " << rows_per_block * num_class * threads_per_block << " entries to accommodate " << rows_per_block << " rows of " << num_class << " classes across " << threads_per_block << " threads\n";
   auto result = kernel_params_t{};
-  result.blocks = blocks;
-  result.threads_per_block = threads_per_block;
-  result.shared_memory_bytes_per_block = shared_memory_per_block;
+
+  result.blocks = total_blocks;
+  result.threads_per_block = warps_per_block * gpu::WARP_SIZE;
+  result.shared_memory_bytes_per_block = used_smem_entries * sizeof(io_t{});
 
   return result;
 }

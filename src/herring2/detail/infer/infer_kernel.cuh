@@ -41,13 +41,14 @@ __global__ void infer_kernel(
   auto const grove_index = __double2uint_rd(threadIdx.x * INV_WARP_SIZE);
   auto const num_warps = __double2uint_ru(blockDim.x * INV_WARP_SIZE);
   auto const warp_index = int(threadIdx.x * INV_WARP_SIZE);
-  auto const num_groves = kayak::detail::universal_min(forest.tree_count(), num_warps);
+
+  auto const smem_entries = shared_memory_bytes / sizeof(io_t{});
 
   extern __shared__ io_t workspace_mem[];
   // Zero-initialize workspace
   for (
     auto i = threadIdx.x;
-    i < shared_memory_bytes / sizeof(io_t{});
+    i < smem_entries;
     i += blockDim.x
   ) {
     workspace_mem[i] = io_t{};
@@ -55,12 +56,10 @@ __global__ void infer_kernel(
 
   __syncthreads();
 
-  auto rows_per_block = CHUNK_SIZE * kayak::padded_size(
-    kayak::padded_size(in.rows(), CHUNK_SIZE) / CHUNK_SIZE, gridDim.x
-  ) / gridDim.x;
+  auto rows_per_block = uint32_t(smem_entries / (num_class * num_warps));
 
   auto workspace = kayak::ndarray<io_t, 2, 0, 1>(
-    static_cast<io_t*>(workspace_mem), rows_per_block, num_class, num_groves
+    static_cast<io_t*>(workspace_mem), rows_per_block, num_class, num_warps
   );
   auto chunk_loop_index = 0u;
   // WH: This implies that each block MUST be able to take care of a warp's
@@ -102,10 +101,10 @@ __global__ void infer_kernel(
         } else {
           auto class_index = tree_index % num_class;
           workspace.at(output_index, class_index, grove_index) += tree_out.at(0);
-          printf("%d, %d, %d, %u, %u, %u, %u, %u, %f\n", blockIdx.x,
+          /* printf("%d, %d, %d, %u, %u, %u, %u, %u, %f\n", blockIdx.x,
               warp_index, threadIdx.x, chunk_index, row_index, tree_index,
               output_index, grove_index,
-              float(tree_out.at(0)));
+              float(tree_out.at(0))); */
         }
       }
     }

@@ -254,9 +254,10 @@ int main(int argc, char** argv) {
   xgb_check(XGBoosterFree(bst)); */
 
 //  #ifdef TRITON_ENABLE_GPU
+  auto fil_output = std::vector<float>(2 * output.size());
   auto gpu_buffer = rmm::device_buffer{buffer.size() * sizeof(float), fil_model.get_stream()};
   cudaMemcpy(gpu_buffer.data(), buffer.data(), buffer.size() * sizeof(float), cudaMemcpyHostToDevice);
-  auto gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
+  auto gpu_out_buffer = rmm::device_buffer{fil_output.size() * sizeof(float), fil_model.get_stream()};
 
   start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -266,7 +267,7 @@ int main(int argc, char** argv) {
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
-      // run_fil(fil_model, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
+      run_fil(fil_model, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
       break;
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
@@ -276,7 +277,7 @@ int main(int argc, char** argv) {
   end = std::chrono::high_resolution_clock::now();
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-  cudaMemcpy(output.data(), gpu_out_buffer.data(), output.size() * sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
   /* std::cout << "FIL:      ";
   for (auto i=std::size_t{1}; i < std::min(output.size(), std::size_t{20}); i+=2) {
     std::cout << output[i] << ", ";
@@ -306,6 +307,7 @@ int main(int argc, char** argv) {
       break;
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    kayak::cuda_check(cudaDeviceSynchronize());
     auto batch_end = std::chrono::high_resolution_clock::now();
     batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
