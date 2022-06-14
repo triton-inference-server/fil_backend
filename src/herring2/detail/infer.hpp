@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <herring2/detail/infer/cpu.hpp>
 #ifdef ENABLE_GPU
 #include <herring2/detail/infer/gpu.hpp>
@@ -29,6 +30,7 @@ template<
   int device_id=0,
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
+  NVTX3_FUNC_RANGE();
   inference::predict<D>(forest, out, in, num_class, element_postproc, row_postproc, average_factor, bias, postproc_constant, device_id, stream);
 }
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <iostream>
 #include <herring2/detail/gpu_constants.hpp>  // Can be removed with iostream
 #include <herring2/detail/infer/algorithm_selector.hpp>
@@ -36,6 +37,7 @@ std::enable_if_t<D == kayak::device_type::gpu && kayak::GPU_ENABLED, void> predi
   kayak::cuda_stream stream
 ) {
 
+  NVTX3_FUNC_RANGE();
   auto kernel_params = block_thread_selector(in, num_class, model_forest.tree_count(), device_id);
 
   /* std::cout << model_forest.tree_count() << " trees will be distributed over "

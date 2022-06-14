@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <math.h>
 #include <kayak/data_array.hpp>
 #include <kayak/detail/index_type.hpp>

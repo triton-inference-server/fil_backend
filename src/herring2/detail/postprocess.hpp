@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <cmath>
 #include <herring/output_ops.hpp>
 #include <kayak/detail/index_type.hpp>

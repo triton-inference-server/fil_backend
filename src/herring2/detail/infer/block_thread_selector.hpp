@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <herring2/detail/gpu_constants.hpp>
@@ -78,6 +79,7 @@ auto block_thread_selector(
   kayak::raw_index_t num_trees,
   int device_id
 ) {
+  NVTX3_FUNC_RANGE();
 
   // Must be able to process a warp's worth of chunks or the total number of
   // rows in a single block, whichever is smaller

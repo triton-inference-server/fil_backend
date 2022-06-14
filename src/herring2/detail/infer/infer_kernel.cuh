@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <stddef.h>
 #include <herring/output_ops.hpp>
 #include <herring2/detail/gpu_constants.hpp>

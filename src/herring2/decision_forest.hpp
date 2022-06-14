@@ -1,4 +1,5 @@
 #pragma once
+#include <nvtx3/nvtx3.hpp>
 #include <stdint.h>
 #include <algorithm>
 #include <cstddef>
@@ -77,6 +78,7 @@ struct decision_forest {
     int device_id=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
+    NVTX3_FUNC_RANGE();
     if (memory_type() == kayak::device_type::gpu) {
       herring::detail::predict<kayak::device_type::gpu>(
         obj(),
