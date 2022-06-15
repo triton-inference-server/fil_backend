@@ -42,8 +42,8 @@ else()
 endif()
 
 target_compile_options(forest_bench
-  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
-          "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
+  PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>
+          $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -lineinfo>
 )
 target_include_directories(forest_bench
   PRIVATE "${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include"
