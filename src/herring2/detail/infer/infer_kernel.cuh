@@ -63,35 +63,29 @@ __global__ void infer_kernel(
     static_cast<io_t*>(workspace_mem), rows_per_block, num_class, num_warps
   );
   auto chunk_loop_index = 0u;
-  // WH: This implies that each block MUST be able to take care of a warp's
-  // worth of chunks or the total number of chunks, whichever is less
   for (
-    auto chunk_index = warp_remainder + WARP_SIZE * blockIdx.x;  // WH: CHECK
-    chunk_index < num_chunks;  // WH: CHECK
-    chunk_index += WARP_SIZE * gridDim.x // WH: CHECK
+    auto chunk_index = warp_remainder + WARP_SIZE * blockIdx.x;
+    chunk_index < num_chunks;
+    chunk_index += WARP_SIZE * gridDim.x
   ) {
     auto row_start = chunk_index * CHUNK_SIZE;
     auto row_end = (chunk_index + 1) * CHUNK_SIZE;
     row_end = row_end > in.rows() ? in.rows() : row_end;
     for (
-      auto tree_index = warp_index;  // WH: CHECK
-      tree_index < forest.tree_count();  // WH: CHECK
-      tree_index += num_warps  // WH: CHECK
+      auto tree_index = warp_index;
+      tree_index < forest.tree_count();
+      tree_index += num_warps
     ) {
-      for (auto row_index = row_start; row_index < row_end; ++row_index) {  // WH: CHECK
+      for (auto row_index = row_start; row_index < row_end; ++row_index) {
         auto tree_out = forest.template evaluate_tree<categorical, false, lookup>(
           tree_index,
           row_index,
           in
         );
-        auto output_index = (  // WH: CHECK
+        auto output_index = (
           (warp_remainder + chunk_loop_index * WARP_SIZE) * CHUNK_SIZE
           + row_index - row_start
         );
-        // printf("%u, %u\n", output_index, grove_index);
-        /* if (blockIdx.x == 1) {
-          printf("%d, %d: Storing %u to %u\n", blockIdx.x, threadIdx.x, row_index, output_index);
-        } */
         // Every thread within the warp has a different output_index and every
         // warp has a different grove_index, so there will be no collisions for
         // incrementing outputs

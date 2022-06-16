@@ -132,8 +132,9 @@ struct forest {
     auto root_index_forest = tree_offsets_[tree_index];
     auto node_index_tree = raw_index_t{};
     auto offset = raw_index_t{};
+    auto next_offset = tree[node_index_tree];
 
-    while (tree[node_index_tree] != offset_type{}) {
+    while (next_offset != offset_type{}) {
       auto condition = false;
       if constexpr (categorical) {
         if (categorical_sizes_[root_index_forest + node_index_tree] == 0) {
@@ -151,13 +152,14 @@ struct forest {
         );
       }
       if constexpr (layout == kayak::tree_layout::depth_first) {
-        offset = 1 + (tree[node_index_tree] - 1) * condition;
+        offset = 1 + (next_offset - 1) * condition;
       } else if constexpr (layout == kayak::tree_layout::breadth_first) {
-        offset = tree[node_index_tree] + condition - 1;
+        offset = next_offset + condition - 1;
       } else {
         static_assert(layout == kayak::tree_layout::depth_first);
       }
       node_index_tree += offset;
+      next_offset = tree[node_index_tree];
     }
 
     return root_index_forest + node_index_tree;

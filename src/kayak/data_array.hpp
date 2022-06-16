@@ -65,6 +65,41 @@ struct data_array {
     return data()[index];
   }
 
+  template<typename lambda_t>
+  HOST DEVICE void for_each(lambda_t&& lambda) {
+    for (auto i=raw_index_t{}; i < rows_ * cols_; ++i) {
+      lambda(data_[i]);
+    }
+  }
+
+  template<typename lambda_t>
+  HOST DEVICE void for_each_col(index_type row, lambda_t&& lambda) {
+    if constexpr (layout == data_layout::dense_row_major) {
+      auto begin = data_ + get_index(row, index_type{});
+      for (auto i=raw_index_t{}; i < cols_; ++i) {
+        lambda(begin[i]);
+      }
+    } else {
+      for (auto i=raw_index_t{}; i < cols_; ++i) {
+        lambda(at(row, i));
+      }
+    }
+  }
+
+  template<typename lambda_t>
+  HOST DEVICE void for_each_row(index_type col, lambda_t&& lambda) {
+    if constexpr (layout == data_layout::dense_col_major) {
+      auto begin = data_ + get_index(index_type{}, col);
+      for (auto i=raw_index_t{}; i < rows_; ++i) {
+        lambda(begin[i]);
+      }
+    } else {
+      for (auto i=raw_index_t{}; i < rows_; ++i) {
+        lambda(at(i, col));
+      }
+    }
+  }
+
  private:
   T* data_;
   raw_index_t rows_;

@@ -47,6 +47,7 @@ function(find_and_configure_cuml)
               "USE_CCACHE ON"
               "RAFT_COMPILE_LIBRARIES OFF"
               "RAFT_ENABLE_NN_DEPENDENCIES OFF"
+              "CUDA_ENABLE_LINE_INFO ON"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using CUML located in ${cuml_SOURCE_DIR}")
