@@ -1,9 +1,17 @@
-ARG TRITON_VERSION=21.09
+ARG TRITON_VERSION=21.08
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 
 FROM ${BASE_IMAGE} as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
+
+RUN [ $(uname -m) = 'x86_64' ] \
+ && curl -o /tmp/cuda-keyring.deb \
+      https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb \
+ || curl -o /tmp/cuda-keyring.deb \
+      https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/sbsa/cuda-keyring_1.0-1_all.deb; \
+ dpkg -i /tmp/cuda-keyring.deb \
+ && rm /tmp/cuda-keyring.deb
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y wget patchelf \
