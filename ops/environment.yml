@@ -4,7 +4,7 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cmake
-  - cudatoolkit=11
+  - cmake<3.22
+  - cudatoolkit=11.4
   - libcuml=21.08
   - rapidjson
