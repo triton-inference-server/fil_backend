@@ -89,6 +89,8 @@ auto block_thread_selector(
   );
 
   auto max_smem_entries = get_max_shared_mem_per_block(device_id) / sizeof(io_t{});
+  std::cout << "Max shared mem per block: " << get_max_shared_mem_per_block(device_id) << "\n";
+  std::cout << "Max threads per block: " << get_max_threads_per_block(device_id) << "\n";
 
   // Each warp writes to a different memory location for each row that it
   // processes. Having more warps means that we require more shared memory

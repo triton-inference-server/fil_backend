@@ -222,11 +222,8 @@ struct forest {
     auto result = false;
     auto value = input.at(row_index, features_[node_index]);
     if constexpr (!precomputed_missing) {
-      if (isnan(value)) {
-        result = default_distant_[node_index];
-      } else {
-        result = evaluate_node<categorical, true>(node_index, row_index, input);
-      }
+      auto missing = isnan(value);
+      result = missing * default_distant_[node_index] + (!missing) * evaluate_node<categorical, true>(node_index, row_index, input);
     } else {
       if constexpr (!categorical) {
         result = value < values_[node_index].value;

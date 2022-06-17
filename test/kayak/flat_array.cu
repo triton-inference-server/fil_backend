@@ -45,9 +45,15 @@ TEST(FilBackend, dev_flat_array)
   ASSERT_EQ(arr.size(), buf.size());
   ASSERT_EQ(arr.data(), buf.data());
 
-  auto out_arr = make_flat_array<array_encoding::dense, bool>(data.size(), device_type::gpu);
-  check_flat_array_access<<<1,1>>>(out_arr.obj(), arr);
-  auto out_buf_host = buffer<bool>{out_arr.buffer(), device_type::cpu};
+  auto out_buf = buffer<bool>{
+    data.size(),
+    device_type::gpu
+  };
+  auto out_arr = flat_array<array_encoding::dense, bool>{
+    out_buf.data(), out_buf.size()
+  };
+  check_flat_array_access<<<1,1>>>(out_arr, arr);
+  auto out_buf_host = buffer<bool>{out_buf, device_type::cpu};
   cuda_check(cudaStreamSynchronize(0));
   for (auto i = std::uint32_t{}; i < data.size(); ++i) {
     ASSERT_EQ(out_buf_host.data()[i], true);

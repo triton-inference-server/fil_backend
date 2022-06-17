@@ -4,7 +4,6 @@
 #include <kayak/detail/raw_array.hpp>
 #include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
-#include <kayak/structured_data.hpp>
 #include <type_traits>
 #include <utility>
 
@@ -113,32 +112,5 @@ struct ndarray {
     return other_data[get_index(std::move(indices))];
   }
 };
-
-namespace detail {
-  template<typename... T>
-  auto variadic_product(T... factors) {
-    auto result = raw_index_t{1};
-    for (auto&& factor : {factors...}) {
-      result *= factor;
-    }
-    return result;
-  }
-}
-
-template <typename T, raw_index_t... layout, bool bounds_check=false, typename... args_t>
-auto make_ndarray(
-    args_t&&... dims,
-    device_type mem_type=device_type::cpu,
-    int device=0,
-    cuda_stream stream=cuda_stream{}
-  ) {
-  return make_structured_data<ndarray<T, layout...>, bounds_check>(
-    detail::variadic_product(dims...),
-    mem_type,
-    device,
-    stream,
-    std::forward<args_t...>(dims)...
-  );
-}
 
 }

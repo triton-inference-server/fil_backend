@@ -1,7 +1,9 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <stdint.h>
+#include <iostream>
 #include <numeric>
 #include <optional>
 #include <vector>
@@ -50,6 +52,7 @@ struct decision_forest_builder {
         tree_offsets_.back() + cur_tree_size_
       );
     }
+    max_tree_size_ = std::max(cur_tree_size_, max_tree_size_);
     cur_tree_size_ = 0;
   }
 
@@ -164,6 +167,7 @@ struct decision_forest_builder {
     average_factor_{},
     bias_{},
     postproc_constant_{},
+    max_tree_size_{},
     tree_offsets_{},
     node_storage_size{},
     node_values_{},
@@ -221,6 +225,7 @@ struct decision_forest_builder {
       };
     }
 
+    std::cout << "Max tree size: " << max_tree_size_ << "\n";
     return decision_forest_t{
       num_class,
       num_features,
@@ -251,6 +256,7 @@ struct decision_forest_builder {
   double average_factor_;
   double bias_;
   double postproc_constant_;
+  std::size_t max_tree_size_;
 
   std::vector<raw_index_t> tree_offsets_;
   raw_index_t node_storage_size;

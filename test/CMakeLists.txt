@@ -37,7 +37,6 @@ add_executable(test_kayak
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/ndarray.cu>
     test/kayak/tree.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/kayak/tree.cu>
-    test/kayak/structured_data.cpp
 )
 
 add_executable(test_herring

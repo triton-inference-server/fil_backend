@@ -180,7 +180,6 @@ struct decision_forest {
   double bias_;
   double postproc_constant_;
   raw_index_t leaf_size_;
-  // TODO: Gather postproc metadata
 };
 
 template<
@@ -194,7 +193,7 @@ template<
 using forest_model = decision_forest<
   layout,
   std::conditional_t<double_precision, double, float>,
-  std::conditional_t<many_features, uint32_t, uint16_t>,
+  std::conditional_t<many_features, uint16_t, uint8_t>,
   std::conditional_t<large_trees, uint32_t, uint16_t>,
   uint32_t,
   output_t,

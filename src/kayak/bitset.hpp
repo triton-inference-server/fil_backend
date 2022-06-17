@@ -7,8 +7,6 @@
 #include <kayak/detail/universal_cmp.hpp>
 #include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
-#include <kayak/structured_data.hpp>
-#include <kayak/structured_multidata.hpp>
 
 namespace kayak {
 template<typename storage_t>
