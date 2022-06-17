@@ -4,7 +4,7 @@ channels:
   - nvidia
   - conda-forge
 dependencies:
-  - cmake>=3.21
+  - cmake=3.21
   - cudatoolkit=11.4
   - ninja
   - rapidjson
