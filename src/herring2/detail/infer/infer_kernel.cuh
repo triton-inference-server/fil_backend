@@ -79,8 +79,7 @@ __global__ void infer_kernel(
       for (auto row_index = row_start; row_index < row_end; ++row_index) {
         auto tree_out = forest.template evaluate_tree<categorical, false, lookup>(
           tree_index,
-          row_index,
-          in
+          in.get_row(row_index)
         );
         auto output_index = (
           (warp_remainder + chunk_loop_index * WARP_SIZE) * CHUNK_SIZE

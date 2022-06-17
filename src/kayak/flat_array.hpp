@@ -45,6 +45,13 @@ struct flat_array {
     return data()[index];
   }
 
+  template<typename lambda_t>
+  HOST DEVICE void for_each(lambda_t&& lambda) {
+    for (auto i=raw_index_t{}; i < size_; ++i) {
+      lambda(data_[i]);
+    }
+  }
+
  private:
   T* data_;
   raw_index_t size_;

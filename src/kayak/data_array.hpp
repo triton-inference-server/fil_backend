@@ -1,6 +1,7 @@
 #pragma once
 #include <kayak/detail/index_type.hpp>
 #include <kayak/device_type.hpp>
+#include <kayak/flat_array.hpp>
 #include <kayak/gpu_support.hpp>
 
 namespace kayak {
@@ -97,6 +98,16 @@ struct data_array {
         lambda(at(i, col));
       }
     }
+  }
+
+  template<data_layout method_layout=layout, typename=std::enable_if_t<method_layout == data_layout::dense_row_major>>
+  HOST DEVICE auto get_row(index_type row) {
+    return flat_array<array_encoding::dense, value_type>{&(at(row, 0u)), cols_};
+  }
+
+  template<data_layout method_layout=layout, typename=std::enable_if_t<method_layout == data_layout::dense_col_major>>
+  HOST DEVICE auto get_col(index_type col) {
+    return flat_array<array_encoding::dense, value_type>{&(at(0u, col)), cols_};
   }
 
  private:

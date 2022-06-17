@@ -53,26 +53,24 @@ struct forest {
     tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
-  template <bool categorical, bool precomputed_missing, bool lookup, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, bool lookup, typename input_t>
   HOST DEVICE auto evaluate_tree(
     index_type tree_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input
+    input_t const& input
   ) const {
     // TODO(wphicks): host_only_throw if bounds_check enabled and tree index
     // OOB
-    return get_output<lookup>(find_leaf<categorical, precomputed_missing>(tree_index, row_index, input));
+    return get_output<lookup>(find_leaf<categorical, precomputed_missing>(tree_index, input));
   }
 
-  template <bool categorical, bool lookup, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool lookup, typename input_t, typename missing_t>
   HOST DEVICE auto evaluate_tree(
     index_type tree_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input,
-    kayak::data_array<input_layout, bool> const& missing_values
+    input_t const& input,
+    missing_t const& missing_values
   ) const {
     return get_output<lookup>(
-      find_leaf<categorical>(tree_index, row_index, input, missing_values)
+      find_leaf<categorical>(tree_index, input, missing_values)
     );
   }
 
@@ -122,11 +120,10 @@ struct forest {
     }
   }
 
-  template <bool categorical, bool precomputed_missing, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, typename input_t>
   HOST DEVICE auto find_leaf(
     index_type tree_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input
+    input_t const& input
   ) const {
     auto tree = get_tree(tree_index);
     auto root_index_forest = tree_offsets_[tree_index];
@@ -139,16 +136,16 @@ struct forest {
       if constexpr (categorical) {
         if (categorical_sizes_[root_index_forest + node_index_tree] == 0) {
           condition = evaluate_node<false, precomputed_missing>(
-            root_index_forest + node_index_tree, row_index, input
+            root_index_forest + node_index_tree, input
           );
         } else {
           condition = evaluate_node<true, precomputed_missing>(
-            root_index_forest + node_index_tree, row_index, input
+            root_index_forest + node_index_tree, input
           );
         }
       } else {
         condition = evaluate_node<false, precomputed_missing>(
-          root_index_forest + node_index_tree, row_index, input
+          root_index_forest + node_index_tree, input
         );
       }
       if constexpr (layout == kayak::tree_layout::depth_first) {
@@ -165,12 +162,11 @@ struct forest {
     return root_index_forest + node_index_tree;
   }
 
-  template <bool categorical, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, typename input_t, typename missing_t>
   HOST DEVICE auto find_leaf(
     index_type tree_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input,
-    kayak::data_array<input_layout, bool> const& missing_values
+    input_t const& input,
+    missing_t const& missing_values
   ) const {
     auto tree = get_tree(tree_index);
     auto root_index_forest = tree_offsets_[tree_index];
@@ -182,16 +178,16 @@ struct forest {
       if constexpr (categorical) {
         if (categorical_sizes_[root_index_forest + node_index_tree] == 0) {
           condition = evaluate_node<false>(
-            root_index_forest + node_index_tree, row_index, input, missing_values
+            root_index_forest + node_index_tree, input, missing_values
           );
         } else {
           condition = evaluate_node<true>(
-            root_index_forest + node_index_tree, row_index, input, missing_values
+            root_index_forest + node_index_tree, input, missing_values
           );
         }
       } else {
         condition = evaluate_node<false>(
-          root_index_forest + node_index_tree, row_index, input, missing_values
+          root_index_forest + node_index_tree, input, missing_values
         );
       }
       if constexpr (layout == kayak::tree_layout::depth_first) {
@@ -213,17 +209,19 @@ struct forest {
     return kayak::tree<layout, offset_type>{distant_offsets_ + min_index, max_index - min_index};
   }
 
-  template <bool categorical, bool precomputed_missing, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, bool precomputed_missing, typename input_t>
   HOST DEVICE [[nodiscard]] auto evaluate_node(
     index_type node_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input
+    input_t const& input
   ) const {
     auto result = false;
-    auto value = input.at(row_index, features_[node_index]);
+    auto value = input.at(features_[node_index]);
     if constexpr (!precomputed_missing) {
-      auto missing = isnan(value);
-      result = missing * default_distant_[node_index] + (!missing) * evaluate_node<categorical, true>(node_index, row_index, input);
+      if (isnan(value)) {
+        result = default_distant_[node_index];
+      } else {
+        result = evaluate_node<categorical, true>(node_index, input);
+      }
     } else {
       if constexpr (!categorical) {
         result = value < values_[node_index].value;
@@ -253,18 +251,17 @@ struct forest {
     return result;
   }
 
-  template <bool categorical, kayak::data_layout input_layout, typename input_t>
+  template <bool categorical, typename input_t, typename missing_t>
   HOST DEVICE [[nodiscard]] auto evaluate_node(
     index_type node_index,
-    index_type row_index,
-    kayak::data_array<input_layout, input_t> const& input,
-    kayak::data_array<input_layout, bool> const& missing_values
+    input_t const& input,
+    missing_t const& missing_values
   ) const {
     auto col = features_[node_index];
-    if (missing_values.at(row_index, col)) {
+    if (missing_values.at(col)) {
       return default_distant_[node_index];
     } else {
-      return evaluate_node<categorical, true>(node_index, row_index, input);
+      return evaluate_node<categorical, true>(node_index, input);
     }
   }
 };

@@ -112,47 +112,47 @@ TEST(FilBackend, small_host_forest)
     missing_buf.data(), 3, 2
   };
 
-  auto output = test_forest.evaluate_tree<true, true, false>(0, 0, input);
+  auto output = test_forest.evaluate_tree<true, true, false>(0, input.get_row(0));
   ASSERT_FLOAT_EQ(output.at(0), 6.0f);
-  output = test_forest.evaluate_tree<false, true, false>(0, 0, input);
+  output = test_forest.evaluate_tree<false, true, false>(0, input.get_row(0));
   ASSERT_FLOAT_EQ(output.at(0), 6.0f);
-  output = test_forest.evaluate_tree<true, true, false>(1, 0, input);
+  output = test_forest.evaluate_tree<true, true, false>(1, input.get_row(0));
   ASSERT_FLOAT_EQ(output.at(0), 7.0f);
-  output = test_forest.evaluate_tree<true, true, false>(2, 0, input);
+  output = test_forest.evaluate_tree<true, true, false>(2, input.get_row(0));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, true, false>(2, 0, input);
+  output = test_forest.evaluate_tree<false, true, false>(2, input.get_row(0));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
 
-  output = test_forest.evaluate_tree<true, true, false>(0, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(0, input.get_row(1));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, true, false>(0, 1, input);
+  output = test_forest.evaluate_tree<false, true, false>(0, input.get_row(1));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, true, false>(1, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(1, input.get_row(1));
   ASSERT_FLOAT_EQ(output.at(0), 4.0f);
-  output = test_forest.evaluate_tree<true, true, false>(2, 1, input);
+  output = test_forest.evaluate_tree<true, true, false>(2, input.get_row(1));
   ASSERT_FLOAT_EQ(output.at(0), 2.0f);
-  output = test_forest.evaluate_tree<false, true, false>(2, 1, input);
+  output = test_forest.evaluate_tree<false, true, false>(2, input.get_row(1));
   ASSERT_FLOAT_EQ(output.at(0), 2.0f);
 
-  output = test_forest.evaluate_tree<true, false>(0, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, false>(0, input.get_row(2), missing_input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, false, false>(0, 2, input);
+  output = test_forest.evaluate_tree<true, false, false>(0, input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(0, 2, input, missing_input);
+  output = test_forest.evaluate_tree<false, false>(0, input.get_row(2), missing_input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false, false>(0, 2, input);
+  output = test_forest.evaluate_tree<false, false, false>(0, input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, false>(1, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, false>(1, input.get_row(2), missing_input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 4.0f);
-  output = test_forest.evaluate_tree<true, false, false>(1, 2, input);
+  output = test_forest.evaluate_tree<true, false, false>(1, input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 4.0f);
-  output = test_forest.evaluate_tree<true, false>(2, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, false>(2, input.get_row(2), missing_input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<true, false, false>(2, 2, input);
+  output = test_forest.evaluate_tree<true, false, false>(2, input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false>(2, 2, input, missing_input);
+  output = test_forest.evaluate_tree<false, false>(2, input.get_row(2), missing_input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
-  output = test_forest.evaluate_tree<false, false, false>(2, 2, input);
+  output = test_forest.evaluate_tree<false, false, false>(2, input.get_row(2));
   ASSERT_FLOAT_EQ(output.at(0), 0.0f);
 }
 
@@ -253,75 +253,75 @@ TEST(FilBackend, large_host_forest)
     categorical_sizes_buf.data(),
     category_buf.data()
   };
-  auto input_values = std::vector<float>{7.0f, 0.0f, NAN, 6.0f, 1.0f, 1.0f};
+  auto input_values = std::vector<float>{7.0f, 6.0f, 0.0f, 1.0f, NAN, 1.0f};
   auto input_values_buf = kayak::buffer(input_values.data(), input_values.size());
-  auto input = kayak::data_array<kayak::data_layout::dense_col_major, float>{input_values_buf.data(), 3, 2};
-  auto missing_vals = std::vector<bool>{false, false, true, false, false, false};
+  auto input = kayak::data_array<kayak::data_layout::dense_row_major, float>{input_values_buf.data(), 3, 2};
+  auto missing_vals = std::vector<bool>{false, false, false, false, true, false};
   auto missing_buf = kayak::buffer<bool>(std::begin(missing_vals), std::end(missing_vals));
-  auto missing_input = kayak::data_array<kayak::data_layout::dense_col_major, bool>{
+  auto missing_input = kayak::data_array<kayak::data_layout::dense_row_major, bool>{
     missing_buf.data(), 3, 2
   };
 
-  auto output = test_forest.evaluate_tree<true, true, true>(0, 0, input);
+  auto output = test_forest.evaluate_tree<true, true, true>(0, input.get_row(0));
   ASSERT_EQ(output.at(0), uint64_t{6});
   ASSERT_EQ(output.at(1), uint64_t{6});
-  output = test_forest.evaluate_tree<false, true, true>(0, 0, input);
+  output = test_forest.evaluate_tree<false, true, true>(0, input.get_row(0));
   ASSERT_EQ(output.at(0), uint64_t{6});
   ASSERT_EQ(output.at(1), uint64_t{6});
-  output = test_forest.evaluate_tree<true, true, true>(1, 0, input);
+  output = test_forest.evaluate_tree<true, true, true>(1, input.get_row(0));
   ASSERT_EQ(output.at(0), uint64_t{7});
   ASSERT_EQ(output.at(1), uint64_t{7});
-  output = test_forest.evaluate_tree<true, true, true>(2, 0, input);
+  output = test_forest.evaluate_tree<true, true, true>(2, input.get_row(0));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, true, true>(2, 0, input);
+  output = test_forest.evaluate_tree<false, true, true>(2, input.get_row(0));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
 
-  output = test_forest.evaluate_tree<true, true, true>(0, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(0, input.get_row(1));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, true, true>(0, 1, input);
+  output = test_forest.evaluate_tree<false, true, true>(0, input.get_row(1));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<true, true, true>(1, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(1, input.get_row(1));
   ASSERT_EQ(output.at(0), uint64_t{4});
   ASSERT_EQ(output.at(1), uint64_t{4});
-  output = test_forest.evaluate_tree<true, true, true>(2, 1, input);
+  output = test_forest.evaluate_tree<true, true, true>(2, input.get_row(1));
   ASSERT_EQ(output.at(0), uint64_t{2});
   ASSERT_EQ(output.at(1), uint64_t{2});
-  output = test_forest.evaluate_tree<false, true, true>(2, 1, input);
+  output = test_forest.evaluate_tree<false, true, true>(2, input.get_row(1));
   ASSERT_EQ(output.at(0), uint64_t{2});
   ASSERT_EQ(output.at(1), uint64_t{2});
 
-  output = test_forest.evaluate_tree<true, true>(0, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, true>(0, input.get_row(2), missing_input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<true, false, true>(0, 2, input);
+  output = test_forest.evaluate_tree<true, false, true>(0, input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, true>(0, 2, input, missing_input);
+  output = test_forest.evaluate_tree<false, true>(0, input.get_row(2), missing_input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, false, true>(0, 2, input);
+  output = test_forest.evaluate_tree<false, false, true>(0, input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<true, true>(1, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, true>(1, input.get_row(2), missing_input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{4});
   ASSERT_EQ(output.at(1), uint64_t{4});
-  output = test_forest.evaluate_tree<true, false, true>(1, 2, input);
+  output = test_forest.evaluate_tree<true, false, true>(1, input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{4});
   ASSERT_EQ(output.at(1), uint64_t{4});
-  output = test_forest.evaluate_tree<true, true>(2, 2, input, missing_input);
+  output = test_forest.evaluate_tree<true, true>(2, input.get_row(2), missing_input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<true, false, true>(2, 2, input);
+  output = test_forest.evaluate_tree<true, false, true>(2, input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, true>(2, 2, input, missing_input);
+  output = test_forest.evaluate_tree<false, true>(2, input.get_row(2), missing_input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
-  output = test_forest.evaluate_tree<false, false, true>(2, 2, input);
+  output = test_forest.evaluate_tree<false, false, true>(2, input.get_row(2));
   ASSERT_EQ(output.at(0), uint64_t{0});
   ASSERT_EQ(output.at(1), uint64_t{0});
 }

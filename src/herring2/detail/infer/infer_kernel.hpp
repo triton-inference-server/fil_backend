@@ -4,9 +4,11 @@
 #include <herring/output_ops.hpp>
 #include <herring2/detail/cpu_constants.hpp>
 #include <herring2/detail/postprocess.hpp>
+#include <kayak/buffer.hpp>
 #include <kayak/data_array.hpp>
 #include <kayak/flat_array.hpp>
 #include <kayak/ndarray.hpp>
+#include <vector>
 
 namespace herring {
 namespace detail {
@@ -75,9 +77,9 @@ void infer_kernel(
       for (auto tree_index = tree_start; tree_index < tree_end; ++tree_index) {
         auto tree_out = kayak::flat_array<kayak::array_encoding::dense, typename forest_t::output_type const>{};
         if (!has_missing) {
-          tree_out = forest.template evaluate_tree<categorical, true, lookup>(tree_index, row_index, in);
+          tree_out = forest.template evaluate_tree<categorical, true, lookup>(tree_index, in.get_row(row_index));
         } else {
-          tree_out = forest.template evaluate_tree<categorical, lookup>(tree_index, row_index, in, missing_values);
+          tree_out = forest.template evaluate_tree<categorical, lookup>(tree_index, in.get_row(row_index), missing_values.get_row(row_index));
         }
         if (tree_out.size() == 1u) {
           auto class_index = tree_index % num_class;

@@ -58,8 +58,8 @@ add_executable(test_herring
     $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring2/detail/infer/specializations/single_io_single_threshold_many_features.cu>
     test/herring2/forest.cpp
     $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/forest.cu>
-    test/herring2/decision_forest.cpp
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/decision_forest.cu>
+    # test/herring2/decision_forest.cpp
+    # $<$<BOOL:${TRITON_ENABLE_GPU}>:test/herring2/decision_forest.cu>
 )
 
 IF(TRITON_ENABLE_GPU)
