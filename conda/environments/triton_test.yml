@@ -3,22 +3,21 @@ channels:
   - conda-forge
   - nvidia
   - rapidsai
-  - rapidsai-nightly
 dependencies:
   - aws-sdk-cpp<1.9
   - clang-tools=11.1.0
   - cudatoolkit=11.4
-  - cuml=22.04
+  - cuml=21.08
   - flake8
   - hypothesis<6.46.8
   - lightgbm
   - matplotlib
   - pip
   - pytest
-  - python=3.8
-  - rapidsai-nightly::xgboost
+  - python<3.8.0a0
+  - rapidsai::xgboost=1.5
   - scikit-learn
-  - treelite
+  - treelite=2.0.0
   - pip:
       - tritonclient[all]
       - git+https://github.com/rapidsai/rapids-triton.git@fil-backend-2203#subdirectory=python
