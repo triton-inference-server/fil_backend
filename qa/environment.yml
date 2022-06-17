@@ -7,7 +7,7 @@ dependencies:
   - aws-sdk-cpp<1.9
   - clang-tools=8.0.1
   - cudatoolkit=11.0
-  - cuml=21.10
+  - cuml=21.08
   - flake8
   - lightgbm
   - pip

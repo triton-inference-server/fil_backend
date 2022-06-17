@@ -38,6 +38,6 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    21.10
-                        FORK       rapidsai
-                        PINNED_TAG hotfix-21.10-pr-4315
+                        FORK       wphicks
+                        PINNED_TAG exp-2110_treelite_200
                         )
