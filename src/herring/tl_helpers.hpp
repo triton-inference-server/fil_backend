@@ -275,9 +275,6 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
     result.set_element_postproc(element_op::sigmoid);
   } else if (tl_pred_transform == std::string{"exponential"}) {
     result.set_element_postproc(element_op::exponential);
-  } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
-    result.postproc_constant = tl_model.param.ratio_c;
-    result.set_element_postproc(element_op::exponential_standard_ratio);
   } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
     result.set_element_postproc(element_op::logarithm_one_plus_exp);
   } else if (tl_pred_transform == std::string{"max_index"}) {
