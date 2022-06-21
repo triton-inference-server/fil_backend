@@ -79,7 +79,6 @@ then
     --type lightgbm \
     --depth 3 \
     --trees 2000 \
-    --cat_features 3 \
     --predict_proba
   models+=( $name )
 fi
