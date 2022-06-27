@@ -17,6 +17,7 @@
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
+option(BUILD_SHARED_LIBS OFF)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
@@ -86,7 +87,7 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  set(RAPIDS_DEPENDENCIES_VERSION "22.04" CACHE STRING "RAPIDS projects dependencies version")
+  set(RAPIDS_DEPENDENCIES_VERSION "22.06" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
   option(TRITON_FIL_ENABLE_TREESHAP "Compile GPU Treeshap when building cuml++.so" ON)
 

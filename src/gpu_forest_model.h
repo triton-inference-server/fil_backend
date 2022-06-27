@@ -31,6 +31,8 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
+using fil_forest_t = ML::fil::forest_t<float>;
+
 template <>
 struct ForestModel<rapids::DeviceMemory> {
   using device_id_t = int;
@@ -39,10 +41,19 @@ struct ForestModel<rapids::DeviceMemory> {
       std::shared_ptr<TreeliteModel> tl_model)
       : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
         fil_forest_{[this]() {
-          auto result = ML::fil::forest_t{};
+          auto result = fil_forest_t{};
+          auto variant_result = ML::fil::forest_variant{};
           auto config = tl_to_fil_config(tl_model_->config());
           ML::fil::from_treelite(
-              raft_handle_, &result, tl_model_->handle(), &config);
+              raft_handle_, &variant_result, tl_model_->handle(), &config);
+          try {
+            result = std::get<fil_forest_t>(variant_result);
+          } catch (std::bad_variant_access const& err) {
+            throw rapids::TritonException(
+              rapids::Error::Internal,
+              "Model did not load with expected precision"
+            );
+          }
           return result;
         }()}
   {
@@ -67,7 +78,7 @@ struct ForestModel<rapids::DeviceMemory> {
  private:
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
-  ML::fil::forest_t fil_forest_;
+  fil_forest_t fil_forest_;
   device_id_t device_id_;
 };
 
