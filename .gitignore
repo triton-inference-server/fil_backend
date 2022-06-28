@@ -13,4 +13,4 @@ notebooks/categorical-fraud-detection/test_identity.csv
 notebooks/categorical-fraud-detection/test_transaction.csv
 notebooks/categorical-fraud-detection/train_identity.csv
 notebooks/categorical-fraud-detection/train_transaction.csv
-notebooks/detailed_deployment/data/
+notebooks/faq/data/
