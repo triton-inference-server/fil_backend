@@ -26,33 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
 
-# Fraud Detection With Categorical XGBoost
+# Deployment Details and FAQs
 
-This example notebook shows how to train and deploy an XGBoost model
-with categorical features in Triton using the FIL backend. We begin by training
-two separate models on a fraud detection dataset with categorical variables:
-one small model designed to maximize runtime performance and one larger model
-designed to maximize accurate and precise detection of fraud. We then deploy
-both models on CPU and GPU and compare their performance using Triton's
-`perf_analyzer`. Based on these results, we see that GPU deployment opens up
-the possibility of deploying a much larger and more accurate fraud model with
-higher throughput while also keeping to a tight latency budget.
+Designed as a complete reference to features of the FIL backend and common
+tasks performed with it, this notebook provides answers to a series of FAQs
+along with code snippets demonstrating how to make practical use of those
+answers.
 
-## Running the notebook
-In order to launch the Triton server, you will need
-[Docker](https://docs.docker.com/get-docker/) installed on your system. The
-rest of the notebook also requires a few Python dependencies. To easily install
-these additional dependencies, you may make use of the provided conda
-[environment
-file](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection/environment.yml)
-as follows:
-```bash
-conda env create -f environment.yml
-```
-You may then activate the conda environment and run the notebook as usual:
-```bash
-conda activate triton_example
-jupyter notebook
-```
-The Jupyter interface should now be accessible from a browser, and you can
-follow the instructions within the notebook itself from there.
+If you have never made use of the FIL backend before, it is recommended that
+you begin with the introductory [fraud detection notebook](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection#fraud-detection-with-categorical-xgboost). After working through this basic example, the FAQs notebook will offer answers to questions that go beyond the basics in order to get the most out of the FIL backend.
