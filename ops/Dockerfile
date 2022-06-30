@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=22.05
+ARG TRITON_VERSION=22.06
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
