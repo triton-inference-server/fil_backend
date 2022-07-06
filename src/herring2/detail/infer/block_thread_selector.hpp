@@ -23,7 +23,7 @@ inline auto get_max_shared_mem_per_block(int device_id) {
       device_id
     )
   );
-  return uint32_t(result / 2);
+  return uint32_t(result);
 }
 
 inline auto get_sm_count(int device_id) {

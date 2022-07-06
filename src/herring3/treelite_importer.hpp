@@ -5,8 +5,8 @@
 #include <stack>
 #include <treelite/tree.h>
 #include <treelite/typeinfo.h>
-#include <herring2/decision_forest.hpp>
-#include <herring2/decision_forest_builder.hpp>
+#include <herring3/decision_forest.hpp>
+#include <herring3/decision_forest_builder.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
 
@@ -461,7 +461,8 @@ struct treelite_importer {
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
     auto result = forest_model_variant{};
-    if constexpr (variant_index != std::variant_size_v<forest_model_variant>) {
+    // if constexpr (variant_index != std::variant_size_v<forest_model_variant>) {
+    if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
         auto builder = decision_forest_builder<forest_model_t>(align_bytes);
@@ -562,15 +563,16 @@ struct treelite_importer {
         "Tree too large to be represented in Herring format"
       );
     }
-    auto variant_index = get_forest_variant_index(
+
+    auto variant_index = std::size_t{};
+    /* auto variant_index = get_forest_variant_index(
       max_offset,
       num_feature,
       max_num_categories,
       use_double_thresholds,
       use_double_output,
       use_integer_output
-    );
-    std::cout << "VARIANT INDEX: " << variant_index << "\n";
+    ); */
     auto num_class = get_num_class(tl_model);
     return import_to_specific_variant<std::size_t{}>(
       variant_index,
