@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 #include <herring/output_ops.hpp>
+#include <herring3/forest.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
@@ -61,16 +62,19 @@ struct decision_forest_builder {
       threshold = std::nextafter(threshold, std::numeric_limits<threshold_type>::infinity());
     }
     node_values_.push_back({.value=threshold});
-    add_node(distant_child_offset, fea, default_distant);
+    metadata_.emplace_back(false, default_distant, false);
+    add_node(distant_child_offset, fea);
   }
 
   void add_leaf_node(threshold_type output_val) {
     node_values_.push_back({.value=output_val});
+    metadata_.emplace_back(true, false, false);
     add_node();
   }
 
   void add_leaf_node(output_index_type output_val) {
     node_values_.push_back({.index=output_val});
+    metadata_.emplace_back(true, false, false);
     add_node();
   }
 
@@ -85,6 +89,7 @@ struct decision_forest_builder {
     }
     node_values_.push_back({.index=node_outputs_->size()});
     node_outputs_->push_back(output_val);
+    metadata_.emplace_back(true, false, false);
     add_node();
   }
 
@@ -106,6 +111,7 @@ struct decision_forest_builder {
       }
       node_values_.push_back({.index=node_outputs_->size()});
       std::copy(output_begin, output_end, std::back_inserter(*node_outputs_));
+      metadata_.emplace_back(true, false, false);
       add_node();
     }
   }
@@ -144,7 +150,8 @@ struct decision_forest_builder {
         category_bitset.set(cat);
       });
     }
-    add_node(distant_child_offset, fea, default_distant);
+    metadata_.emplace_back(false, default_distant, true);
+    add_node(distant_child_offset, fea);
   }
 
   void add_empty_node() {
@@ -173,7 +180,7 @@ struct decision_forest_builder {
     node_values_{},
     node_features_{},
     node_offsets_{},
-    default_distant_{},
+    metadata_{},
     node_outputs_{},
     categorical_sizes_{},
     categorical_storage_{} {
@@ -190,9 +197,9 @@ struct decision_forest_builder {
     auto node_values_buf = kayak::buffer{node_values_.data(), node_values_.size()};
     auto node_features_buf = kayak::buffer{node_features_.data(), node_features_.size()};
     auto node_offsets_buf = kayak::buffer{node_offsets_.data(), node_offsets_.size()};
-    auto default_distant_buf = kayak::buffer<bool>{
-      std::begin(default_distant_),
-      std::end(default_distant_),
+    auto metadata_buf = kayak::buffer<node_metadata_storage>{
+      std::begin(metadata_),
+      std::end(metadata_),
       mem_type,
       device,
       stream
@@ -233,7 +240,7 @@ struct decision_forest_builder {
       kayak::buffer{node_values_buf, mem_type, device, stream},
       kayak::buffer{node_features_buf, mem_type, device, stream},
       kayak::buffer{node_offsets_buf, mem_type, device, stream},
-      std::move(default_distant_buf),
+      std::move(metadata_buf),
       std::move(node_outputs_buf),
       std::move(categorical_sizes_buf),
       std::move(categorical_storage_buf),
@@ -263,7 +270,7 @@ struct decision_forest_builder {
   std::vector<node_value_type> node_values_;
   std::vector<feature_index_type> node_features_;
   std::vector<offset_type> node_offsets_;
-  std::vector<bool> default_distant_;
+  std::vector<node_metadata_storage> metadata_;
 
   std::optional<std::vector<output_type>> node_outputs_;
   std::optional<std::vector<raw_index_t>> categorical_sizes_;
@@ -280,10 +287,9 @@ struct decision_forest_builder {
     )
   );
 
-  void add_node(offset_type offset=offset_type{}, feature_index_type fea=feature_index_type{}, bool default_distant=false) {
+  void add_node(offset_type offset=offset_type{}, feature_index_type fea=feature_index_type{}) {
     node_offsets_.push_back(offset);
     node_features_.push_back(fea);
-    default_distant_.push_back(default_distant);
     ++cur_tree_size_;
   }
 };

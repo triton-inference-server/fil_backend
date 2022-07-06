@@ -14,6 +14,35 @@ namespace herring {
 
 using kayak::raw_index_t;
 
+struct node_metadata_storage {
+  HOST DEVICE node_metadata_storage() : data{} {}
+  HOST DEVICE node_metadata_storage(
+    bool is_leaf_node, bool default_to_distant_child, bool is_categorical_node
+  ) : data(
+    (is_leaf_node << LEAF_BIT) +
+    (default_to_distant_child << DEFAULT_DISTANT_BIT) +
+    (is_categorical_node << CATEGORICAL_BIT)
+  ) { }
+  HOST DEVICE auto is_leaf() const {
+    return bool(data & LEAF_MASK);
+  }
+  HOST DEVICE auto default_distant() const {
+    return bool(data & DEFAULT_DISTANT_MASK);
+  }
+  HOST DEVICE auto is_categorical() const {
+    return bool(data & CATEGORICAL_MASK);
+  }
+
+ private:
+  uint8_t data;
+  auto constexpr static const LEAF_BIT = uint8_t{1};
+  auto constexpr static const LEAF_MASK = uint8_t{1} << LEAF_BIT;
+  auto constexpr static const DEFAULT_DISTANT_BIT = LEAF_BIT + uint8_t{1};
+  auto constexpr static const DEFAULT_DISTANT_MASK = uint8_t{1} << DEFAULT_DISTANT_BIT;
+  auto constexpr static const CATEGORICAL_BIT = DEFAULT_DISTANT_BIT + uint8_t{1};
+  auto constexpr static const CATEGORICAL_MASK = uint8_t{1} << CATEGORICAL_BIT;
+};
+
 template<kayak::tree_layout layout, typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t, bool categorical_lookup>
 struct forest {
   auto constexpr static const bounds_check = kayak::DEBUG_ENABLED && !kayak::GPU_ENABLED;
@@ -32,7 +61,7 @@ struct forest {
 
   forest()
     : node_count_{}, values_{nullptr}, features_{nullptr},
-    distant_offsets_{nullptr}, default_distant_{nullptr}, tree_count_{},
+    distant_offsets_{nullptr}, metadata_{nullptr}, tree_count_{},
     tree_offsets_{nullptr}, output_size_{}, outputs_{nullptr},
     categorical_sizes_{nullptr}, categorical_storage_{nullptr} { }
 
@@ -41,7 +70,7 @@ struct forest {
     node_value_type* node_values,
     feature_index_t* node_features,
     offset_type* distant_child_offsets,
-    bool* default_distant,
+    node_metadata_storage* metadata,
     index_type tree_count,
     raw_index_t* tree_offsets,
     index_type output_size = raw_index_t{1},
@@ -49,7 +78,7 @@ struct forest {
     raw_index_t* categorical_sizes = nullptr,
     uint8_t* categorical_storage = nullptr
   ) : node_count_{node_count}, values_{node_values}, features_{node_features},
-    distant_offsets_{distant_child_offsets}, default_distant_{default_distant}, tree_count_{tree_count},
+    distant_offsets_{distant_child_offsets}, metadata_{metadata}, tree_count_{tree_count},
     tree_offsets_{tree_offsets}, output_size_{output_size}, outputs_{outputs},
     categorical_sizes_{categorical_sizes}, categorical_storage_{categorical_storage} { }
 
@@ -57,7 +86,7 @@ struct forest {
   node_value_type* values_;
   feature_index_t* features_;
   offset_type* distant_offsets_;
-  bool* default_distant_;
+  node_metadata_storage* metadata_;
 
   raw_index_t tree_count_;
   raw_index_t* tree_offsets_;

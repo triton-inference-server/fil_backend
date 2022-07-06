@@ -62,7 +62,7 @@ struct decision_forest {
       node_values_.data(),
       node_features_.data(),
       node_offsets_.data(),
-      default_distant_.data(),
+      metadata_.data(),
       tree_offsets_.size(),
       tree_offsets_.data(),
       leaf_size_,
@@ -92,7 +92,7 @@ struct decision_forest {
     node_values_{},
     node_features_{},
     node_offsets_{},
-    default_distant_{},
+    metadata_{},
     node_outputs_{},
     categorical_sizes_{},
     categorical_storage_{},
@@ -107,7 +107,7 @@ struct decision_forest {
     kayak::buffer<node_value_type>&& node_values,
     kayak::buffer<feature_index_type>&& node_features,
     kayak::buffer<offset_type>&& node_offsets,
-    kayak::buffer<bool>&& default_distant,
+    kayak::buffer<node_metadata_storage>&& metadata,
     std::optional<kayak::buffer<output_type>>&& node_outputs,
     std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
     std::optional<kayak::buffer<uint8_t>>&& categorical_storage,
@@ -122,7 +122,7 @@ struct decision_forest {
     node_values_{std::move(node_values)},
     node_features_{std::move(node_features)},
     node_offsets_{std::move(node_offsets)},
-    default_distant_{std::move(default_distant)},
+    metadata_{std::move(metadata)},
     node_outputs_{std::move(node_outputs)},
     categorical_sizes_{std::move(categorical_sizes)},
     categorical_storage_{std::move(categorical_storage)},
@@ -143,7 +143,7 @@ struct decision_forest {
   kayak::buffer<node_value_type> node_values_;
   kayak::buffer<feature_index_type> node_features_;
   kayak::buffer<offset_type> node_offsets_;
-  kayak::buffer<bool> default_distant_;
+  kayak::buffer<node_metadata_storage> metadata_;
   std::optional<kayak::buffer<output_type>> node_outputs_;
   std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
   std::optional<kayak::buffer<uint8_t>> categorical_storage_;
