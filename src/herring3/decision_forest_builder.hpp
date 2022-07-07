@@ -36,6 +36,7 @@ struct decision_forest_builder {
   using threshold_type = typename node_value_type::value_type;
   using output_type = typename decision_forest_t::output_type;
   using category_set_type = typename decision_forest_t::category_set_type;
+  using metadata_type = typename decision_forest_t::metadata_type;
 
   void start_new_tree() {
     if (tree_offsets_.size() == 0) {
@@ -62,8 +63,11 @@ struct decision_forest_builder {
       threshold = std::nextafter(threshold, std::numeric_limits<threshold_type>::infinity());
     }
     node_values_.push_back({.value=threshold});
-    metadata_.emplace_back(false, default_distant, false);
+    metadata_.emplace_back(false, default_distant, false, fea);
     add_node(distant_child_offset, fea);
+    if (fea != metadata_.back().feature_index()) {
+      std::cout << "ANAKIN. START PANAKIN.\n";
+    }
   }
 
   void add_leaf_node(threshold_type output_val) {
@@ -150,12 +154,13 @@ struct decision_forest_builder {
         category_bitset.set(cat);
       });
     }
-    metadata_.emplace_back(false, default_distant, true);
+    metadata_.emplace_back(false, default_distant, true, fea);
     add_node(distant_child_offset, fea);
   }
 
   void add_empty_node() {
     node_values_.push_back({.value=threshold_type{}});
+    metadata_.emplace_back(true, false, false);
     add_node();
   }
 
@@ -197,7 +202,7 @@ struct decision_forest_builder {
     auto node_values_buf = kayak::buffer{node_values_.data(), node_values_.size()};
     auto node_features_buf = kayak::buffer{node_features_.data(), node_features_.size()};
     auto node_offsets_buf = kayak::buffer{node_offsets_.data(), node_offsets_.size()};
-    auto metadata_buf = kayak::buffer<node_metadata_storage>{
+    auto metadata_buf = kayak::buffer<metadata_type>{
       std::begin(metadata_),
       std::end(metadata_),
       mem_type,
@@ -270,7 +275,7 @@ struct decision_forest_builder {
   std::vector<node_value_type> node_values_;
   std::vector<feature_index_type> node_features_;
   std::vector<offset_type> node_offsets_;
-  std::vector<node_metadata_storage> metadata_;
+  std::vector<metadata_type> metadata_;
 
   std::optional<std::vector<output_type>> node_outputs_;
   std::optional<std::vector<raw_index_t>> categorical_sizes_;

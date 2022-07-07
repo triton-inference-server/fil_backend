@@ -92,16 +92,15 @@ __device__ auto copy_data_to_shared_memory(
 
 template<
   typename node_value_t,
-  typename feature_index_t,
+  typename metadata_t,
   typename offset_t,
   typename io_t,
   typename output_t
 >
 __device__ void evaluate_tree(
     node_value_t* node_value_p,
-    feature_index_t* node_feature_p,
     offset_t* distant_child_offset_p,
-    node_metadata_storage* metadata_p,
+    metadata_t* metadata_p,
     io_t* input,
     output_t* output,
     raw_index_t num_class,
@@ -109,24 +108,20 @@ __device__ void evaluate_tree(
     raw_index_t output_index=raw_index_t{},
     output_t* output_leaves_p=nullptr
 ) {
-  auto distant_offset = *distant_child_offset_p;
 
   while (!metadata_p->is_leaf()) {
     auto condition = false;
-    auto feature_value = input[*node_feature_p];
+    auto feature_value = input[metadata_p->feature_index()];
     if (isnan(feature_value)) {
       condition = metadata_p->default_distant();
     } else {
       condition = (feature_value < node_value_p->value);
     }
 
-    auto offset_to_next_node = 1u + condition * (distant_offset - 1u);
+    auto offset_to_next_node = 1u + condition * (*distant_child_offset_p - 1u);
     node_value_p += offset_to_next_node;
-    node_feature_p += offset_to_next_node;
     distant_child_offset_p += offset_to_next_node;
     metadata_p += offset_to_next_node;
-
-    distant_offset = *distant_child_offset_p;
   }
   if constexpr (std::is_same_v<output_t, typename node_value_t::value_type>) {
     if (output_size == 1) {
@@ -231,7 +226,6 @@ __global__ void infer(
       auto tree_offset = forest.tree_offsets_[tree_index];
       evaluate_tree(
         forest.values_ + tree_offset,
-        forest.features_ + tree_offset,
         forest.distant_offsets_ + tree_offset,
         forest.metadata_ + tree_offset,
         input_data + row_index * col_count,

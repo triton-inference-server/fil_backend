@@ -38,6 +38,7 @@ struct decision_forest {
   using output_type = typename forest_type::output_type;
   using node_value_type = typename forest_type::node_value_type;
   using category_set_type = typename forest_type::category_set_type;
+  using metadata_type = typename forest_type::metadata_type;
 
 
   auto num_features() const { return num_features_; }
@@ -107,7 +108,7 @@ struct decision_forest {
     kayak::buffer<node_value_type>&& node_values,
     kayak::buffer<feature_index_type>&& node_features,
     kayak::buffer<offset_type>&& node_offsets,
-    kayak::buffer<node_metadata_storage>&& metadata,
+    kayak::buffer<metadata_type>&& metadata,
     std::optional<kayak::buffer<output_type>>&& node_outputs,
     std::optional<kayak::buffer<raw_index_t>>&& categorical_sizes,
     std::optional<kayak::buffer<uint8_t>>&& categorical_storage,
@@ -143,7 +144,7 @@ struct decision_forest {
   kayak::buffer<node_value_type> node_values_;
   kayak::buffer<feature_index_type> node_features_;
   kayak::buffer<offset_type> node_offsets_;
-  kayak::buffer<node_metadata_storage> metadata_;
+  kayak::buffer<metadata_type> metadata_;
   std::optional<kayak::buffer<output_type>> node_outputs_;
   std::optional<kayak::buffer<raw_index_t>> categorical_sizes_;
   std::optional<kayak::buffer<uint8_t>> categorical_storage_;
