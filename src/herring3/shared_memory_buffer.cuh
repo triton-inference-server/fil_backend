@@ -20,11 +20,11 @@ struct shared_memory_buffer {
     auto copy_data = (dest_count * sizeof(T) <= remaining_size);
 
     source_count *= copy_data;
-    for (auto i = threadIdx.x; i < row_count * col_count; i += blockDim.x) {
+    for (auto i = threadIdx.x; i < source_count; i += blockDim.x) {
       dest[i + row_pad * (i / col_count)] = source[i];
     }
 
-    auto* result = copy_data ? source : static_cast<T*>(dest);
+    auto* result = copy_data ? static_cast<T*>(dest) : source;
     requires_sync = requires_sync || copy_data;
 
     auto offset = dest_count * sizeof(T);
@@ -44,7 +44,7 @@ struct shared_memory_buffer {
     for (auto i = threadIdx.x; i < element_count; i += blockDim.x) {
       dest[i] = source[i];
     }
-    auto* result = copy_data ? source : static_cast<T*>(dest);
+    auto* result = copy_data ? static_cast<T*>(dest) : source;
     requires_sync = requires_sync || copy_data;
 
     auto offset = element_count * sizeof(T);
@@ -65,7 +65,7 @@ struct shared_memory_buffer {
       dest[i] = value;
     }
 
-    auto* result = copy_data ? static_cast<T*>(nullptr) : static_cast<T*>(dest);
+    auto* result = copy_data ? static_cast<T*>(dest) : static_cast<T*>(nullptr);
     requires_sync = requires_sync || copy_data;
 
     auto offset = element_count * sizeof(T);
