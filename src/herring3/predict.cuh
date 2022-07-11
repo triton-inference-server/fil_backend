@@ -78,11 +78,16 @@ __global__ void infer(
       col_count
     );
 
-    auto threads_per_tree = min(size_t{blockDim.x}, rows_in_this_iteration);
+    auto trees_per_row_in_this_iteration = min(
+      size_t{blockDim.x}, rows_in_this_iteration
+    ) / rows_in_this_iteration;
 
-    // The number of trees this block will handle with each loop over tasks
-    auto trees_per_iteration = blockDim.x / threads_per_tree;
+    auto num_grove = blockDim.x / rows_in_this_iteration + (
+      blockDim.x % rows_in_this_iteration != 0
+    );
 
+    // Note that this sync is safe because every thread in the block will agree
+    // on whether or not a sync is required
     shared_mem.sync();
 
     // Infer on each tree and row
@@ -91,15 +96,17 @@ __global__ void infer(
       task_index < rows_in_this_iteration * forest.tree_count();
       task_index += blockDim.x
     ) {
-      auto tree_index = task_index / threads_per_tree;
+      auto tree_index = task_index / rows_in_this_iteration;
       auto row_index = task_index % rows_in_this_iteration;
+      auto grove_index = threadIdx.x / rows_in_this_iteration;
 
       auto output_offset = (
-        row_index * trees_per_iteration * num_class
-        + (tree_index % trees_per_iteration) * num_class
+        row_index * num_class * num_grove
+        + (tree_index % num_class) * num_grove
+        + grove_index
       );
 
-      output_workspace[output_offset] = evaluate_tree<
+      output_workspace[output_offset] += evaluate_tree<
         typename forest_t::leaf_output_type
       >(
         forest.get_tree_root(tree_index),
