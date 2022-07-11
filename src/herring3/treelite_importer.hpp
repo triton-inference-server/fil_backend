@@ -465,7 +465,7 @@ struct treelite_importer {
     if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
-        auto builder = decision_forest_builder<forest_model_t>(align_bytes);
+        auto builder = decision_forest_builder<forest_model_t>(align_bytes.value());
         auto tree_count = num_trees(tl_model);
         auto tree_index = std::size_t{};
         tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
@@ -474,23 +474,25 @@ struct treelite_importer {
           node_for_each(tree, [&builder, &tree_index, &node_index, &offsets](auto&& node) {
             if (node.is_leaf()) {
               auto output = node.get_output();
-              builder.add_leaf_node(std::begin(output), std::end(output));
+              if (output.size() > std::size_t{1}) {
+                throw model_import_error{"Vector leaves not yet implemented"};
+              }
+              builder.add_node(
+                typename forest_model_t::leaf_output_type(output[0]),
+                true
+              );
             } else {
               if (node.is_categorical()) {
                 auto categories = node.get_categories();
-                builder.add_categorical_node(
-                  offsets[tree_index][node_index],
-                  node.get_feature(),
-                  std::begin(categories),
-                  std::end(categories),
-                  node.default_distant()
-                );
+                throw model_import_error{"Categorical nodes not yet implemented"};
               } else {
-                builder.add_threshold_node(
-                  offsets[tree_index][node_index],
-                  node.get_feature(),
-                  node.threshold(),
+                builder.add_node(
+                  typename forest_model_t::threshold_type(node.threshold()),
+                  false,
                   node.default_distant(),
+                  false,
+                  node.get_feature(),
+                  offsets[tree_index][node_index],
                   node.is_inclusive()
                 );
               }
@@ -507,7 +509,7 @@ struct treelite_importer {
         builder.set_row_postproc(postproc_params.row);
         builder.set_postproc_constant(postproc_params.constant);
 
-        result.template emplace<variant_index>(builder.get_decision_forest(num_class, num_feature, mem_type, device, stream));
+        result.template emplace<variant_index>(builder.get_decision_forest(num_class, mem_type, device, stream));
       } else {
         result = import_to_specific_variant<variant_index +1>(
           target_variant_index,

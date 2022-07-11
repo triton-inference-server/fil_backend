@@ -1,17 +1,22 @@
+#include <cstddef>
 #include <herring3/predict.cuh>
+#include <kayak/cuda_stream.hpp>
 #include <kayak/tree_layout.hpp>
 namespace herring {
 
 template void predict<
-  forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>,
-  float
+  forest<
+    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+  >
 >(
-  forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false> const&,
+  forest<
+    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+  > const&,
   float*,
   float*,
-  kayak::detail::index_type<false>,
-  kayak::detail::index_type<false>,
-  kayak::detail::index_type<false>,
+  std::size_t,
+  std::size_t,
+  std::size_t,
   int device,
   kayak::cuda_stream stream
 );

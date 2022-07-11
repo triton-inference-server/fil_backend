@@ -1,176 +1,63 @@
 #pragma once
-#include <cuda_runtime_api.h>
-#include <stdint.h>
+#include <cstddef>
 #include <iostream>
+#include <stddef.h>
+#include <kayak/cuda_stream.hpp>
+#include <kayak/padding.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
-#include <kayak/cuda_check.hpp>
-#include <kayak/cuda_stream.hpp>
-#include <kayak/detail/index_type.hpp>
-#include <kayak/padding.hpp>
-#include <kayak/tree_layout.hpp>
+#include <herring3/gpu_introspection.hpp>
+#include <herring3/shared_memory_buffer.cuh>
 
 namespace herring {
 
-using raw_index_t = kayak::raw_index_t;
-using byte = char;
-
-inline auto get_max_shared_mem_per_block(int device_id) {
-  auto result = int{};
-  kayak::cuda_check(
-    cudaDeviceGetAttribute(
-      &result,
-      cudaDevAttrMaxSharedMemoryPerBlockOptin,
-      device_id
-    )
-  );
-  return result;
-}
-
-inline auto get_sm_count(int device_id) {
-  auto result = int{};
-  kayak::cuda_check(
-    cudaDeviceGetAttribute(
-      &result,
-      cudaDevAttrMultiProcessorCount,
-      device_id
-    )
-  );
-  return raw_index_t(result);
-}
-
-/* Copy the given number of rows into shared memory iff they will fit. If so,
- * input_data is updated to point to the shared memory location,
- * shared_mem_dest is updated to point to the memory location past the end of
- * the copied memory, and shared_mem_size_bytes is updated to indicate the
- * remaining amount of shared memory.
- */
-template<typename io_t>
-__device__ auto copy_rows_to_shared_memory(
-  io_t* input_data,
-  byte* shared_mem_dest,
-  size_t shared_mem_size_bytes,
-  raw_index_t rows_to_copy,
-  raw_index_t col_count
-) {
-  auto* smem = reinterpret_cast<io_t*>(shared_mem_dest);
-  auto entries_to_copy = rows_to_copy * col_count;
-  entries_to_copy *= (entries_to_copy * sizeof(io_t) <= shared_mem_size_bytes);
-  for(auto i = threadIdx.x; i < entries_to_copy; i += blockDim.x) {
-    smem[i] = input_data[i];
-  }
-  __syncthreads();
-  return entries_to_copy;
-}
-
-template<typename T>
-__device__ auto fill_buffer(
-  T* buffer,
-  size_t entries,
-  T value = T{}
-) {
-  for(auto i = threadIdx.x; i < entries; i += blockDim.x) {
-    buffer[i] = value;
-  }
-}
-
-template<typename T>
-__device__ auto copy_data_to_shared_memory(
-  T* data,
-  byte* shared_mem_dest,
-  size_t shared_mem_size_bytes,
-  raw_index_t entries_to_copy
-) {
-  auto* smem = reinterpret_cast<T*>(shared_mem_dest);
-  entries_to_copy *= (entries_to_copy * sizeof(T) <= shared_mem_size_bytes);
-  for(auto i = threadIdx.x; i < entries_to_copy; i += blockDim.x) {
-    smem[i] = data[i];
-  }
-  __syncthreads();
-  return entries_to_copy;
-}
-
 template<
-  typename node_value_t,
-  typename metadata_t,
-  typename offset_t,
-  typename io_t,
-  typename output_t
+  typename leaf_output_t,
+  typename node_t,
+  typename io_t
 >
-__device__ void evaluate_tree(
-    node_value_t* node_value_p,
-    offset_t* distant_child_offset_p,
-    metadata_t* metadata_p,
-    io_t* input,
-    output_t* output,
-    raw_index_t num_class,
-    raw_index_t output_size,
-    raw_index_t output_index=raw_index_t{},
-    output_t* output_leaves_p=nullptr
+__device__ auto evaluate_tree(
+    node_t* node,
+    io_t* row
 ) {
-
-  while (!metadata_p->is_leaf()) {
-    auto condition = false;
-    auto feature_value = input[metadata_p->feature_index()];
-    if (isnan(feature_value)) {
-      condition = metadata_p->default_distant();
-    } else {
-      condition = (feature_value < node_value_p->value);
+  while (!node->is_leaf()) {
+    auto input_val = row[node->feature_index()];
+    auto condition = node->default_distant();
+    if (!isnan(input_val)) {
+      condition = (input_val < node->threshold());
     }
-
-    auto offset_to_next_node = 1u + condition * (*distant_child_offset_p - 1u);
-    node_value_p += offset_to_next_node;
-    distant_child_offset_p += offset_to_next_node;
-    metadata_p += offset_to_next_node;
+    node += node->child_offset(condition);
   }
-  if constexpr (std::is_same_v<output_t, typename node_value_t::value_type>) {
-    if (output_size == 1) {
-      *output += node_value_p->value;
-    } else {
-      for (auto i=output_index; i < output_index + output_size; ++i) {
-        output[i] += output_leaves_p[node_value_p->index + output_index];
-      }
-    }
-  } else if constexpr (std::is_same_v<output_t, typename node_value_t::output_index_type>) {
-    if (output_size == 1) {
-      *output += node_value_p->index;
-    } else {
-      for (auto i=output_index; i < output_index + output_size; ++i) {
-        output[i] += output_leaves_p[node_value_p->index + output_index];
-      }
-    }
-  } else {
-    for (auto i=output_index; i < output_index + output_size; ++i) {
-      output[i] += output_leaves_p[node_value_p->index + output_index];
-    }
-  }
+  return node->template output<leaf_output_t>();
 }
 
-template<typename forest_t, typename io_t>
+template<typename forest_t>
 __global__ void infer(
     forest_t forest,
-    io_t* output,
-    io_t* input,
-    raw_index_t row_count,
-    raw_index_t col_count,
-    raw_index_t num_class,
-    raw_index_t rows_per_block_iteration,
+    typename forest_t::io_type* output,
+    typename forest_t::io_type const* input,
+    size_t row_count,
+    size_t col_count,
+    size_t num_class,
+    size_t rows_per_block_iteration,
     size_t shared_mem_byte_size,
     size_t output_workspace_size
 ) {
-  extern __shared__ byte shared_mem_buffer[];
-  // The first part of the shared memory buffer is reserved for storing the
-  // output of each tree in an iteration
-  auto* output_workspace = reinterpret_cast<typename forest_t::output_type*>(shared_mem_buffer);
+  extern __shared__ std::byte shared_mem_raw[];
 
-  // The rest of the shared memory buffer can be used to cache
-  // frequently-accessed values in each iteration
-  auto* shared_mem_cache = (
-    reinterpret_cast<byte*>(output_workspace + output_workspace_size)
-  );
-  shared_mem_byte_size -= output_workspace_size * sizeof(
-    typename forest_t::output_type
-  );
+  auto shared_mem = shared_memory_buffer(shared_mem_raw, shared_mem_byte_size);
+
+  using node_t = typename forest_t::node_type;
+
+  // TODO(wphicks): Handle vector leaves
+  using output_t = std::conditional_t<
+    std::is_same_v<
+      typename node_t::threshold_type,
+      typename forest_t::leaf_output_type
+    >,
+    typename node_t::threshold_type,
+    typename node_t::index_type
+  >;
 
   for (
     auto i=blockIdx.x * rows_per_block_iteration;
@@ -178,103 +65,86 @@ __global__ void infer(
     i += rows_per_block_iteration * gridDim.x
   ) {
 
-    // Clear results from previous rows
-    fill_buffer(output_workspace, output_workspace_size);
-    // Reset the shared mem cache at the beginning of each iteration
-    auto* shared_mem_remainder = shared_mem_cache;
-    auto shared_mem_remainder_size = shared_mem_byte_size;
+    shared_mem.clear();
+    auto* output_workspace = shared_mem.fill<output_t>(output_workspace_size);
 
     // Handle as many rows as requested per loop or as many rows as are left to
     // process
-    auto rows_in_this_iteration = raw_index_t(max(
-      0, min(int{rows_per_block_iteration}, int{row_count} - int{i})
-    ));
+    auto rows_in_this_iteration = min(rows_per_block_iteration, row_count - i);
 
-    auto* input_data = input + i * col_count;
-
-    // Attempt to copy input data to shared memory
-    auto entries_copied = copy_rows_to_shared_memory(
-      input_data,
-      shared_mem_remainder,
-      shared_mem_remainder_size,
+    auto* input_data = shared_mem.copy(
+      input + i * col_count,
       rows_in_this_iteration,
       col_count
     );
-    input_data = (entries_copied == 0) ? input_data : reinterpret_cast<io_t*>(shared_mem_remainder);
-    shared_mem_remainder += entries_copied * sizeof(io_t);
-    shared_mem_remainder_size = shared_mem_byte_size - entries_copied * sizeof(io_t);
 
-    auto threads_per_tree = min(blockDim.x, rows_in_this_iteration);
+    auto threads_per_tree = min(size_t{blockDim.x}, rows_in_this_iteration);
 
     // The number of trees this block will handle with each loop over tasks
     auto trees_per_iteration = blockDim.x / threads_per_tree;
 
+    shared_mem.sync();
+
     // Infer on each tree and row
     for (
       auto task_index = threadIdx.x;
-      task_index < rows_in_this_iteration * forest.tree_count_;
+      task_index < rows_in_this_iteration * forest.tree_count();
       task_index += blockDim.x
     ) {
       auto tree_index = task_index / threads_per_tree;
       auto row_index = task_index % rows_in_this_iteration;
 
       auto output_offset = (
-        (row_index % rows_in_this_iteration) * trees_per_iteration * num_class
+        row_index * trees_per_iteration * num_class
         + (tree_index % trees_per_iteration) * num_class
       );
 
-      auto tree_offset = forest.tree_offsets_[tree_index];
-      evaluate_tree(
-        forest.values_ + tree_offset,
-        forest.distant_offsets_ + tree_offset,
-        forest.metadata_ + tree_offset,
-        input_data + row_index * col_count,
-        output_workspace + output_offset,
-        num_class,
-        forest.output_size_,
-        (tree_index % num_class) * (forest.output_size_ == 1),
-        forest.outputs_
+      output_workspace[output_offset] = evaluate_tree<
+        typename forest_t::leaf_output_type
+      >(
+        forest.get_tree_root(tree_index),
+        input_data + row_index * col_count
       );
     }
   }
 }
 
-template<typename forest_t, typename io_t>
+template<typename forest_t>
 void predict(
   forest_t const& forest,
-  io_t* output,
-  io_t* input,
-  typename forest_t::index_type row_count,
-  typename forest_t::index_type col_count,
-  typename forest_t::index_type class_count,
+  typename forest_t::io_type* output,
+  typename forest_t::io_type* input,
+  std::size_t row_count,
+  std::size_t col_count,
+  std::size_t class_count,
   int device=0,
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
   // TODO(wphicks): Consider padding shared memory row size to odd value
 
-  // TODO(wphicks): Do this outside predict function
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   // For Kepler or greater, this allows us to access more than 48kb of shared
   // mem per block
+  // TODO(wphicks): Do this outside predict function
   kayak::cuda_check(
     cudaFuncSetAttribute(
-      infer<forest_t, io_t>,
+      infer<forest_t>,
       cudaFuncAttributeMaxDynamicSharedMemorySize,
       max_shared_mem_per_block
     )
   );
 
-  auto row_size_bytes = sizeof(io_t) * col_count;
-  auto row_output_size = max(forest.output_size_, class_count);
+  auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
+  auto row_output_size = max(forest.leaf_size(), class_count);
   auto row_output_size_bytes = sizeof(
-    typename forest_t::output_type
+    typename forest_t::leaf_output_type
   ) * row_output_size;
 
   auto threads_per_block = min(
-    256,
+    size_t{256},
     kayak::downpadded_size(
-      int{max_shared_mem_per_block / row_output_size_bytes},
-      32
+      max_shared_mem_per_block / row_output_size_bytes,
+      size_t{32}
     )
   );
 
@@ -284,20 +154,20 @@ void predict(
     );
   }
 
-  auto num_blocks = min(2048, int{row_count.value()});
+  auto num_blocks = min(size_t{2048}, row_count);
 
   auto output_workspace_size = (
-    row_output_size * min(threads_per_block, forest.tree_count_)
+    row_output_size * min(threads_per_block, forest.tree_count())
   );
   auto output_workspace_size_bytes = sizeof(
-    typename forest_t::output_type
+    typename forest_t::leaf_output_type
   ) * output_workspace_size;
 
   auto shared_mem_per_block = min(  // No more than max available
     max_shared_mem_per_block,
     max( // No less than required for one row and its output
-      int{max_shared_mem_per_block / get_sm_count(device)},
-      int{output_workspace_size_bytes + row_size_bytes}
+      max_shared_mem_per_block / 2, // get_sm_count(device),
+      output_workspace_size_bytes + row_size_bytes
     )
   );
 
@@ -315,16 +185,16 @@ void predict(
   // number of rows per iteration, we are left with a footprint of the number
   // of threads per block times the output size for a single row.
   auto rows_per_block_iteration = max(
-    1,
+    std::size_t{1},
     // No need to do more blocks per iteration than there are rows per block,
     // but otherwise take care of as many rows per iteration as we have space
     // for in shared memory
     min(
       (
-        int{shared_mem_per_block}
-        - int{output_workspace_size_bytes}
-      ) / int{row_size_bytes},
-      int{row_count.value()} / num_blocks
+        shared_mem_per_block
+        - output_workspace_size_bytes
+      ) / row_size_bytes,
+      row_count / num_blocks
     )
   );
 
@@ -334,9 +204,9 @@ void predict(
     forest,
     output,
     input,
-    row_count.value(),
-    col_count.value(),
-    class_count.value(),
+    row_count,
+    col_count,
+    class_count,
     rows_per_block_iteration,
     shared_mem_per_block,
     output_workspace_size
@@ -344,15 +214,18 @@ void predict(
 }
 
 extern template void predict<
-  forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false>,
-  float
+  forest<
+    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+  >
 >(
-  forest<kayak::tree_layout::depth_first, float, uint16_t, uint16_t, uint32_t, float, false> const&,
+  forest<
+    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+  > const&,
   float*,
   float*,
-  kayak::detail::index_type<false>,
-  kayak::detail::index_type<false>,
-  kayak::detail::index_type<false>,
+  std::size_t,
+  std::size_t,
+  std::size_t,
   int device,
   kayak::cuda_stream stream
 );

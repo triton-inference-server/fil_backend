@@ -48,34 +48,11 @@ void run_herring3(
   herring::forest_model_variant& model,
   float* input,
   float* output,
-  std::uint32_t rows,
-  std::uint32_t cols,
-  std::uint32_t out_cols
-) {
-  auto in = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    input,
-    rows,
-    cols
-  };
-  auto out = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    output,
-    rows,
-    out_cols
-  };
-  std::visit([&out, &in](auto&& concrete_model) {
-    concrete_model.predict(out, in);
-  }, model);
-}
-
-void run_herring3(
-  herring::forest_model_variant& model,
-  float* input,
-  float* output,
-  std::uint32_t rows,
-  std::uint32_t cols,
+  std::size_t rows,
+  std::size_t cols,
   kayak::cuda_stream stream
 ) {
-  NVTX3_FUNC_RANGE();
+  // NVTX3_FUNC_RANGE();
   std::visit([output, input, rows, cols, &stream](auto&& concrete_model) {
     predict(concrete_model.obj(), output, input, rows, cols, concrete_model.num_class(), 0, stream);
   }, model);

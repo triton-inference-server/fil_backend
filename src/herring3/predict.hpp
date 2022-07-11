@@ -1,15 +1,16 @@
 #pragma once
+#include <cstddef>
 #include <kayak/cuda_stream.hpp>
 namespace herring {
 
-template<typename forest_t, typename io_t>
+template<typename forest_t>
 void predict(
   forest_t const& forest,
-  io_t* output,
-  io_t* input,
-  typename forest_t::index_type row_count,
-  typename forest_t::index_type col_count,
-  typename forest_t::index_type class_count,
+  typename forest_t::io_type* output,
+  typename forest_t::io_type* input,
+  std::size_t row_count,
+  std::size_t col_count,
+  std::size_t class_count,
   int device=0,
   kayak::cuda_stream=kayak::cuda_stream{}
 );

@@ -1,14 +1,18 @@
 #pragma once
+#include <type_traits>
 #include <kayak/gpu_support.hpp>
+#include <kayak/tree_layout.hpp>
 
 namespace herring {
 
 /** @brief A single node in a forest model
  *
- * Note that this implementation include NO error checking for poorly-chosen
+ * Note that this implementation includes NO error checking for poorly-chosen
  * template types. If the types are not large enough to hold the required data,
  * an incorrect node will be silently constructed. Error checking occurs
  * instead at the time of construction of the entire forest.
+ *
+ * @tparam layout_v The layout for nodes within the forest
  *
  * @tparam threshold_t The type used as a threshold for evaluating a non-leaf
  * node or (when possible) the output of a leaf node. For non-categorical
@@ -38,8 +42,10 @@ namespace herring {
  * this node to its most distant child. This type must be large enough to store
  * the largest such offset in the forest model.
  */
-template <typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
+template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
 struct node {
+  /// @brief An alias for layout_v
+  auto constexpr static const layout = layout_v;
   /// @brief An alias for threshold_t
   using threshold_type = threshold_t;
   /// @brief An alias for index_t
@@ -63,6 +69,8 @@ struct node {
 
   // TODO(wphicks): Add custom type to ensure given child offset is at least
   // one
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
   HOST DEVICE constexpr node(
     threshold_type value = threshold_type{},
     bool is_leaf_node = true,
@@ -75,6 +83,7 @@ struct node {
     metadata{construct_metadata(
       is_leaf_node, default_to_distant_child, is_categorical_node, feature
     )} {}
+#pragma GCC diagnostic pop
 
   HOST DEVICE constexpr node(
     index_type index,
@@ -107,7 +116,29 @@ struct node {
   }
   /** The offset to the child of this node if it evaluates to given condition */
   HOST DEVICE auto constexpr child_offset(bool condition) const {
-    return offset_type{1} + condition * distant_offset_minus_one;
+    if constexpr (layout == kayak::tree_layout::depth_first) {
+      return offset_type{1} + condition * distant_offset_minus_one;
+    } else if constexpr (layout == kayak::tree_layout::breadth_first) {
+      return condition * offset_type{1} + distant_offset_minus_one;
+    } else {
+      static_assert(layout == kayak::tree_layout::depth_first);
+    }
+  }
+  /** The threshold value for this node */
+  HOST DEVICE auto constexpr threshold() const {
+    return stored_value.value;
+  }
+  /** The output value for this node
+   *
+   * @tparam output_t The expected output type for this node.
+   */
+  template <typename output_t>
+  HOST DEVICE auto constexpr output() const {
+    if constexpr (std::is_same_v<value_type, output_t>) {
+      return stored_value.value;
+    } else {
+      return stored_value.index;
+    }
   }
 
  private:
