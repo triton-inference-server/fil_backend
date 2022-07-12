@@ -143,67 +143,92 @@ void predict(
 
   auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
   auto row_output_size = max(forest.leaf_size(), class_count);
-  auto row_output_size_bytes = sizeof(
+  auto single_row_output_size_bytes = sizeof(
     typename forest_t::leaf_output_type
   ) * row_output_size;
 
   auto threads_per_block = min(
     size_t{256},
     kayak::downpadded_size(
-      max_shared_mem_per_block / row_output_size_bytes,
+      (max_shared_mem_per_block  - row_size_bytes) / single_row_output_size_bytes,
       size_t{32}
     )
   );
 
+  // If we cannot do at least a warp per block when storing input rows in
+  // shared mem, recalculate our threads per block without input storage
+  if (threads_per_block < 32) {
+    row_size_bytes = size_t{};  // Do not store input rows in shared mem
+    threads_per_block = min(
+      size_t{256},
+      kayak::downpadded_size(
+        max_shared_mem_per_block / single_row_output_size_bytes,
+        size_t{32}
+      )
+    );
+  }
+
+  // If we still cannot use at least a warp per block, give up
   if (threads_per_block < 32) {
     throw unusable_model_exception(
       "Model output size exceeds available shared memory"
     );
   }
 
+  // No need to have more blocks than rows, since work on a row is never split
+  // across more than one block
   auto num_blocks = min(size_t{2048}, row_count);
 
-  auto output_workspace_size = (
-    row_output_size * min(threads_per_block, forest.tree_count())
-  );
-  auto output_workspace_size_bytes = sizeof(
-    typename forest_t::leaf_output_type
-  ) * output_workspace_size;
+  // The fewest rows we can do for each loop within a block is 1, and the max
+  // is the total number of rows assigned to that block
+  auto min_rows_per_block_iteration = size_t{1};
+  auto max_rows_per_block_iteration = row_count / num_blocks;
 
-  auto shared_mem_per_block = min(  // No more than max available
-    max_shared_mem_per_block,
-    max( // No less than required for one row and its output
-      max_shared_mem_per_block / 2, // get_sm_count(device),
-      output_workspace_size_bytes + row_size_bytes
-    )
-  );
+  // The smallest shared memory buffer we want to deal with is the size at
+  // which each SM can schedule at least one block. If we were to go smaller
+  // than that, it would be better to use the extra shared memory to cache more
+  // data (despite the slightly less efficient block scheduling).
+  auto min_smem_size = max_shared_mem_per_block / 2; // get_sm_count(device);
+  auto max_smem_size = max_shared_mem_per_block;
 
-  // auto num_blocks = 1;
-  // auto threads_per_block = 1;
+  auto rows_per_block_iteration = min_rows_per_block_iteration;
+  auto shared_mem_per_block = min_smem_size;
+  auto output_workspace_size = min_smem_size;
+  for (
+    rows_per_block_iteration = min_rows_per_block_iteration; 
+    rows_per_block_iteration <= max_rows_per_block_iteration;
+    ++rows_per_block_iteration
+  ) {
+    output_workspace_size = (
+      (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
+      rows_per_block_iteration
+    ) * rows_per_block_iteration;
+    shared_mem_per_block = (
+      rows_per_block_iteration * row_size_bytes + output_workspace_size
+    );
 
-  // The number of rows each block processes per loop of execution. When
-  // calculating the number of blocks we can handle in shared memory, we must
-  // first subtract off the space required to store the output.
-  //
-  // Assuming we sync at the end of each iteration of trees, we need as much
-  // memory as there are trees in an iteration times the output size required
-  // for each row times the number of rows in each iteration. Since the number
-  // of trees per iteration is the number of threads per block divided by the
-  // number of rows per iteration, we are left with a footprint of the number
-  // of threads per block times the output size for a single row.
-  auto rows_per_block_iteration = max(
-    std::size_t{1},
-    // No need to do more blocks per iteration than there are rows per block,
-    // but otherwise take care of as many rows per iteration as we have space
-    // for in shared memory
-    min(
-      (
-        shared_mem_per_block
-        - output_workspace_size_bytes
-      ) / row_size_bytes,
-      row_count / num_blocks
-    )
-  );
+    std::cout << "RPBI: " << rows_per_block_iteration << " -> " <<
+      shared_mem_per_block << "\n";
+    if (shared_mem_per_block >= min_smem_size) {
+      break;
+    }
+  }
+
+  if (shared_mem_per_block > max_smem_size) {
+    --rows_per_block_iteration;
+    if (rows_per_block_iteration < size_t{1}) {
+      throw unusable_model_exception(
+        "Model output size exceeds available shared memory"
+      );
+    }
+    output_workspace_size = (
+      (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
+      rows_per_block_iteration
+    ) * rows_per_block_iteration;
+    shared_mem_per_block = (
+      rows_per_block_iteration * row_size_bytes + output_workspace_size
+    );
+  }
 
   std::cout << num_blocks << ", " << threads_per_block << ", " << shared_mem_per_block << ", " << rows_per_block_iteration << "\n";
 
