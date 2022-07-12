@@ -86,6 +86,8 @@ __global__ void infer(
       blockDim.x % rows_in_this_iteration != 0
     );
 
+    auto task_count = rows_in_this_iteration * forest.tree_count();
+
     // Note that this sync is safe because every thread in the block will agree
     // on whether or not a sync is required
     shared_mem.sync();
@@ -93,26 +95,36 @@ __global__ void infer(
     // Infer on each tree and row
     for (
       auto task_index = threadIdx.x;
-      task_index < rows_in_this_iteration * forest.tree_count();
+      task_index < ((task_count + blockDim.x - 1) / blockDim.x) * blockDim.x;
       task_index += blockDim.x
     ) {
-      auto tree_index = task_index / rows_in_this_iteration;
-      auto row_index = task_index % rows_in_this_iteration;
-      auto grove_index = threadIdx.x / rows_in_this_iteration;
+      // Every thread must iterate the same number of times in order to avoid a
+      // deadlock on __syncthreads, but only perform inference if this is a
+      // valid task index
+      if (task_index < task_count) {
+        auto tree_index = task_index / rows_in_this_iteration;
+        auto row_index = task_index % rows_in_this_iteration;
+        auto grove_index = threadIdx.x / rows_in_this_iteration;
 
-      auto output_offset = (
-        row_index * num_class * num_grove
-        + (tree_index % num_class) * num_grove
-        + grove_index
-      );
+        auto output_offset = (
+          row_index * num_class * num_grove
+          + (tree_index % num_class) * num_grove
+          + grove_index
+        );
 
-      output_workspace[output_offset] += evaluate_tree<
-        typename forest_t::leaf_output_type
-      >(
-        forest.get_tree_root(tree_index),
-        input_data + row_index * col_count
-      );
+        output_workspace[output_offset] += evaluate_tree<
+          typename forest_t::leaf_output_type
+        >(
+          forest.get_tree_root(tree_index),
+          input_data + row_index * col_count
+        );
+      }
+      __syncthreads();
     }
+
+
+    // Perform whatever postprocessing is necessary to get final output values
+    // for these rows
   }
 }
 
@@ -127,8 +139,8 @@ void predict(
   int device=0,
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
-  // TODO(wphicks): Consider padding shared memory row size to odd value
 
+  auto sm_count = get_sm_count(device);
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   // For Kepler or greater, this allows us to access more than 48kb of shared
   // mem per block
@@ -184,51 +196,73 @@ void predict(
   auto min_rows_per_block_iteration = size_t{1};
   auto max_rows_per_block_iteration = row_count / num_blocks;
 
-  // The smallest shared memory buffer we want to deal with is the size at
-  // which each SM can schedule at least one block. If we were to go smaller
-  // than that, it would be better to use the extra shared memory to cache more
-  // data (despite the slightly less efficient block scheduling).
-  auto min_smem_size = max_shared_mem_per_block / 2; // get_sm_count(device);
-  auto max_smem_size = max_shared_mem_per_block;
-
+  // Start with worst-case scenario, where only one row can be processed for
+  // each loop within a block and we must used all available shared memory to
+  // do it
   auto rows_per_block_iteration = min_rows_per_block_iteration;
-  auto shared_mem_per_block = min_smem_size;
-  auto output_workspace_size = min_smem_size;
-  for (
-    rows_per_block_iteration = min_rows_per_block_iteration; 
-    rows_per_block_iteration <= max_rows_per_block_iteration;
-    ++rows_per_block_iteration
-  ) {
-    output_workspace_size = (
-      (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
-      rows_per_block_iteration
-    ) * rows_per_block_iteration;
-    shared_mem_per_block = (
-      rows_per_block_iteration * row_size_bytes + output_workspace_size
-    );
+  auto output_workspace_size = (
+    (
+     single_row_output_size_bytes + rows_per_block_iteration - size_t{1}
+    ) / rows_per_block_iteration
+  ) * rows_per_block_iteration;
+  auto shared_mem_per_block = max_shared_mem_per_block;
 
-    std::cout << "RPBI: " << rows_per_block_iteration << " -> " <<
-      shared_mem_per_block << "\n";
-    if (shared_mem_per_block >= min_smem_size) {
+  if (output_workspace_size > shared_mem_per_block) {
+    throw unusable_model_exception(
+      "Model output size exceeds available shared memory"
+    );
+  }
+
+  // Iterate through possible numbers of rows per loop per block, searching for
+  // the largest *local* maximum in the shared memory "volume". This is the amount of
+  // memory that will be consumed by all simultaneously-resident blocks.
+  auto maximum_smem_volume = size_t{};
+  auto prev_smem_volume = size_t{};
+  for (
+    auto rows = min_rows_per_block_iteration; 
+    rows <= max_rows_per_block_iteration;
+    ++rows
+  ) {
+    auto output_size = (
+      (single_row_output_size_bytes + rows - size_t{1}) / rows
+    ) * rows;
+    auto smem_size = rows * row_size_bytes + output_size;
+
+    if ( smem_size > max_shared_mem_per_block ) {
       break;
     }
+
+    auto smem_volume = min(sm_count, max_shared_mem_per_block / smem_size) * smem_size;
+    if (prev_smem_volume < smem_volume) {
+      maximum_smem_volume = smem_volume;
+    } else {
+      if (
+        prev_smem_volume == maximum_smem_volume &&
+        prev_smem_volume != size_t{}
+      ) {
+        rows_per_block_iteration = max(
+          min_rows_per_block_iteration, rows - size_t{1}
+        );
+      }
+      maximum_smem_volume = size_t{};
+    }
+
+    prev_smem_volume = smem_volume;
   }
 
-  if (shared_mem_per_block > max_smem_size) {
-    --rows_per_block_iteration;
-    if (rows_per_block_iteration < size_t{1}) {
-      throw unusable_model_exception(
-        "Model output size exceeds available shared memory"
-      );
-    }
-    output_workspace_size = (
-      (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
-      rows_per_block_iteration
-    ) * rows_per_block_iteration;
-    shared_mem_per_block = (
-      rows_per_block_iteration * row_size_bytes + output_workspace_size
-    );
-  }
+  output_workspace_size = (
+    (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
+    rows_per_block_iteration
+  ) * rows_per_block_iteration;
+
+  shared_mem_per_block = (
+    rows_per_block_iteration * row_size_bytes + output_workspace_size
+  );
+
+  // Divide shared mem evenly
+  shared_mem_per_block = max_shared_mem_per_block / (
+    max_shared_mem_per_block / shared_mem_per_block
+  );
 
   std::cout << num_blocks << ", " << threads_per_block << ", " << shared_mem_per_block << ", " << rows_per_block_iteration << "\n";
 
