@@ -59,6 +59,8 @@ __global__ void infer(
     typename node_t::index_type
   >;
 
+  using io_t = typename forest_t::io_type;
+
   for (
     auto i=blockIdx.x * rows_per_block_iteration;
     i < row_count;
@@ -122,9 +124,32 @@ __global__ void infer(
       __syncthreads();
     }
 
+    task_count = rows_in_this_iteration * num_class;
 
-    // Perform whatever postprocessing is necessary to get final output values
-    // for these rows
+    for (
+      auto task_index = threadIdx.x;
+      task_index < task_count;
+      task_index += blockDim.x
+    ) {
+      auto row_index = task_index % rows_in_this_iteration;
+      auto class_index = task_index / num_class;
+      auto grove_offset = (
+        row_index * num_class * num_grove + class_index * num_grove
+      );
+      for (
+        auto grove_index = size_t{1};
+        grove_index < num_grove;
+        ++grove_index
+      ) {
+        output_workspace[grove_offset] += output_workspace[
+          grove_offset + grove_index
+        ];
+      }
+      output[(i + row_index) * num_class + class_index] = output_workspace[
+        grove_offset
+      ];
+    }
+    __syncthreads();
   }
 }
 
