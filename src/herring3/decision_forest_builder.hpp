@@ -7,7 +7,7 @@
 #include <numeric>
 #include <optional>
 #include <vector>
-#include <herring/output_ops.hpp>
+#include <herring3/postprocessor.hpp>
 #include <herring3/forest.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
@@ -77,8 +77,8 @@ struct decision_forest_builder {
     alignment_{std::lcm(align_bytes, sizeof(node_type))},
     output_size_{1},
     element_postproc_{},
-    row_postproc_{},
     average_factor_{},
+    row_postproc_{},
     bias_{},
     postproc_constant_{},
     max_tree_size_{},
@@ -94,6 +94,11 @@ struct decision_forest_builder {
   ) {
 
     std::cout << "Max tree size: " << max_tree_size_ << "\n";
+    // Allow narrowing for preprocessing constants. They are stored as doubles
+    // for consistency in the builder but must be converted to the proper types
+    // for the concrete forest model.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
     return decision_forest_t{
       kayak::buffer{
         kayak::buffer{nodes_.data(), nodes_.size()},
@@ -108,8 +113,14 @@ struct decision_forest_builder {
         stream
       },
       num_class,
-      output_size_
+      output_size_,
+      row_postproc_,
+      element_postproc_,
+      average_factor_,
+      bias_,
+      postproc_constant_
     };
+#pragma GCC diagnostic pop
   }
 
 
@@ -117,8 +128,8 @@ struct decision_forest_builder {
   std::size_t cur_tree_size_;
   std::size_t alignment_;
   std::size_t output_size_;
-  element_op element_postproc_;
   row_op row_postproc_;
+  element_op element_postproc_;
   double average_factor_;
   double bias_;
   double postproc_constant_;

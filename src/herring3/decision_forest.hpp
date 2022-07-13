@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <cstddef>
-#include <herring/output_ops.hpp>
+#include <herring3/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
 #include <kayak/buffer.hpp>
@@ -36,6 +36,7 @@ struct decision_forest {
   using io_type = typename forest_type::io_type;
   using threshold_type = threshold_t;
   using leaf_output_type = typename forest_type::leaf_output_type;
+  using postprocessor_type = postprocessor<leaf_output_type, io_type>;
 
   auto num_class() const { return num_class_; }
   auto leaf_size() const { return leaf_size_; }
@@ -48,22 +49,47 @@ struct decision_forest {
     };
   }
 
+  auto get_postprocessor() const {
+    return postprocessor_type {
+      row_postproc_,
+      elem_postproc_,
+      average_factor_,
+      bias_,
+      postproc_constant_
+    };
+  }
+
   decision_forest() :
     nodes_{},
     root_node_indexes_{},
     num_class_{},
-    leaf_size_{} {}
+    leaf_size_{},
+    row_postproc_{},
+    elem_postproc_{},
+    average_factor_{},
+    bias_{},
+    postproc_constant_{} {}
 
   decision_forest(
     kayak::buffer<node_type>&& nodes,
     kayak::buffer<size_t>&& root_node_indexes,
     size_t num_class=size_t{2},
-    size_t leaf_size=size_t{1}
+    size_t leaf_size=size_t{1},
+    row_op row_postproc=row_op::disable,
+    element_op elem_postproc=element_op::disable,
+    io_type average_factor=io_type{1},
+    io_type bias=io_type{0},
+    io_type postproc_constant=io_type{1}
   ) :
     nodes_{nodes},
     root_node_indexes_{root_node_indexes},
     num_class_{num_class},
-    leaf_size_{leaf_size}
+    leaf_size_{leaf_size},
+    row_postproc_{row_postproc},
+    elem_postproc_{elem_postproc},
+    average_factor_{average_factor},
+    bias_{bias},
+    postproc_constant_{postproc_constant}
   {
     // TODO: Check for inconsistent memory type
   }
@@ -77,6 +103,12 @@ struct decision_forest {
   // Metadata
   size_t num_class_;
   size_t leaf_size_;
+  // Postprocessing constants
+  row_op row_postproc_;
+  element_op elem_postproc_;
+  io_type average_factor_;
+  io_type bias_;
+  io_type postproc_constant_;
 };
 
 template<

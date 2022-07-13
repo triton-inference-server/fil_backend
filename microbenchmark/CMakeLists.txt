@@ -47,7 +47,7 @@ endif()
 
 target_compile_options(forest_bench
   PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>
-          $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -lineinfo>
+          $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -lineinfo --expt-relaxed-constexpr>
 )
 target_include_directories(forest_bench
   PRIVATE "${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include"
@@ -101,7 +101,7 @@ endif()
 
 target_compile_options(forest_bench3
   PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>
-          $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -lineinfo>
+          $<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS} -lineinfo --expt-relaxed-constexpr>
 )
 target_include_directories(forest_bench3
   PRIVATE "${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include"

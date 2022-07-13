@@ -7,6 +7,7 @@
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
 #include <herring3/gpu_introspection.hpp>
+#include <herring3/postprocessor.hpp>
 #include <herring3/shared_memory_buffer.cuh>
 
 namespace herring {
@@ -34,6 +35,9 @@ __device__ auto evaluate_tree(
 template<typename forest_t>
 __global__ void infer(
     forest_t forest,
+    postprocessor<
+      typename forest_t::leaf_output_type, typename forest_t::io_type
+    > postproc,
     typename forest_t::io_type* output,
     typename forest_t::io_type const* input,
     size_t row_count,
@@ -145,9 +149,18 @@ __global__ void infer(
           grove_offset + grove_index
         ];
       }
-      output[(i + row_index) * num_class + class_index] = output_workspace[
-        grove_offset
-      ];
+    }
+    __syncthreads();
+    for (
+      auto row_index = threadIdx.x;
+      row_index < rows_in_this_iteration;
+      row_index += blockDim.x
+    ) {
+      postproc(
+        output_workspace + (row_index) * num_class * num_grove,
+        num_class, 
+        output + ((i + row_index) * num_class)
+      );
     }
     __syncthreads();
   }
@@ -156,6 +169,9 @@ __global__ void infer(
 template<typename forest_t>
 void predict(
   forest_t const& forest,
+  postprocessor<
+    typename forest_t::leaf_output_type, typename forest_t::io_type
+  > const& postproc,
   typename forest_t::io_type* output,
   typename forest_t::io_type* input,
   std::size_t row_count,
@@ -218,7 +234,7 @@ void predict(
 
   // The fewest rows we can do for each loop within a block is 1, and the max
   // is the total number of rows assigned to that block
-  auto min_rows_per_block_iteration = size_t{1};
+  auto min_rows_per_block_iteration = size_t{4};
   auto max_rows_per_block_iteration = row_count / num_blocks;
 
   // Start with worst-case scenario, where only one row can be processed for
@@ -293,6 +309,7 @@ void predict(
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
+    postproc,
     output,
     input,
     row_count,
@@ -312,6 +329,7 @@ extern template void predict<
   forest<
     kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
   > const&,
+  postprocessor<float, float> const&,
   float*,
   float*,
   std::size_t,

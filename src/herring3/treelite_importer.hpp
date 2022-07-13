@@ -7,6 +7,7 @@
 #include <treelite/typeinfo.h>
 #include <herring3/decision_forest.hpp>
 #include <herring3/decision_forest_builder.hpp>
+#include <herring3/postprocessor.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
 
@@ -364,6 +365,7 @@ struct treelite_importer {
     auto result = detail::postproc_params_t{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       auto tl_pred_transform = std::string{concrete_tl_model.param.pred_transform};
+      std::cout << "TRANSFORM: " << tl_pred_transform << "\n";
       if (
           tl_pred_transform == std::string{"identity"} ||
           tl_pred_transform == std::string{"identity_multiclass"}) {
@@ -379,8 +381,8 @@ struct treelite_importer {
       } else if (tl_pred_transform == std::string{"exponential"}) {
         result.element = element_op::exponential;
       } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
-        result.constant = concrete_tl_model.param.ratio_c;
-        result.element = element_op::exponential_standard_ratio;
+        result.constant = -concrete_tl_model.param.ratio_c;
+        result.element = element_op::exponential;
       } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
         result.element = element_op::logarithm_one_plus_exp;
       } else if (tl_pred_transform == std::string{"max_index"}) {

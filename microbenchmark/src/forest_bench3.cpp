@@ -54,7 +54,7 @@ void run_herring3(
 ) {
   // NVTX3_FUNC_RANGE();
   std::visit([output, input, rows, cols, &stream](auto&& concrete_model) {
-    predict(concrete_model.obj(), output, input, rows, cols, concrete_model.num_class(), 0, stream);
+    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), 0, stream);
   }, model);
 }
 
@@ -114,10 +114,13 @@ int main(int argc, char** argv) {
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
+  std::cout << "WH: " << fil_output.data()[117] << "\n";
 
   start = std::chrono::high_resolution_clock::now();
 
   gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
+
+  std::cout << "OUTPUT SIZE: " << output.size() << "\n";
 
   start = std::chrono::high_resolution_clock::now();
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -145,6 +148,9 @@ int main(int argc, char** argv) {
   }
   end = std::chrono::high_resolution_clock::now();
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+  auto her_output = std::vector<float>(2 * output.size());
+  cudaMemcpy(her_output.data(), gpu_out_buffer.data(), her_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
+  std::cout << "WH: " << fil_output.data()[117] << "\n";
 
   std::cout << "FIL, Herring" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";
