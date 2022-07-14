@@ -124,6 +124,7 @@ __global__ void infer(
           forest.get_tree_root(tree_index),
           input_data + row_index * col_count
         );
+        printf("%f\n", output_workspace[output_offset]);
       }
       __syncthreads();
     }
@@ -234,7 +235,7 @@ void predict(
 
   // The fewest rows we can do for each loop within a block is 1, and the max
   // is the total number of rows assigned to that block
-  auto min_rows_per_block_iteration = size_t{4};
+  auto min_rows_per_block_iteration = size_t{1};
   auto max_rows_per_block_iteration = row_count / num_blocks;
 
   // Start with worst-case scenario, where only one row can be processed for
@@ -242,13 +243,17 @@ void predict(
   // do it
   auto rows_per_block_iteration = min_rows_per_block_iteration;
   auto output_workspace_size = (
-    (
-     single_row_output_size_bytes + rows_per_block_iteration - size_t{1}
+    row_output_size * (
+     threads_per_block + rows_per_block_iteration - size_t{1}
     ) / rows_per_block_iteration
   ) * rows_per_block_iteration;
+  auto output_workspace_size_bytes = sizeof(
+    typename forest_t::leaf_output_type
+  ) * output_workspace_size;
+
   auto shared_mem_per_block = max_shared_mem_per_block;
 
-  if (output_workspace_size > shared_mem_per_block) {
+  if (output_workspace_size_bytes > shared_mem_per_block) {
     throw unusable_model_exception(
       "Model output size exceeds available shared memory"
     );
@@ -264,10 +269,12 @@ void predict(
     rows <= max_rows_per_block_iteration;
     ++rows
   ) {
-    auto output_size = (
-      (single_row_output_size_bytes + rows - size_t{1}) / rows
+    auto output_size_bytes = (
+      single_row_output_size_bytes * (
+        (threads_per_block + rows - size_t{1}) / rows
+      )
     ) * rows;
-    auto smem_size = rows * row_size_bytes + output_size;
+    auto smem_size = rows * row_size_bytes + output_size_bytes;
 
     if ( smem_size > max_shared_mem_per_block ) {
       break;
@@ -292,12 +299,16 @@ void predict(
   }
 
   output_workspace_size = (
-    (single_row_output_size_bytes + rows_per_block_iteration - size_t{1}) /
-    rows_per_block_iteration
+    row_output_size * (
+     threads_per_block + rows_per_block_iteration - size_t{1}
+    ) / rows_per_block_iteration
   ) * rows_per_block_iteration;
+  output_workspace_size_bytes = sizeof(
+    typename forest_t::leaf_output_type
+  ) * output_workspace_size;
 
   shared_mem_per_block = (
-    rows_per_block_iteration * row_size_bytes + output_workspace_size
+    rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
   );
 
   // Divide shared mem evenly
@@ -305,7 +316,9 @@ void predict(
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  std::cout << num_blocks << ", " << threads_per_block << ", " << shared_mem_per_block << ", " << rows_per_block_iteration << "\n";
+  std::cout << num_blocks << ", " << threads_per_block << ", " <<
+    shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
+    output_workspace_size << "\n";
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,

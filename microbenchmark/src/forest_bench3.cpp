@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  std::cout << "WH: " << fil_output.data()[117] << "\n";
+  std::cout << "WH: " << fil_output.data()[0] << "\n";
 
   start = std::chrono::high_resolution_clock::now();
 
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
   auto her_output = std::vector<float>(2 * output.size());
   cudaMemcpy(her_output.data(), gpu_out_buffer.data(), her_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  std::cout << "WH: " << fil_output.data()[117] << "\n";
+  std::cout << "WH: " << her_output.data()[0] << "\n";
 
   std::cout << "FIL, Herring" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";

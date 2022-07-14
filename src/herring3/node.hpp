@@ -134,7 +134,9 @@ struct node {
    */
   template <typename output_t>
   HOST DEVICE auto constexpr output() const {
-    if constexpr (std::is_same_v<value_type, output_t>) {
+    if constexpr (
+        std::is_same_v<std::remove_const_t<threshold_type>, std::remove_const_t<output_t>>
+    ) {
       return stored_value.value;
     } else {
       return stored_value.index;
