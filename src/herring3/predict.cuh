@@ -275,6 +275,11 @@ void predict(
     ) * rows;
     auto smem_size = rows * row_size_bytes + output_size_bytes;
 
+    if ( smem_size > max_shared_mem_per_block ) {
+      std::cout << rows << " rows is too many rows!\n";
+      break;
+    }
+
     auto smem_volume = min(sm_count, max_shared_mem_per_block / smem_size) * smem_size;
     if (prev_smem_volume < smem_volume) {
       maximum_smem_volume = smem_volume;
@@ -291,11 +296,6 @@ void predict(
     }
 
     prev_smem_volume = smem_volume;
-
-    if ( smem_size > max_shared_mem_per_block ) {
-      std::cout << rows << " rows is too many rows!\n";
-      break;
-    }
   }
 
   output_workspace_size = (
@@ -316,9 +316,9 @@ void predict(
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
+  std::cout << num_blocks << ", " << threads_per_block << ", " <<
     shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n"; */
+    output_workspace_size << "\n";
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
