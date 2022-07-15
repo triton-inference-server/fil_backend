@@ -365,7 +365,6 @@ struct treelite_importer {
     auto result = detail::postproc_params_t{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       auto tl_pred_transform = std::string{concrete_tl_model.param.pred_transform};
-      std::cout << "TRANSFORM: " << tl_pred_transform << "\n";
       if (
           tl_pred_transform == std::string{"identity"} ||
           tl_pred_transform == std::string{"identity_multiclass"}) {

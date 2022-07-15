@@ -94,33 +94,36 @@ __global__ void infer(
     // on whether or not a sync is required
     shared_mem.sync();
 
+    // Every thread must iterate the same number of times in order to avoid a
+    // deadlock on __syncthreads, so we round the task_count up to the next
+    // multiple of the number of threads in this block. We then only perform
+    // work within the loop if the task_index is below the actual task_count.
+    auto const task_count_rounded_up = (
+      (task_count + blockDim.x - 1) / blockDim.x
+    ) * blockDim.x;
+
     // Infer on each tree and row
     for (
       auto task_index = threadIdx.x;
-      task_index < ((task_count + blockDim.x - 1) / blockDim.x) * blockDim.x;
+      task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
-      // Every thread must iterate the same number of times in order to avoid a
-      // deadlock on __syncthreads, but only perform inference if this is a
-      // valid task index
-      if (task_index < task_count) {
-        auto tree_index = task_index / rows_in_this_iteration;
-        auto row_index = task_index % rows_in_this_iteration;
-        auto grove_index = threadIdx.x / rows_in_this_iteration;
+      auto row_index = task_index % rows_in_this_iteration;
+      auto tree_index = task_index / rows_in_this_iteration;
+      auto grove_index = threadIdx.x / rows_in_this_iteration;
 
-        auto output_offset = (
-          row_index * num_class * num_grove
-          + (tree_index % num_class) * num_grove
-          + grove_index
-        );
+      auto output_offset = (
+        row_index * num_class * num_grove
+        + (tree_index % num_class) * num_grove
+        + grove_index
+      ) * (task_index < task_count);
 
-        output_workspace[output_offset] += evaluate_tree<
-          typename forest_t::leaf_output_type
-        >(
-          forest.get_tree_root(tree_index),
-          input_data + row_index * col_count
-        );
-      }
+      output_workspace[output_offset] += evaluate_tree<
+        typename forest_t::leaf_output_type
+      >(
+        forest.get_tree_root(tree_index),
+        input_data + row_index * col_count
+      ) * (task_index < task_count);
       __syncthreads();
     }
 
@@ -313,9 +316,9 @@ void predict(
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  std::cout << num_blocks << ", " << threads_per_block << ", " <<
+  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
     shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n";
+    output_workspace_size << "\n"; */
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,

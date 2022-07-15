@@ -20,7 +20,7 @@ struct ForestModel {
             ML::fil::algo_t::ALGO_AUTO,
             true,
             0.5,
-            ML::fil::storage_type_t::AUTO,
+            ML::fil::storage_type_t::SPARSE,
             0,
             1,
             0,
