@@ -84,15 +84,11 @@ __global__ void infer(
       col_count
     );
 
-    auto trees_per_row_in_this_iteration = min(
-      size_t{blockDim.x}, rows_in_this_iteration
-    ) / rows_in_this_iteration;
-
-    auto num_grove = blockDim.x / rows_in_this_iteration + (
-      blockDim.x % rows_in_this_iteration != 0
-    );
-
     auto task_count = rows_in_this_iteration * forest.tree_count();
+
+    auto num_grove = (
+      min(size_t{blockDim.x}, task_count) + rows_in_this_iteration - size_t{1}
+    ) / rows_in_this_iteration;
 
     // Note that this sync is safe because every thread in the block will agree
     // on whether or not a sync is required
@@ -124,7 +120,6 @@ __global__ void infer(
           forest.get_tree_root(tree_index),
           input_data + row_index * col_count
         );
-        printf("%f\n", output_workspace[output_offset]);
       }
       __syncthreads();
     }
@@ -137,7 +132,7 @@ __global__ void infer(
       task_index += blockDim.x
     ) {
       auto row_index = task_index % rows_in_this_iteration;
-      auto class_index = task_index / num_class;
+      auto class_index = task_index / rows_in_this_iteration;
       auto grove_offset = (
         row_index * num_class * num_grove + class_index * num_grove
       );
@@ -212,6 +207,7 @@ void predict(
   // If we cannot do at least a warp per block when storing input rows in
   // shared mem, recalculate our threads per block without input storage
   if (threads_per_block < 32) {
+    std::cout << "Not enough room for input data in smem\n";
     row_size_bytes = size_t{};  // Do not store input rows in shared mem
     threads_per_block = min(
       size_t{256},
@@ -261,7 +257,7 @@ void predict(
 
   // Iterate through possible numbers of rows per loop per block, searching for
   // the largest *local* maximum in the shared memory "volume". This is the amount of
-  // memory that will be consumed by all simultaneously-resident blocks.
+  // memory that will be actually used by all simultaneously-resident blocks.
   auto maximum_smem_volume = size_t{};
   auto prev_smem_volume = size_t{};
   for (
@@ -275,10 +271,6 @@ void predict(
       )
     ) * rows;
     auto smem_size = rows * row_size_bytes + output_size_bytes;
-
-    if ( smem_size > max_shared_mem_per_block ) {
-      break;
-    }
 
     auto smem_volume = min(sm_count, max_shared_mem_per_block / smem_size) * smem_size;
     if (prev_smem_volume < smem_volume) {
@@ -296,6 +288,11 @@ void predict(
     }
 
     prev_smem_volume = smem_volume;
+
+    if ( smem_size > max_shared_mem_per_block ) {
+      std::cout << rows << " rows is too many rows!\n";
+      break;
+    }
   }
 
   output_workspace_size = (

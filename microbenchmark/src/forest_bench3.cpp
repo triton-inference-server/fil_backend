@@ -86,6 +86,8 @@ int main(int argc, char** argv) {
   auto output = std::vector<float>(treelite::gtil::GetPredictOutputSize(tl_model.get(), input.rows));
   auto out_cols = output.size() / input.rows;
 
+  auto half_index = output.size() / 2;
+
   // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
   auto batch_sizes = std::vector<std::size_t>{rows};
   auto batch_timings = std::vector<std::vector<std::size_t>>(6);
@@ -114,7 +116,7 @@ int main(int argc, char** argv) {
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  std::cout << "WH: " << fil_output.data()[0] << "\n";
+  std::cout << "WH: " << fil_output.data()[1] << ", " << fil_output.data()[half_index * 2 + 1] << ", " << fil_output.data()[output.size() * 2 - 1] << "\n";
 
   start = std::chrono::high_resolution_clock::now();
 
@@ -148,9 +150,9 @@ int main(int argc, char** argv) {
   }
   end = std::chrono::high_resolution_clock::now();
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-  auto her_output = std::vector<float>(2 * output.size());
+  auto her_output = std::vector<float>(output.size());
   cudaMemcpy(her_output.data(), gpu_out_buffer.data(), her_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  std::cout << "WH: " << her_output.data()[0] << "\n";
+  std::cout << "WH: " << her_output.data()[0] << ", " << her_output.data()[half_index] << ", " << her_output.data()[output.size() - 1] << "\n";
 
   std::cout << "FIL, Herring" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";

@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <type_traits>
 #include <kayak/gpu_support.hpp>
 #include <kayak/tree_layout.hpp>
@@ -100,7 +101,7 @@ struct node {
 
   /** The index of the feature for this node */
   HOST DEVICE auto constexpr feature_index() const {
-    return bool(metadata & FEATURE_MASK);
+    return metadata & FEATURE_MASK;
   }
   /** Whether or not this node is a leaf node */
   HOST DEVICE auto constexpr is_leaf() const {
