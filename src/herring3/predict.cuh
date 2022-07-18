@@ -21,15 +21,17 @@ __device__ auto evaluate_tree(
     node_t* node,
     io_t* row
 ) {
-  while (!node->is_leaf()) {
-    auto input_val = row[node->feature_index()];
-    auto condition = node->default_distant();
+  auto cur_node = *node;
+  while (!cur_node.is_leaf()) {
+    auto input_val = row[cur_node.feature_index()];
+    auto condition = cur_node.default_distant();
     if (!isnan(input_val)) {
-      condition = (input_val < node->threshold());
+      condition = (input_val < cur_node.threshold());
     }
-    node += node->child_offset(condition);
+    node += cur_node.child_offset(condition);
+    cur_node = *node;
   }
-  return node->template output<leaf_output_t>();
+  return cur_node.template output<leaf_output_t>();
 }
 
 template<typename forest_t>
