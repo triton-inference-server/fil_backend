@@ -56,7 +56,6 @@ __global__ void infer(
 
   using node_t = typename forest_t::node_type;
 
-  // TODO(wphicks): Handle vector leaves
   using output_t = std::conditional_t<
     std::is_same_v<
       typename node_t::threshold_type,
@@ -203,170 +202,41 @@ void predict(
     typename forest_t::leaf_output_type
   ) * row_output_size;
 
-  auto pref_tpb = size_t{1024};
+  auto threads_per_block = size_t{256};
 
-  auto threads_per_block = min(
-    pref_tpb,
-    kayak::downpadded_size(
-      (max_shared_mem_per_block  - row_size_bytes) / single_row_output_size_bytes,
-      size_t{32}
-    )
-  );
+  auto rows_per_block_iteration = row_target;
 
-  // If we cannot do at least a warp per block when storing input rows in
-  // shared mem, recalculate our threads per block without input storage
-  if (threads_per_block < 32) {
-    std::cout << "Not enough room for input data in smem\n";
-    row_size_bytes = size_t{};  // Do not store input rows in shared mem
-    threads_per_block = min(
-      pref_tpb,
-      kayak::downpadded_size(
-        max_shared_mem_per_block / single_row_output_size_bytes,
-        size_t{32}
-      )
-    );
-  }
-
-  // If we still cannot use at least a warp per block, give up
-  if (threads_per_block < 32) {
-    throw unusable_model_exception(
-      "Model output size exceeds available shared memory"
-    );
-  }
-
-  // No need to have more blocks than rows, since work on a row is never split
-  // across more than one block
-  auto num_blocks = min(size_t{2048}, row_count);
-
-  // The fewest rows we can do for each loop within a block is 1, and the max
-  // is the total number of rows assigned to that block
-  auto min_rows_per_block_iteration = size_t{1};
-  auto max_rows_per_block_iteration = row_count / num_blocks;
-
-  // Start with worst-case scenario, where only one row can be processed for
-  // each loop within a block and we must used all available shared memory to
-  // do it
-  auto rows_per_block_iteration = min_rows_per_block_iteration;
   auto output_workspace_size = (
     row_output_size * (
      threads_per_block + rows_per_block_iteration - size_t{1}
     ) / rows_per_block_iteration
   ) * rows_per_block_iteration;
+
   auto output_workspace_size_bytes = sizeof(
     typename forest_t::leaf_output_type
   ) * output_workspace_size;
 
-  auto shared_mem_per_block = max_shared_mem_per_block;
-
-  if (output_workspace_size_bytes > shared_mem_per_block) {
+  if (output_workspace_size_bytes > max_shared_mem_per_block) {
     throw unusable_model_exception(
       "Model output size exceeds available shared memory"
     );
   }
-
-  // Iterate through possible numbers of rows per loop per block, searching for
-  // the largest *local* maximum in the shared memory "volume". This is the amount of
-  // memory that will be actually used by all simultaneously-resident blocks.
-  /* auto maximum_smem_volume = size_t{};
-  auto prev_smem_volume = size_t{};
-  for (
-    auto rows = min_rows_per_block_iteration; 
-    rows <= max_rows_per_block_iteration;
-    ++rows
-  ) {
-    auto output_size_bytes = (
-      single_row_output_size_bytes * (
-        (threads_per_block + rows - size_t{1}) / rows
-      )
-    ) * rows;
-    auto smem_size = rows * row_size_bytes + output_size_bytes;
-
-    if ( smem_size > max_shared_mem_per_block ) {
-      std::cout << rows << " rows is too many rows!\n";
-      break;
-    }
-
-    auto smem_volume = min(sm_count, max_shared_mem_per_block / smem_size) * smem_size;
-    if (prev_smem_volume < smem_volume) {
-      maximum_smem_volume = smem_volume;
-    } else {
-      if (
-        prev_smem_volume == maximum_smem_volume &&
-        prev_smem_volume != size_t{}
-      ) {
-        rows_per_block_iteration = max(
-          min_rows_per_block_iteration, rows - size_t{1}
-        );
-      }
-      maximum_smem_volume = size_t{};
-    }
-
-    prev_smem_volume = smem_volume;
-  } */
-
-  rows_per_block_iteration = row_target;
-
-  output_workspace_size = (
-    row_output_size * (
-     threads_per_block + rows_per_block_iteration - size_t{1}
-    ) / rows_per_block_iteration
-  ) * rows_per_block_iteration;
-  output_workspace_size_bytes = sizeof(
-    typename forest_t::leaf_output_type
-  ) * output_workspace_size;
 
   auto unrounded_shared_mem_per_block = (
     rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
   );
 
   // Divide shared mem evenly
-  shared_mem_per_block = max_shared_mem_per_block / (
+  auto shared_mem_per_block = max_shared_mem_per_block / (
     max_shared_mem_per_block / unrounded_shared_mem_per_block
   );
 
-  num_blocks = min(
-    num_blocks,
+  // No more blocks than necessary to cover all rows
+  auto num_blocks = min(
+    size_t{2048},
     (row_count + rows_per_block_iteration - size_t{1}) /
     rows_per_block_iteration
   );
-
-  auto res_blocks = min(
-    min(num_blocks, sm_count),
-    max_shared_mem_per_block / shared_mem_per_block
-  );
-
-  auto smem_volume = res_blocks * unrounded_shared_mem_per_block;
-
-  auto task_count = row_count * forest.tree_count();
-  auto task_count_per_block = rows_per_block_iteration * forest.tree_count();
-  auto task_count_per_thread = (task_count_per_block + threads_per_block - size_t{1}) / threads_per_block;
-
-  /* std::cout << row_count <<
-    ", " << rows_per_block_iteration <<
-    ", " << sm_count <<
-    ", " << max_shared_mem_per_block <<
-    ", " << row_size_bytes <<
-    ", " << single_row_output_size_bytes <<
-    ", " << threads_per_block <<
-    ", " << task_count; */
-
-
-  /* std::cout << row_count <<
-    ", " << rows_per_block_iteration <<
-    ", " << num_blocks <<
-    ", " << res_blocks <<
-    ", " << threads_per_block <<
-    ", " << res_blocks * threads_per_block <<
-    ", " << shared_mem_per_block <<
-    ", " << unrounded_shared_mem_per_block <<
-    ", " << smem_volume <<
-    ", " << task_count <<
-    ", " << task_count_per_block <<
-    ", " << task_count_per_thread; */
-
-  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
-    shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n"; */
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,

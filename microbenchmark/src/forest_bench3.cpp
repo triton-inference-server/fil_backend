@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
       auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
       auto min_time = size_t{9999999999};
       auto opt_row = size_t{1};
-      std::cout << "row_count, rows/block_iter, blocks, res_blocks, tpb, res_threads, smem, unround_smem, smem_volume, tasks, tasks/block, tasks/thread, time\n";
+      // std::cout << "row_count, rows/block_iter, blocks, res_blocks, tpb, res_threads, smem, unround_smem, smem_volume, tasks, tasks/block, tasks/thread, time\n";
       // std::cout << "row_count, rows/block_iter, sm_count, max_smem, row_bytes, out_bytes, tpb, tasks, time\n";
       for (auto row_target = std::size_t{1}; row_target < 40; ++row_target) {
         auto target_start = std::chrono::high_resolution_clock::now();
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
         kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
         auto target_end = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(target_end - target_start).count();
-        // std::cout << ", " << elapsed << "\n";
+        std::cout << row_target << ", " << elapsed << "\n";
         if (elapsed < min_time) {
           opt_row = row_target;
           min_time = elapsed;
