@@ -45,6 +45,7 @@ __global__ void infer(
     size_t row_count,
     size_t col_count,
     size_t num_class,
+    size_t row_target,
     size_t rows_per_block_iteration,
     size_t shared_mem_byte_size,
     size_t output_workspace_size
@@ -178,6 +179,7 @@ void predict(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  std::size_t row_target,
   int device=0,
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
@@ -201,8 +203,10 @@ void predict(
     typename forest_t::leaf_output_type
   ) * row_output_size;
 
+  auto pref_tpb = size_t{1024};
+
   auto threads_per_block = min(
-    size_t{256},
+    pref_tpb,
     kayak::downpadded_size(
       (max_shared_mem_per_block  - row_size_bytes) / single_row_output_size_bytes,
       size_t{32}
@@ -215,7 +219,7 @@ void predict(
     std::cout << "Not enough room for input data in smem\n";
     row_size_bytes = size_t{};  // Do not store input rows in shared mem
     threads_per_block = min(
-      size_t{256},
+      pref_tpb,
       kayak::downpadded_size(
         max_shared_mem_per_block / single_row_output_size_bytes,
         size_t{32}
@@ -263,7 +267,7 @@ void predict(
   // Iterate through possible numbers of rows per loop per block, searching for
   // the largest *local* maximum in the shared memory "volume". This is the amount of
   // memory that will be actually used by all simultaneously-resident blocks.
-  auto maximum_smem_volume = size_t{};
+  /* auto maximum_smem_volume = size_t{};
   auto prev_smem_volume = size_t{};
   for (
     auto rows = min_rows_per_block_iteration; 
@@ -298,7 +302,9 @@ void predict(
     }
 
     prev_smem_volume = smem_volume;
-  }
+  } */
+
+  rows_per_block_iteration = row_target;
 
   output_workspace_size = (
     row_output_size * (
@@ -309,18 +315,58 @@ void predict(
     typename forest_t::leaf_output_type
   ) * output_workspace_size;
 
-  shared_mem_per_block = (
+  auto unrounded_shared_mem_per_block = (
     rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
   );
 
   // Divide shared mem evenly
   shared_mem_per_block = max_shared_mem_per_block / (
+    max_shared_mem_per_block / unrounded_shared_mem_per_block
+  );
+
+  num_blocks = min(
+    num_blocks,
+    (row_count + rows_per_block_iteration - size_t{1}) /
+    rows_per_block_iteration
+  );
+
+  auto res_blocks = min(
+    min(num_blocks, sm_count),
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  std::cout << num_blocks << ", " << threads_per_block << ", " <<
+  auto smem_volume = res_blocks * unrounded_shared_mem_per_block;
+
+  auto task_count = row_count * forest.tree_count();
+  auto task_count_per_block = rows_per_block_iteration * forest.tree_count();
+  auto task_count_per_thread = (task_count_per_block + threads_per_block - size_t{1}) / threads_per_block;
+
+  /* std::cout << row_count <<
+    ", " << rows_per_block_iteration <<
+    ", " << sm_count <<
+    ", " << max_shared_mem_per_block <<
+    ", " << row_size_bytes <<
+    ", " << single_row_output_size_bytes <<
+    ", " << threads_per_block <<
+    ", " << task_count; */
+
+
+  /* std::cout << row_count <<
+    ", " << rows_per_block_iteration <<
+    ", " << num_blocks <<
+    ", " << res_blocks <<
+    ", " << threads_per_block <<
+    ", " << res_blocks * threads_per_block <<
+    ", " << shared_mem_per_block <<
+    ", " << unrounded_shared_mem_per_block <<
+    ", " << smem_volume <<
+    ", " << task_count <<
+    ", " << task_count_per_block <<
+    ", " << task_count_per_thread; */
+
+  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
     shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n";
+    output_workspace_size << "\n"; */
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
@@ -330,6 +376,7 @@ void predict(
     row_count,
     col_count,
     class_count,
+    row_target,
     rows_per_block_iteration,
     shared_mem_per_block,
     output_workspace_size
@@ -347,6 +394,7 @@ extern template void predict<
   postprocessor<float, float> const&,
   float*,
   float*,
+  std::size_t,
   std::size_t,
   std::size_t,
   std::size_t,

@@ -19,6 +19,7 @@ template void predict<
   std::size_t,
   std::size_t,
   std::size_t,
+  std::size_t,
   int device,
   kayak::cuda_stream stream
 );

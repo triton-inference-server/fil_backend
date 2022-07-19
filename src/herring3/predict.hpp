@@ -13,6 +13,7 @@ void predict(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  std::size_t row_target,
   int device=0,
   kayak::cuda_stream=kayak::cuda_stream{}
 );
