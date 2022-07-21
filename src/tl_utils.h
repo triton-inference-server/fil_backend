@@ -17,59 +17,67 @@
 #pragma once
 #include <names.h>
 #include <serialization.h>
-#include <treelite/c_api.h>
+#include <treelite/frontend.h>
+#include <treelite/logging.h>
+#include <treelite/tree.h>
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <rapids_triton/exceptions.hpp>
 #include <sstream>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-inline auto*
-load_tl_handle(
+inline auto load_tl_base_model(
     std::filesystem::path const& model_file, SerializationFormat format)
 {
-  auto handle = static_cast<void*>(nullptr);
+  auto result = std::unique_ptr<treelite::Model>{};
 
-  auto load_result = int{};
-
-  switch (format) {
-    case SerializationFormat::xgboost:
-      load_result = TreeliteLoadXGBoostModel(model_file.c_str(), &handle);
-      break;
-    case SerializationFormat::xgboost_json:
-      load_result = TreeliteLoadXGBoostJSON(model_file.c_str(), &handle);
-      break;
-    case SerializationFormat::lightgbm:
-      load_result = TreeliteLoadLightGBMModel(model_file.c_str(), &handle);
-      break;
-    case SerializationFormat::treelite:
-      load_result = TreeliteDeserializeModel(model_file.c_str(), &handle);
-      break;
-  }
-  if (load_result != 0) {
-    auto log_stream = std::stringstream{};
-    log_stream << "Model failed to load into Treelite with error: "
-               << TreeliteGetLastError();
-    throw rapids::TritonException(rapids::Error::Unknown, log_stream.str());
-  }
-
-  return handle;
-}
-
-inline auto
-tl_get_num_classes(void* handle)
-{
-  auto result = std::size_t{};
-  if (TreeliteQueryNumClass(handle, &result) != 0) {
-    throw rapids::TritonException(
-        rapids::Error::Unknown,
-        "Treelite could not determine number of classes in model");
+  try {
+    switch (format) {
+      case SerializationFormat::xgboost:
+        result = treelite::frontend::LoadXGBoostModel(model_file.c_str());
+        break;
+      case SerializationFormat::xgboost_json:
+        result = treelite::frontend::LoadXGBoostJSONModel(model_file.c_str());
+        break;
+      case SerializationFormat::lightgbm:
+        result = treelite::frontend::LoadLightGBMModel(model_file.c_str());
+        break;
+      case SerializationFormat::treelite: {
+        auto* file = std::fopen(model_file.c_str(), "rb");
+        if (file == nullptr) {
+          auto log_stream = std::stringstream{};
+          log_stream << "Could not open model file " << model_file;
+          throw rapids::TritonException(rapids::Error::Unavailable, log_stream.str());
+        }
+        try {
+          result = treelite::Model::DeserializeFromFile(file);
+        } catch (treelite::Error const& err) {
+          std::fclose(file);
+          throw;
+        }
+        std::fclose(file);
+        break;
+      }
+    }
+  } catch (treelite::Error const& err) {
+    throw rapids::TritonException(rapids::Error::Unknown, err.what());
+  } catch (std::runtime_error const& err) {
+    // This block is needed because Treelite sometimes throws a generic exception
+    // TODO(hcho3): Revise Treelite so that it only throws treelite::Error
+    throw rapids::TritonException(rapids::Error::Unknown, err.what());
   }
 
   return result;
+}
+
+inline auto
+tl_get_num_classes(treelite::Model const& base_model)
+{
+  return base_model.task_param.num_class;
 }
 
 }}}  // namespace triton::backend::NAMESPACE

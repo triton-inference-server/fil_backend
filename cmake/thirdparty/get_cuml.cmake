@@ -43,6 +43,7 @@ function(find_and_configure_cuml)
               "BUILD_CUML_BENCH OFF"
               "BUILD_CUML_PRIMS_BENCH OFF"
               "BUILD_CUML_STD_COMMS OFF"
+              "BUILD_SHARED_LIBS ON"
               "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
               "USE_CCACHE ON"
               "RAFT_COMPILE_LIBRARIES OFF"
@@ -57,7 +58,7 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
-                        FORK       dantegd
-                        PINNED_TAG fil-backend-2203
+                        FORK       wphicks
+                        PINNED_TAG 3e8bd99cef42c083a5a0fe26433ea0d1c1f08146
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )

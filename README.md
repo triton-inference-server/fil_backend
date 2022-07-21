@@ -61,7 +61,7 @@ the section on [Configuration](#configuration) for instructions.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:22.02-py3
+docker pull nvcr.io/nvidia/tritonserver:22.06-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -82,6 +82,34 @@ To build the Triton server container with the FIL backend, you can invoke the
 at a later date. Please file an issue if you have need for greater build
 customization than is provided by standard build options.**
 
+#### Docker-free build (EXPERIMENTAL)
+
+To build the FIL backend library on the host (as opposed to in Docker), the
+following prerequisites are required:
+- cMake >= 3.21, != 3.23
+- ccache
+- ninja
+- RapidJSON
+- nvcc >= 11.0
+- The CUDA Toolkit
+All of these except nvcc and the CUDA Toolkit can be installed in a `conda`
+environment via the following:
+```bash
+conda env create -f conda/environments/rapids_triton_dev.yml
+```
+
+Then the backend library can be built within this environment as follows:
+```bash
+conda activate rapids_triton_dev
+./build.sh --host server
+```
+The backend libraries will be installed in `install/backends/fil` and can be
+copied to the backends directory of a Triton installation.
+
+This build path is considered experimental. It is primarily used for rapid
+iteration during development. Building a full Triton Docker image is the
+recommended method for environments that require the latest FIL backend code.
+
 ### Running the server
 
 Before starting the server, you will need to set up a "model repository"
@@ -91,7 +119,13 @@ binary format, XGBoost's JSON format, LightGBM's text format, and Treelite's
 binary checkpoint format. For those using cuML or Scikit-Learn random forest
 models, please see the [documentation on how to prepare such
 models](https://github.com/triton-inference-server/fil_backend/blob/main/SKLearn_and_cuML.md)
-for use in Triton. Once you have a serialized model, you will need to prepare a
+for use in Triton.
+
+**NOTE: XGBoost 1.6 introduced a change in the XGBoost JSON serialization
+format. This change will be supported in Triton 22.07. Earlier versions of
+Triton will NOT support JSON-serialized models from XGBoost>=1.6.**
+
+Once you have a serialized model, you will need to prepare a
 directory structure similar to the following example, which uses an XGBoost
 binary file:
 
@@ -179,12 +213,14 @@ parameters [
   {
     key: "transfer_threshold"
     value: { string_value: "0" }
+  },
+  {
+    key: "use_experimental_optimizations"
+    value: { string_value: "false" }
   }
 ]
 
-dynamic_batching {
-  max_queue_delay_microseconds: 100
-}
+dynamic_batching { }
 ```
 
 **NOTE:** At this time, the FIL backend supports **only** `TYPE_FP32` for input
@@ -280,9 +316,17 @@ specific to FIL:
     memory with a number of samples less than or equal to this threshold.  For
     most models and systems, the default transfer threshold of 0 (meaning that
     data is always transferred to the GPU for processing) will provide optimal
-    latency and throughput, but for models with many features on systems where
-    host-to-device transfers may be a bottleneck and most requests will contain
-    small batches, adjusting this parameter may be useful.
+    latency and throughput, but for low-latency deployments with the
+    `use_experimental_optimizations` flag set to `true`, higher values may be
+    desirable.
+  * `use_experimental_optimizations`: Triton 22.04 introduces a new CPU
+    optimization mode which can significantly improve both latency and
+    throughput. For low-latency deployments in particular, the throughput
+    improvement may be substantial. Due to the relatively recent development of
+    this approach, it is still considered experimental, but it can be enabled
+    by setting this flag to `true`. Later releases will make this execution
+    mode the default and deprecate this flag. See
+    [below](#experimental-cpu-optimizations-in-2204) for more information.
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
@@ -411,6 +455,25 @@ features, so some record must be made of the complete set of categories used
 during training. With that record, categorical columns can be appropriately
 converted to float32 columns, and the data can be sent to the server as shown
 in the above client example.
+
+##### Experimental CPU Optimizations in 22.04
+As described above in configuration options, a new CPU execution mode was
+introduced in Triton 22.04. This mode offers significantly improved latency and
+throughput for CPU evaluation, especially for low-latency deployment
+configurations. When a model is deployed on GPU, turning on this execution mode
+can still provide some benefit if `transfer_threshold` is set to any value
+other than 0. In this case, when the server is under a light enough load to
+keep server-side batch sizes under this threshold, it will take advantage of
+the newly-optimized CPU execution mode to keep latency as low as possible while
+maximizing throughput. If server load increases, the FIL backend will
+automatically scale up onto the GPU to maintain optimal performance. The
+optimal value of `transfer_threshold` will depend on the available hardware and
+the size of the model, so some testing may be required to find the best
+configuration.
+
+This mode is still considered experimental in release 22.04, so it must be
+explicitly turned on by setting `use_experimental_optimizations` to `true` in
+the model's `config.pbtxt`.
 
 ## Modifications and Code Contributions
 For full implementation details as well as information on modifying the FIL

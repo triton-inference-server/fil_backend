@@ -19,4 +19,4 @@ dependencies:
   - scikit-learn
   - pip:
       - tritonclient[all]
-      - xgboost>=1.5
+      - xgboost>=1.5,<1.6

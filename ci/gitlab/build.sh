@@ -100,6 +100,11 @@ else
   GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS})"
 fi
 
+if [ ! -z $RUNNER_ID ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --label RUNNER_ID=${RUNNER_ID}"
+fi
+
 echo "Generating example models..."
 docker run \
   -e RETRAIN=1 \
@@ -110,7 +115,7 @@ docker run \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   $MODEL_BUILDER_IMAGE \
-  bash -c 'conda run -n triton_test /qa/generate_example_models.sh'
+  bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
 if [ $CPU_ONLY -eq 1 ]
 then
@@ -121,6 +126,7 @@ fi
 
 echo "Running tests..."
 docker run \
+  -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
   -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \

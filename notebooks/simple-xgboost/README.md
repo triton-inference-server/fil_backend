@@ -1,4 +1,8 @@
-# Triton FIL backend with XGBoost
+# (DEPRECATED) Triton FIL backend with XGBoost
+
+**THIS NOTEBOOK HAS BEEN DEPRECATED. FOR A SIMPLE AND CONCISE INTRODUCTION TO TRAINING AND DEPLOYING AN XGBOOST MODEL WITH THE FIL BACKEND, PLEASE SEE THE [CATEGORICAL FRAUD DETECTION](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection) EXAMPLE NOTEBOOK.**
+
+This notebook will eventually be reworked, split into smaller parts, and reintroduced for a later release. It is left here for historical reference, but some cells are known not to work with the latest versions of various Triton components.
 
 This notebook is a reference for deploying an XGBoost model on Triton with the FIL backend. The notebook explains how one can deploy XGBoost model in Triton, check deployment status and send inference requests, set concurrent model execution and dynamic batching and find the best deployment configuration using Model Analyzer.
 
