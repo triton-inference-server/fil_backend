@@ -65,6 +65,10 @@ inline auto load_tl_base_model(
     }
   } catch (treelite::Error const& err) {
     throw rapids::TritonException(rapids::Error::Unknown, err.what());
+  } catch (std::runtime_error const& err) {
+    // This block is needed because Treelite sometimes throws a generic exception
+    // TODO(hcho3): Revise Treelite so that it only throws treelite::Error
+    throw rapids::TritonException(rapids::Error::Unknown, err.what());
   }
 
   return result;

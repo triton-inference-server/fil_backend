@@ -170,7 +170,7 @@ DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_EN
 
 if [ -z $RAPIDS_VERSION ]
 then
-  RAPIDS_VERSION=22.04
+  RAPIDS_VERSION=22.06
 else
   DOCKER_ARGS="$DOCKER_ARGS --build-arg RAPIDS_DEPENDENCIES_VERSION=${RAPIDS_VERSION}"
 fi
@@ -192,7 +192,7 @@ if [ -z $TRITON_VERSION ] && [ $HOST_BUILD -eq 1 ]
 then
   # Must use a version compatible with a released backend image in order to
   # test a host build, so default to latest release branch rather than main
-  TRITON_VERSION=22.05
+  TRITON_VERSION=22.06
 fi
 
 if [ ! -z $TRITON_VERSION ]
