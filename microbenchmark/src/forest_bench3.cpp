@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <exception>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ void run_herring3(
 ) {
   // NVTX3_FUNC_RANGE();
   std::visit([output, input, rows, cols, &stream](auto&& concrete_model) {
-    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), 0, stream);
+    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), std::nullopt, 0, stream);
   }, model);
 }
 

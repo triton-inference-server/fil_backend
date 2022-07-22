@@ -1,9 +1,11 @@
 #pragma once
 #include <cstddef>
 #include <iostream>
+#include <optional>
 #include <stddef.h>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/padding.hpp>
+#include <herring3/ceildiv.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
 #include <herring3/gpu_introspection.hpp>
@@ -88,9 +90,10 @@ __global__ void infer(
 
     auto task_count = rows_in_this_iteration * forest.tree_count();
 
-    auto num_grove = (
-      min(size_t{blockDim.x}, task_count) + rows_in_this_iteration - size_t{1}
-    ) / rows_in_this_iteration;
+    auto num_grove = ceildiv(
+      min(size_t{blockDim.x}, task_count),
+      rows_in_this_iteration
+    );
 
     // Note that this sync is safe because every thread in the block will agree
     // on whether or not a sync is required
@@ -100,9 +103,7 @@ __global__ void infer(
     // deadlock on __syncthreads, so we round the task_count up to the next
     // multiple of the number of threads in this block. We then only perform
     // work within the loop if the task_index is below the actual task_count.
-    auto const task_count_rounded_up = (
-      (task_count + blockDim.x - 1) / blockDim.x
-    ) * blockDim.x;
+    auto const task_count_rounded_up = blockDim.x * ceildiv(task_count, blockDim.x);
 
     // Infer on each tree and row
     for (
@@ -167,6 +168,17 @@ __global__ void infer(
   }
 }
 
+auto compute_output_size(
+  size_t row_output_size,
+  size_t threads_per_block,
+  size_t rows_per_block_iteration
+) {
+  return row_output_size * ceildiv(
+    threads_per_block,
+    rows_per_block_iteration
+  ) * rows_per_block_iteration;
+}
+
 template<typename forest_t>
 void predict(
   forest_t const& forest,
@@ -178,12 +190,14 @@ void predict(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt,
   int device=0,
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
 
   auto sm_count = get_sm_count(device);
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
+  auto max_shared_mem_per_sm = get_max_shared_mem_per_sm(device);
   // For Kepler or greater, this allows us to access more than 48kb of shared
   // mem per block
   // TODO(wphicks): Do this outside predict function
@@ -197,14 +211,19 @@ void predict(
 
   auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
   auto row_output_size = max(forest.leaf_size(), class_count);
-  auto single_row_output_size_bytes = sizeof(
+  auto row_output_size_bytes = sizeof(
     typename forest_t::leaf_output_type
   ) * row_output_size;
 
+  // First determine the number of threads per block. This is the indicated
+  // preferred value unless we cannot handle at least 1 row per block iteration
+  // with available shared memory, in which case must reduce the threads per
+  // block.
+  auto constexpr const preferred_tpb = size_t{256};
   auto threads_per_block = min(
-    size_t{256},
+    preferred_tpb,
     kayak::downpadded_size(
-      (max_shared_mem_per_block  - row_size_bytes) / single_row_output_size_bytes,
+      (max_shared_mem_per_block  - row_size_bytes) / row_output_size_bytes,
       size_t{32}
     )
   );
@@ -215,9 +234,9 @@ void predict(
     std::cout << "Not enough room for input data in smem\n";
     row_size_bytes = size_t{};  // Do not store input rows in shared mem
     threads_per_block = min(
-      size_t{256},
+      preferred_tpb,
       kayak::downpadded_size(
-        max_shared_mem_per_block / single_row_output_size_bytes,
+        max_shared_mem_per_block / row_output_size_bytes,
         size_t{32}
       )
     );
@@ -230,84 +249,105 @@ void predict(
     );
   }
 
-  // No need to have more blocks than rows, since work on a row is never split
-  // across more than one block
-  auto num_blocks = min(size_t{2048}, row_count);
+  auto const max_resident_blocks = sm_count * (
+    MAX_RESIDENT_THREADS_PER_SM / threads_per_block
+  );
 
-  // The fewest rows we can do for each loop within a block is 1, and the max
-  // is the total number of rows assigned to that block
-  auto min_rows_per_block_iteration = size_t{1};
-  auto max_rows_per_block_iteration = row_count / num_blocks;
-
-  // Start with worst-case scenario, where only one row can be processed for
-  // each loop within a block and we must used all available shared memory to
-  // do it
-  auto rows_per_block_iteration = min_rows_per_block_iteration;
-  auto output_workspace_size = (
-    row_output_size * (
-     threads_per_block + rows_per_block_iteration - size_t{1}
-    ) / rows_per_block_iteration
-  ) * rows_per_block_iteration;
-  auto output_workspace_size_bytes = sizeof(
+  // Compute shared memory usage based on minimum or specified
+  // rows_per_block_iteration
+  auto rows_per_block_iteration = specified_rows_per_block_iter.value_or(
+    size_t{1}
+  );
+  auto constexpr const output_item_bytes = sizeof(
     typename forest_t::leaf_output_type
-  ) * output_workspace_size;
-
-  auto shared_mem_per_block = max_shared_mem_per_block;
-
-  if (output_workspace_size_bytes > shared_mem_per_block) {
+  );
+  auto output_workspace_size = compute_output_size(
+    row_output_size, threads_per_block, rows_per_block_iteration
+  );
+  auto output_workspace_size_bytes = output_item_bytes * output_workspace_size;
+  if (output_workspace_size_bytes > max_shared_mem_per_block) {
     throw unusable_model_exception(
       "Model output size exceeds available shared memory"
     );
   }
+  auto shared_mem_per_block = min(
+    rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes,
+    max_shared_mem_per_block
+  );
 
-  // Iterate through possible numbers of rows per loop per block, searching for
-  // the largest *local* maximum in the shared memory "volume". This is the amount of
-  // memory that will be actually used by all simultaneously-resident blocks.
-  auto maximum_smem_volume = size_t{};
-  auto prev_smem_volume = size_t{};
-  for (
-    auto rows = min_rows_per_block_iteration; 
-    rows <= max_rows_per_block_iteration;
-    ++rows
-  ) {
-    auto output_size_bytes = (
-      single_row_output_size_bytes * (
-        (threads_per_block + rows - size_t{1}) / rows
-      )
-    ) * rows;
-    auto smem_size = rows * row_size_bytes + output_size_bytes;
+  auto resident_blocks = min(
+    ceildiv(max_shared_mem_per_sm, shared_mem_per_block),
+    max_resident_blocks
+  );
 
-    if ( smem_size > max_shared_mem_per_block ) {
-      std::cout << rows << " rows is too many rows!\n";
-      break;
-    }
-
-    auto smem_volume = min(sm_count, max_shared_mem_per_block / smem_size) * smem_size;
-    if (prev_smem_volume < smem_volume) {
-      maximum_smem_volume = smem_volume;
-    } else {
-      if (
-        prev_smem_volume == maximum_smem_volume &&
-        prev_smem_volume != size_t{}
-      ) {
-        rows_per_block_iteration = max(
-          min_rows_per_block_iteration, rows - size_t{1}
-        );
+  if (!specified_rows_per_block_iter.has_value()) {
+    // Performance of this algorithm is highly sensitive to the value selected
+    // for rows_per_block_iteration. This corresponds to the number of rows
+    // that a single block processes before loading a new chunk of rows (if
+    // necessary). wphicks was not able to find a universal formula to select
+    // the optimal value for this parameter, so the following heuristics were
+    // developed instead. Note that this computation is theoretically-motivated
+    // but is *not* a complete theoretically-derived and empirically validated
+    // solution. Future work should attempt to improve on this, and in the
+    // meantime we allow users to specify a value in order to manually tune
+    // performance when necessary.
+    auto min_cycles = std::numeric_limits<size_t>::max();
+    auto rows = rows_per_block_iteration;
+    while(resident_blocks >= 2) {
+      rows = rows * 2;
+      auto smem = (
+        row_size_bytes * rows + output_item_bytes * compute_output_size(
+          row_output_size, threads_per_block, rows
+        )
+      );
+      if (smem > max_shared_mem_per_block) {
+        break;
       }
-      maximum_smem_volume = size_t{};
-    }
 
-    prev_smem_volume = smem_volume;
+      auto blocks = ceildiv(row_count, rows);
+      resident_blocks = min(
+        max_shared_mem_per_sm / smem,
+        max_resident_blocks
+      );
+
+      if (blocks <= resident_blocks) {
+        rows_per_block_iteration = rows;
+        break;
+      }
+
+      // If we're transferring less than a megabyte in total, consider compute
+      // time, otherwise just go for maximum rows we can fit without dipping
+      // below 2 resident blocks or exceeding shared memory limit
+      if (row_size_bytes * rows * ceildiv(row_count, rows) < 1e6) {
+        // Compute approximately how many cycles it will take for a block to
+        // perform all of its tree inference for a single iteration. Divide by
+        // the number of resident blocks to account for concurrency.
+        auto tasks_per_block = forest.tree_count() * rows;
+        auto compute_cycles_per_block = ceildiv(
+          tasks_per_block,
+          threads_per_block
+        );
+        auto effective_compute_cycles = ceildiv(
+          compute_cycles_per_block,
+          resident_blocks
+        ) * blocks;
+
+        if (effective_compute_cycles < min_cycles) {
+          rows_per_block_iteration = rows;
+          min_cycles = effective_compute_cycles;
+        }
+      } else {
+        if (resident_blocks >= 2) {
+          rows_per_block_iteration = rows;
+        }
+      }
+    }
   }
 
-  output_workspace_size = (
-    row_output_size * (
-     threads_per_block + rows_per_block_iteration - size_t{1}
-    ) / rows_per_block_iteration
-  ) * rows_per_block_iteration;
-  output_workspace_size_bytes = sizeof(
-    typename forest_t::leaf_output_type
-  ) * output_workspace_size;
+  output_workspace_size = compute_output_size(
+    row_output_size, threads_per_block, rows_per_block_iteration
+  );
+  output_workspace_size_bytes = output_item_bytes * output_workspace_size;
 
   shared_mem_per_block = (
     rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
@@ -318,9 +358,11 @@ void predict(
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  std::cout << num_blocks << ", " << threads_per_block << ", " <<
+  auto num_blocks = ceildiv(row_count, rows_per_block_iteration);
+
+  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
     shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n";
+    output_workspace_size << "\n"; */
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
@@ -350,6 +392,7 @@ extern template void predict<
   std::size_t,
   std::size_t,
   std::size_t,
+  std::optional<std::size_t>,
   int device,
   kayak::cuda_stream stream
 );

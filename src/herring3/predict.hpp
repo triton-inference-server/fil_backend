@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <optional>
 #include <herring3/postprocessor.hpp>
 #include <kayak/cuda_stream.hpp>
 namespace herring {
@@ -13,6 +14,7 @@ void predict(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt,
   int device=0,
   kayak::cuda_stream=kayak::cuda_stream{}
 );
