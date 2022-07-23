@@ -32,20 +32,23 @@ This directory contains example notebooks which illustrate typical workflows
 and use-cases for the Triton FIL backend. Additional examples will be added to
 this directory over time.
 
-**Note**: For those looking for the example notebook which was initially
-included at the top-level of this directory, it has been moved to the
-[simple-xgboost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost)
-directory.
-
 Each subdirectory contains an example notebook and a README with instructions
 on how to run the example.
 
 ## Current Examples
-- [Simple
-  XGBoost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost):
-  This example demonstrates how to load an XGBoost model into Triton and
-  optimize its configuration with the Triton Model Analyzer.
 - [Categorical Fraud
   Example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection):
-  This example walks through training a categorical XGBoost model for fraud
+  This introductory example walks through training a categorical XGBoost model for fraud
   detection and deploying it on both GPU-accelerated and CPU-only systems.
+- [FAQ
+  Notebook](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/faq):
+  This notebook answers a series of frequently asked questions around the FIL
+  backend for Triton and offers example code with practical applications of
+  those answers.
+
+## Deprecated Examples
+- [Simple
+  XGBoost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost):
+  This example has been superseded by the Categorical Fraud Example, which
+  offers a more succinct and up-to-date example of how to train and deploy an
+  XGBoost model.
