@@ -24,8 +24,8 @@ set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/co
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:22.06-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "22.06" CACHE STRING "Triton version for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:22.07-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "22.07" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
@@ -111,9 +111,9 @@ else()
 
   if(TRITON_ENABLE_GPU)
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-    project(RAPIDS_TRITON_BACKEND VERSION 22.06.00 LANGUAGES CXX CUDA)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.08.00 LANGUAGES CXX CUDA)
   else()
-    project(RAPIDS_TRITON_BACKEND VERSION 22.06.00 LANGUAGES CXX)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.08.00 LANGUAGES CXX)
   endif()
 
   ##############################################################################
