@@ -158,7 +158,7 @@ script, which is used for building and testing individual configurations in CI.
 To run tests on a pre-built image, use the environment variable
 `PREBUILT_SERVER_TAG`:
 ```bash
-PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.06-py3 ./ci/gitlab/build.sh
+PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.07-py3 ./ci/gitlab/build.sh
 ```
 This will build a test image based on this pre-built server image and run it.
 For CPU-only builds, the environment variable `CPU_ONLY` should be set to 1.
