@@ -220,7 +220,7 @@ void predict(
   // preferred value unless we cannot handle at least 1 row per block iteration
   // with available shared memory, in which case must reduce the threads per
   // block.
-  auto constexpr const preferred_tpb = size_t{256};
+  auto constexpr const preferred_tpb = size_t{512};
   auto threads_per_block = min(
     preferred_tpb,
     kayak::downpadded_size(
@@ -312,9 +312,7 @@ void predict(
       auto total_block_iters = ceildiv(row_count, rpbi);
       // Determine approximately how often block iterations will start on an
       // unaligned read
-      auto align_overlap = (
-        row_size_bytes * rows_per_block_iteration
-      ) % MAX_READ_CHUNK;
+      auto align_overlap = (row_size_bytes * rpbi) % MAX_READ_CHUNK;
       auto align_load_interval = size_t{row_size_bytes != 0} + std::lcm(
         align_overlap, MAX_READ_CHUNK
       ) / MAX_READ_CHUNK;
@@ -325,10 +323,14 @@ void predict(
       auto align_penalty = total_loads - total_loads / align_load_interval;
       // Only worth increasing rows if we have a significant decrease in
       // alignment penalty
-      if (align_penalty - prev_align_penalty < 2 * row_output_size) {
+      if (prev_align_penalty < 2 * col_count + align_penalty) {
         break;
       }
       rows_per_block_iteration = rpbi;
+      if (res_blocks > total_block_iters) {
+        break;
+      }
+      prev_align_penalty = align_penalty;
     }
   }
 
