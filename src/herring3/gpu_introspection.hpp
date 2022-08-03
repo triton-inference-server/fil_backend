@@ -66,5 +66,6 @@ inline auto get_core_clock_rate(int device_id) {
 
 auto constexpr static const MAX_RESIDENT_THREADS_PER_SM = size_t{2048};
 auto constexpr static const MAX_READ_CHUNK = size_t{128};
+auto constexpr static const MAX_BLOCKS = size_t{65536};
 
 }

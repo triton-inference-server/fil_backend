@@ -281,10 +281,13 @@ void predict(
     max_resident_blocks
   );
 
+  // If caller has not specified the number of rows per block iteration, apply
+  // the following heuristic to identify an approximately optimal value
   if (
     !specified_rows_per_block_iter.has_value()
     && resident_blocks_per_sm >= 2
   ) {
+    auto prev_align_penalty = row_count * row_size_bytes;
     // Iterate through powers of two for rows_per_block_iteration up to the
     // value that guarantees aligned chunks for every block iteration
     for (
@@ -320,33 +323,14 @@ void predict(
         MAX_READ_CHUNK
       );
       auto align_penalty = total_loads - total_loads / align_load_interval;
+      // Only worth increasing rows if we have a significant decrease in
+      // alignment penalty
+      if (align_penalty - prev_align_penalty < 2 * row_output_size) {
+        break;
+      }
+      rows_per_block_iteration = rpbi;
     }
   }
-
-  auto total_loads = ceildiv(
-    total_block_iters * row_size_bytes,
-    size_t{128}
-  );
-  auto coalesce_penalty = total_loads - total_loads / align_load_interval;
-
-  auto sm_balance_penalty = std::min(
-    total_block_iters % sm_count,
-    sm_count - (total_block_iters % sm_count)
-  );
-
-  auto task_count = forest.tree_count() * std::min(
-    row_count, rows_per_block_iteration
-  );
-  auto unique_trees_penalty = total_block_iters * ceildiv(
-    task_count, threads_per_block
-  ) + size_t{task_count % threads_per_block != 0};
-
-  auto parallel_blocks = std::min(
-    total_block_iters, resident_blocks_per_sm * sm_count
-  );
-
-  std::cout << rows_per_block_iteration << ", " << coalesce_penalty << ", " << sm_balance_penalty << ", " 
-    << unique_trees_penalty << ", " << parallel_blocks << ", ";
 
   output_workspace_size = compute_output_size(
     row_output_size, threads_per_block, rows_per_block_iteration
@@ -362,11 +346,10 @@ void predict(
     max_shared_mem_per_block / shared_mem_per_block
   );
 
-  auto num_blocks = ceildiv(row_count, rows_per_block_iteration);
-
-  /* std::cout << num_blocks << ", " << threads_per_block << ", " <<
-    shared_mem_per_block << ", " << rows_per_block_iteration << ", " <<
-    output_workspace_size << "\n"; */
+  auto num_blocks = std::min(
+    ceildiv(row_count, rows_per_block_iteration),
+    MAX_BLOCKS
+  );
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
