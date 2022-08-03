@@ -251,7 +251,7 @@ void predict(
   }
 
   auto const max_resident_blocks = sm_count * (
-    MAX_RESIDENT_THREADS_PER_SM / threads_per_block
+    get_max_threads_per_sm(device) / threads_per_block
   );
 
   // Compute shared memory usage based on minimum or specified
@@ -352,6 +352,8 @@ void predict(
     ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
+
+  std::cout << rows_per_block_iteration << "\n";
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
