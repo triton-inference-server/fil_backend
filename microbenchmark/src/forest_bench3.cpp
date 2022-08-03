@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
         kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
         auto target_end = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(target_end - target_start).count();
-        std::cout << row_target << ", " << elapsed << "\n";
+        std::cout << elapsed << "\n";
         if (elapsed < min_time) {
           opt_row = row_target;
           min_time = elapsed;

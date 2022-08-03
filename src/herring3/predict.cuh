@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <iostream>
+#include <numeric>
 #include <optional>
 #include <stddef.h>
 #include <kayak/cuda_stream.hpp>
@@ -275,74 +276,77 @@ void predict(
     max_shared_mem_per_block
   );
 
-  auto resident_blocks = min(
+  auto resident_blocks_per_sm = min(
     ceildiv(max_shared_mem_per_sm, shared_mem_per_block),
     max_resident_blocks
   );
 
-  if (!specified_rows_per_block_iter.has_value()) {
-    // Performance of this algorithm is highly sensitive to the value selected
-    // for rows_per_block_iteration. This corresponds to the number of rows
-    // that a single block processes before loading a new chunk of rows (if
-    // necessary). wphicks was not able to find a universal formula to select
-    // the optimal value for this parameter, so the following heuristics were
-    // developed instead. Note that this computation is theoretically-motivated
-    // but is *not* a complete theoretically-derived and empirically validated
-    // solution. Future work should attempt to improve on this, and in the
-    // meantime we allow users to specify a value in order to manually tune
-    // performance when necessary.
-    auto min_cycles = std::numeric_limits<size_t>::max();
-    auto rows = rows_per_block_iteration;
-    while(resident_blocks >= 2) {
-      rows = rows * 2;
-      auto smem = (
-        row_size_bytes * rows + output_item_bytes * compute_output_size(
-          row_output_size, threads_per_block, rows
-        )
+  if (
+    !specified_rows_per_block_iter.has_value()
+    && resident_blocks_per_sm >= 2
+  ) {
+    // Iterate through powers of two for rows_per_block_iteration up to the
+    // value that guarantees aligned chunks for every block iteration
+    for (
+      auto rpbi=size_t{2};
+      rpbi < MAX_READ_CHUNK / sizeof(typename forest_t::io_type);
+      rpbi <<= 1
+    ) {
+      auto smem = output_item_bytes * compute_output_size(
+        row_output_size, threads_per_block, rows_per_block_iteration
       );
       if (smem > max_shared_mem_per_block) {
         break;
       }
-
-      auto blocks = ceildiv(row_count, rows);
-      resident_blocks = min(
-        max_shared_mem_per_sm / smem,
+      auto res_blocks = min(
+        ceildiv(max_shared_mem_per_sm, smem),
         max_resident_blocks
       );
-
-      if (blocks <= resident_blocks) {
-        rows_per_block_iteration = rows;
+      if (res_blocks < 2) {
         break;
       }
 
-      // If we're transferring less than a megabyte in total, consider compute
-      // time, otherwise just go for maximum rows we can fit without dipping
-      // below 2 resident blocks or exceeding shared memory limit
-      if (row_size_bytes * rows * ceildiv(row_count, rows) < 1e6) {
-        // Compute approximately how many cycles it will take for a block to
-        // perform all of its tree inference for a single iteration. Divide by
-        // the number of resident blocks to account for concurrency.
-        auto tasks_per_block = forest.tree_count() * rows;
-        auto compute_cycles_per_block = ceildiv(
-          tasks_per_block,
-          threads_per_block
-        );
-        auto effective_compute_cycles = ceildiv(
-          compute_cycles_per_block,
-          resident_blocks
-        ) * blocks;
-
-        if (effective_compute_cycles < min_cycles) {
-          rows_per_block_iteration = rows;
-          min_cycles = effective_compute_cycles;
-        }
-      } else {
-        if (resident_blocks >= 2) {
-          rows_per_block_iteration = rows;
-        }
-      }
+      auto total_block_iters = ceildiv(row_count, rpbi);
+      // Determine approximately how often block iterations will start on an
+      // unaligned read
+      auto align_overlap = (
+        row_size_bytes * rows_per_block_iteration
+      ) % MAX_READ_CHUNK;
+      auto align_load_interval = size_t{row_size_bytes != 0} + std::lcm(
+        align_overlap, MAX_READ_CHUNK
+      ) / MAX_READ_CHUNK;
+      auto total_loads = ceildiv(
+        total_block_iters * row_size_bytes,
+        MAX_READ_CHUNK
+      );
+      auto align_penalty = total_loads - total_loads / align_load_interval;
     }
   }
+
+  auto total_loads = ceildiv(
+    total_block_iters * row_size_bytes,
+    size_t{128}
+  );
+  auto coalesce_penalty = total_loads - total_loads / align_load_interval;
+
+  auto sm_balance_penalty = std::min(
+    total_block_iters % sm_count,
+    sm_count - (total_block_iters % sm_count)
+  );
+
+  auto task_count = forest.tree_count() * std::min(
+    row_count, rows_per_block_iteration
+  );
+  auto unique_trees_penalty = total_block_iters * ceildiv(
+    task_count, threads_per_block
+  ) + size_t{task_count % threads_per_block != 0};
+
+  auto parallel_blocks = std::min(
+    total_block_iters, resident_blocks_per_sm * sm_count
+  );
+
+  std::cout << rows_per_block_iteration << ", " << coalesce_penalty << ", " << sm_balance_penalty << ", " 
+    << unique_trees_penalty << ", " << parallel_blocks << ", ";
 
   output_workspace_size = compute_output_size(
     row_output_size, threads_per_block, rows_per_block_iteration
