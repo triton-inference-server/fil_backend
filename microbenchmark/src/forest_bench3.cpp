@@ -51,12 +51,11 @@ void run_herring3(
   float* output,
   std::size_t rows,
   std::size_t cols,
-  std::size_t row_target,
   kayak::cuda_stream stream
 ) {
   // NVTX3_FUNC_RANGE();
-  std::visit([output, input, rows, cols, row_target, &stream](auto&& concrete_model) {
-    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), row_target, 0, stream);
+  std::visit([output, input, rows, cols, &stream](auto&& concrete_model) {
+    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), std::nullopt, 0, stream);
   }, model);
 }
 
@@ -134,31 +133,15 @@ int main(int argc, char** argv) {
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
-      auto min_time = size_t{9999999999};
-      auto opt_row = size_t{1};
-      // std::cout << "row_count, rows/block_iter, blocks, res_blocks, tpb, res_threads, smem, unround_smem, smem_volume, tasks, tasks/block, tasks/thread, time\n";
-      // std::cout << "row_count, rows/block_iter, sm_count, max_smem, row_bytes, out_bytes, tpb, tasks, time\n";
-      for (auto row_target = std::size_t{1}; row_target < 40; ++row_target) {
-        auto target_start = std::chrono::high_resolution_clock::now();
-        run_herring3(
-          herring3_model_gpu,
-          cur_input.data,
-          reinterpret_cast<float*>(gpu_out_buffer.data()),
-          cur_input.rows,
-          cur_input.cols,
-          row_target,
-          fil_model.get_stream()
-        );
-        kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
-        auto target_end = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(target_end - target_start).count();
-        std::cout << elapsed << "\n";
-        if (elapsed < min_time) {
-          opt_row = row_target;
-          min_time = elapsed;
-        }
-      }
-      std::cout << "BEST: " << opt_row << " -> " << min_time << " vs. " << fil_elapsed << "\n";
+      run_herring3(
+        herring3_model_gpu,
+        cur_input.data,
+        reinterpret_cast<float*>(gpu_out_buffer.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream()
+      );
+      kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
       break;
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
