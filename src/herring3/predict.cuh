@@ -218,9 +218,9 @@ void predict(
 
   // First determine the number of threads per block. This is the indicated
   // preferred value unless we cannot handle at least 1 row per block iteration
-  // with available shared memory, in which case must reduce the threads per
+  // with available shared memory, in which case we must reduce the threads per
   // block.
-  auto constexpr const preferred_tpb = size_t{512};
+  auto constexpr const preferred_tpb = size_t{256};
   auto threads_per_block = min(
     preferred_tpb,
     kayak::downpadded_size(
@@ -344,16 +344,14 @@ void predict(
   );
 
   // Divide shared mem evenly
-  shared_mem_per_block = max_shared_mem_per_block / (
-    max_shared_mem_per_block / shared_mem_per_block
+  shared_mem_per_block = max_shared_mem_per_sm / (
+    max_shared_mem_per_sm / shared_mem_per_block
   );
 
   auto num_blocks = std::min(
     ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-
-  std::cout << rows_per_block_iteration << "\n";
 
   infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
