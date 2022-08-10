@@ -19,4 +19,6 @@ void predict(
   kayak::cuda_stream=kayak::cuda_stream{}
 );
 
+void initialize_gpu_options(int device=0);
+
 }

@@ -27,7 +27,7 @@ __device__ auto evaluate_tree(
     io_t* row
 ) {
   auto cur_node = *node;
-  while (!cur_node.is_leaf()) {
+  do {
     auto input_val = row[cur_node.feature_index()];
     auto condition = cur_node.default_distant();
     if (!isnan(input_val)) {
@@ -35,7 +35,7 @@ __device__ auto evaluate_tree(
     }
     node += cur_node.child_offset(condition);
     cur_node = *node;
-  }
+  } while (!cur_node.is_leaf());
   return cur_node.template output<leaf_output_t>();
 }
 
@@ -278,51 +278,7 @@ void predict(
     !specified_rows_per_block_iter.has_value()
     && resident_blocks_per_sm >= 2
   ) {
-    auto prev_align_penalty = row_count * row_size_bytes;
-    // Iterate through powers of two for rows_per_block_iteration up to the
-    // value that guarantees aligned chunks for every block iteration
-    for (
-      auto rpbi=size_t{2};
-      rpbi < WARP_SIZE;
-      rpbi <<= 1
-    ) {
-      auto smem = output_item_bytes * compute_output_size(
-        row_output_size, threads_per_block, rpbi
-      );
-      if (smem > max_shared_mem_per_block) {
-        break;
-      }
-      auto res_blocks = min(
-        ceildiv(max_shared_mem_per_sm, smem),
-        max_resident_blocks
-      );
-      if (res_blocks < 2) {
-        break;
-      }
-
-      auto total_block_iters = ceildiv(row_count, rpbi);
-      // Determine approximately how often block iterations will start on an
-      // unaligned read
-      auto align_overlap = (row_size_bytes * rpbi) % MAX_READ_CHUNK;
-      auto align_load_interval = size_t{row_size_bytes != 0} + std::lcm(
-        align_overlap, MAX_READ_CHUNK
-      ) / MAX_READ_CHUNK;
-      auto total_loads = ceildiv(
-        total_block_iters * row_size_bytes,
-        MAX_READ_CHUNK
-      );
-      auto align_penalty = total_loads - total_loads / align_load_interval;
-      // Only worth increasing rows if we have a significant decrease in
-      // alignment penalty
-      if (prev_align_penalty < 2 * col_count + align_penalty) {
-        break;
-      }
-      rows_per_block_iteration = rpbi;
-      if (res_blocks > total_block_iters) {
-        break;
-      }
-      prev_align_penalty = align_penalty;
-    }
+    rows_per_block_iteration = size_t{2};
   }
 
   output_workspace_size = compute_output_size(
@@ -346,13 +302,6 @@ void predict(
 
   switch(rows_per_block_iteration) {
     case size_t{1}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{1}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{1}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
@@ -366,13 +315,6 @@ void predict(
       );
       break;
     case size_t{2}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{2}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{2}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
@@ -386,13 +328,6 @@ void predict(
       );
       break;
     case size_t{4}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{4}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{4}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
@@ -406,13 +341,6 @@ void predict(
       );
       break;
     case size_t{8}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{8}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{8}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
@@ -426,13 +354,6 @@ void predict(
       );
       break;
     case size_t{16}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{16}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{16}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
@@ -446,13 +367,6 @@ void predict(
       );
       break;
     default:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{32}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
       infer<size_t{32}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,

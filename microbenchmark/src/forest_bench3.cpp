@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
   auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
 
   auto fil_model = ForestModel(tl_model);
+  herring::initialize_gpu_options();
   auto herring3_model_gpu = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
     *tl_model,
     128u,
