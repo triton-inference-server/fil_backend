@@ -90,5 +90,6 @@ inline auto get_core_clock_rate(int device_id) {
 
 auto constexpr static const MAX_READ_CHUNK = size_t{128};
 auto constexpr static const MAX_BLOCKS = size_t{65536};
+auto constexpr static const WARP_SIZE = size_t{32};
 
 }
