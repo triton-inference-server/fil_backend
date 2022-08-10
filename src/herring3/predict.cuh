@@ -37,7 +37,7 @@ __device__ auto evaluate_tree(
   return cur_node.template output<leaf_output_t>();
 }
 
-template<size_t rows_per_block_iteration, typename forest_t>
+template<typename forest_t>
 __global__ void infer(
     forest_t forest,
     postprocessor<
@@ -48,6 +48,7 @@ __global__ void infer(
     size_t row_count,
     size_t col_count,
     size_t num_class,
+    size_t rows_per_block_iteration,
     size_t shared_mem_byte_size,
     size_t output_workspace_size
 ) {
@@ -88,11 +89,12 @@ __global__ void infer(
       col_count
     );
 
-    auto constexpr const task_redundancy = WARP_SIZE / rows_per_block_iteration;
+    auto task_count = rows_in_this_iteration * forest.tree_count();
 
-    auto task_count = WARP_SIZE * forest.tree_count();
-
-    auto const num_grove = blockDim.x / WARP_SIZE;
+    auto num_grove = ceildiv(
+      min(size_t{blockDim.x}, task_count),
+      rows_in_this_iteration
+    );
 
     // Note that this sync is safe because every thread in the block will agree
     // on whether or not a sync is required
@@ -104,38 +106,28 @@ __global__ void infer(
     // work within the loop if the task_index is below the actual task_count.
     auto const task_count_rounded_up = blockDim.x * ceildiv(task_count, blockDim.x);
 
-
     // Infer on each tree and row
     for (
       auto task_index = threadIdx.x;
       task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
-      auto warp_index = task_index / WARP_SIZE;
-      auto grove_index = threadIdx.x / WARP_SIZE;
-      auto tree_index = warp_index % forest.tree_count();
-      auto row_index = (
-        task_index / task_redundancy
-      ) % rows_per_block_iteration;
-
-      auto real_thread = (
-        task_index < task_count &&
-        row_index < rows_in_this_iteration
-        && task_index % task_redundancy == 0
-      );
+      auto row_index = task_index % rows_in_this_iteration;
+      auto tree_index = task_index / rows_in_this_iteration;
+      auto grove_index = threadIdx.x / rows_in_this_iteration;
 
       auto output_offset = (
         row_index * num_class * num_grove
         + (tree_index % num_class) * num_grove
         + grove_index
-      ) * real_thread;
+      ) * (task_index < task_count);
 
       output_workspace[output_offset] += evaluate_tree<
         typename forest_t::leaf_output_type
       >(
         forest.get_tree_root(tree_index),
         input_data + row_index * col_count
-      ) * real_thread;
+      ) * (task_index < task_count);
       __syncthreads();
     }
 
@@ -182,9 +174,10 @@ auto compute_output_size(
   size_t threads_per_block,
   size_t rows_per_block_iteration
 ) {
-  return row_output_size *
-    threads_per_block / WARP_SIZE
-  * rows_per_block_iteration;
+  return row_output_size * ceildiv(
+    threads_per_block,
+    rows_per_block_iteration
+  ) * rows_per_block_iteration;
 }
 
 template<typename forest_t>
@@ -206,6 +199,16 @@ void predict(
   auto sm_count = get_sm_count(device);
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   auto max_shared_mem_per_sm = get_max_shared_mem_per_sm(device);
+  // For Kepler or greater, this allows us to access more than 48kb of shared
+  // mem per block
+  // TODO(wphicks): Do this outside predict function
+  kayak::cuda_check(
+    cudaFuncSetAttribute(
+      infer<forest_t>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize,
+      max_shared_mem_per_block
+    )
+  );
 
   auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
   auto row_output_size = max(forest.leaf_size(), class_count);
@@ -217,31 +220,31 @@ void predict(
   // preferred value unless we cannot handle at least 1 row per block iteration
   // with available shared memory, in which case we must reduce the threads per
   // block.
-  auto constexpr const preferred_tpb = size_t{1024};
+  auto constexpr const preferred_tpb = size_t{256};
   auto threads_per_block = min(
     preferred_tpb,
     kayak::downpadded_size(
       (max_shared_mem_per_block  - row_size_bytes) / row_output_size_bytes,
-      WARP_SIZE
+      size_t{32}
     )
   );
 
   // If we cannot do at least a warp per block when storing input rows in
   // shared mem, recalculate our threads per block without input storage
-  if (threads_per_block < WARP_SIZE) {
+  if (threads_per_block < 32) {
     std::cout << "Not enough room for input data in smem\n";
     row_size_bytes = size_t{};  // Do not store input rows in shared mem
     threads_per_block = min(
       preferred_tpb,
       kayak::downpadded_size(
         max_shared_mem_per_block / row_output_size_bytes,
-        WARP_SIZE
+        size_t{32}
       )
     );
   }
 
   // If we still cannot use at least a warp per block, give up
-  if (threads_per_block < WARP_SIZE) {
+  if (threads_per_block < 32) {
     throw unusable_model_exception(
       "Model output size exceeds available shared memory"
     );
@@ -289,11 +292,11 @@ void predict(
     // value that guarantees aligned chunks for every block iteration
     for (
       auto rpbi=size_t{2};
-      rpbi < WARP_SIZE;
+      rpbi < MAX_READ_CHUNK / sizeof(typename forest_t::io_type);
       rpbi <<= 1
     ) {
       auto smem = output_item_bytes * compute_output_size(
-        row_output_size, threads_per_block, rpbi
+        row_output_size, threads_per_block, rows_per_block_iteration
       );
       if (smem > max_shared_mem_per_block) {
         break;
@@ -350,127 +353,18 @@ void predict(
     MAX_BLOCKS
   );
 
-  switch(rows_per_block_iteration) {
-    case size_t{1}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{1}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{1}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{2}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{2}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{2}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{4}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{4}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{4}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{8}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{8}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{8}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{16}:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{16}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{16}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    default:
-      kayak::cuda_check(
-        cudaFuncSetAttribute(
-          infer<size_t{32}, forest_t>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          max_shared_mem_per_block
-        )
-      );
-      infer<size_t{32}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-  }
+  infer<<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+    forest,
+    postproc,
+    output,
+    input,
+    row_count,
+    col_count,
+    class_count,
+    rows_per_block_iteration,
+    shared_mem_per_block,
+    output_workspace_size
+  );
 }
 
 extern template void predict<
