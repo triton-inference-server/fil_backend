@@ -89,7 +89,9 @@ int main(int argc, char** argv) {
 
   auto half_index = output.size() / 2;
 
-  auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
+  // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
+  // auto batch_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16};
+  auto batch_sizes = std::vector<std::size_t>{1};
   auto batch_timings = std::vector<std::vector<std::size_t>>(4);
 
   // Run benchmarks for each framework
@@ -102,6 +104,7 @@ int main(int argc, char** argv) {
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
     auto batch = batch_sizes[i];
     auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
@@ -116,7 +119,7 @@ int main(int argc, char** argv) {
   auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
   cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  // std::cout << "WH: " << fil_output.data()[1] << ", " << fil_output.data()[half_index * 2 + 1] << ", " << fil_output.data()[output.size() * 2 - 1] << "\n";
+  std::cout << "WH: " << fil_output.data()[1] << ", " << fil_output.data()[half_index * 2 + 1] << ", " << fil_output.data()[output.size() * 2 - 1] << "\n";
 
   start = std::chrono::high_resolution_clock::now();
 
@@ -126,6 +129,7 @@ int main(int argc, char** argv) {
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
     auto batch = batch_sizes[i];
     auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
@@ -138,7 +142,6 @@ int main(int argc, char** argv) {
         cur_input.cols,
         fil_model.get_stream()
       );
-      kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
@@ -148,7 +151,7 @@ int main(int argc, char** argv) {
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
   auto her_output = std::vector<float>(output.size());
   cudaMemcpy(her_output.data(), gpu_out_buffer.data(), her_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  // std::cout << "WH: " << her_output.data()[0] << ", " << her_output.data()[half_index] << ", " << her_output.data()[output.size() - 1] << "\n";
+  std::cout << "WH: " << her_output.data()[0] << ", " << her_output.data()[half_index] << ", " << her_output.data()[output.size() - 1] << "\n";
 
   std::cout << "FIL, Herring3" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";
