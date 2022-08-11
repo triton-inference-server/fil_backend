@@ -95,6 +95,10 @@ struct shared_memory_buffer {
     requires_sync = false;
   }
 
+  __device__ auto remaining() {
+    return remaining_size;
+  }
+
  private:
   std::byte* data;
   size_t total_size;

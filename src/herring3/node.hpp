@@ -6,6 +6,39 @@
 
 namespace herring {
 
+namespace detail {
+
+template<typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
+auto constexpr get_node_alignment() {
+  auto total = (
+    std::max(sizeof(threshold_t), sizeof(index_t))
+    + sizeof(metadata_storage_t)
+    + sizeof(offset_t)
+  );
+  auto result = std::size_t{8};
+  if (total > result) {
+    result = std::size_t{16};
+  }
+  if (total > result) {
+    result = std::size_t{32};
+  }
+  if (total > result) {
+    result = std::size_t{64};
+  }
+  if (total > result) {
+    result = std::size_t{128};
+  }
+  if (total > result) {
+    result = std::size_t{256};
+  }
+  if (total > result) {
+    result = total;
+  }
+  return result;
+}
+
+}
+
 /** @brief A single node in a forest model
  *
  * Note that this implementation includes NO error checking for poorly-chosen
@@ -44,7 +77,7 @@ namespace herring {
  * the largest such offset in the forest model.
  */
 template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
-struct node {
+struct alignas(detail::get_node_alignment<threshold_t, index_t, metadata_storage_t, offset_t>()) node {
   /// @brief An alias for layout_v
   auto constexpr static const layout = layout_v;
   /// @brief An alias for threshold_t
