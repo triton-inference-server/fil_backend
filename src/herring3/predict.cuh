@@ -133,7 +133,7 @@ __global__ void infer(
       __syncthreads();
     }
 
-    task_count = rows_in_this_iteration * num_class;
+    /* task_count = rows_in_this_iteration * num_class;
 
     for (
       auto task_index = threadIdx.x;
@@ -155,18 +155,83 @@ __global__ void infer(
         ];
       }
     }
-    __syncthreads();
+    __syncthreads(); */
+    auto padded_num_groves = kayak::padded_size(num_grove, WARP_SIZE);
     for (
+      auto row_index = threadIdx.x / WARP_SIZE;
+      row_index < rows_in_this_iteration;
+      row_index += blockDim.x / WARP_SIZE
+    ) {
+      for (
+        auto grove_index = threadIdx.x % WARP_SIZE;
+        grove_index < padded_num_groves;
+        grove_index += WARP_SIZE
+      ) {
+        auto real_thread = grove_index < num_grove;
+        for (
+          auto class_index = size_t{};
+          class_index < num_class;
+          ++class_index
+        ) {
+          auto grove_offset = (
+            row_index * num_class * num_grove + class_index * num_grove
+          );
+          auto out_index = grove_offset + grove_index * real_thread;
+          // BUG IS HERE. Grove 0 is not always participating, so shuffle-down
+          // does not always land there
+          for (
+            auto thread_offset = (WARP_SIZE >> 1); 
+            thread_offset > 0;
+            thread_offset >>= 1
+          ) {
+            output_workspace[out_index] += __shfl_down_sync(
+              0xFFFFFFFF,
+              output_workspace[out_index] * real_thread,
+              thread_offset
+            );
+          }
+        }
+        __syncwarp();
+        if (threadIdx.x % WARP_SIZE == 0) {
+          postproc(
+            output_workspace + (row_index) * num_class * num_grove,
+            num_class, 
+            output + ((i + row_index) * num_class)
+          );
+        }
+      }
+    }
+
+    /* for (
       auto row_index = threadIdx.x;
       row_index < rows_in_this_iteration;
       row_index += blockDim.x
     ) {
+      for (
+        auto class_index = size_t{};
+        class_index < num_class;
+        ++class_index
+      ) {
+        auto grove_offset = (
+          row_index * num_class * num_grove + class_index * num_grove
+        );
+        for (
+          auto grove_index = size_t{1};
+          grove_index < num_grove;
+          ++grove_index
+        ) {
+          output_workspace[grove_offset] += output_workspace[
+            grove_offset + grove_index
+          ];
+        }
+      }
+
       postproc(
         output_workspace + (row_index) * num_class * num_grove,
         num_class, 
         output + ((i + row_index) * num_class)
       );
-    }
+    } */
     __syncthreads();
   }
 }
