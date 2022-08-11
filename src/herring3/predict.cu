@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <herring3/constants.hpp>
 #include <herring3/postprocessor.hpp>
 #include <herring3/predict.cuh>
 #include <kayak/cuda_stream.hpp>
@@ -7,11 +8,11 @@ namespace herring {
 
 template void predict<
   forest<
-    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   >
 >(
   forest<
-    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   > const&,
   postprocessor<float, float> const&,
   float*,
@@ -26,7 +27,7 @@ template void predict<
 
 void initialize_gpu_options(int device) {
   using forest_t = forest<
-    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   >;
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   kayak::cuda_check(

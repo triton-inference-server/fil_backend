@@ -7,6 +7,7 @@
 #include <kayak/cuda_stream.hpp>
 #include <kayak/padding.hpp>
 #include <herring3/ceildiv.hpp>
+#include <herring3/constants.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
 #include <herring3/gpu_introspection.hpp>
@@ -383,11 +384,11 @@ void predict(
 
 extern template void predict<
   forest<
-    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   >
 >(
   forest<
-    kayak::tree_layout::depth_first, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   > const&,
   postprocessor<float, float> const&,
   float*,

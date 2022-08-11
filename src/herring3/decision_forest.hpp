@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <cstddef>
+#include <herring3/constants.hpp>
 #include <herring3/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
@@ -15,10 +16,6 @@
 #include <variant>
 
 namespace herring {
-
-namespace detail {
-auto constexpr static const preferred_tree_layout = kayak::tree_layout::depth_first;
-}
 
 template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t, typename leaf_output_t>
 struct decision_forest {
@@ -128,7 +125,7 @@ using forest_model = decision_forest<
 >;
 
 using forest_model_variant = std::variant<
-  forest_model<float, detail::preferred_tree_layout, false, false, false>
+  forest_model<float, preferred_tree_layout, false, false, false>
 >;
 
 inline auto get_forest_variant_index(
