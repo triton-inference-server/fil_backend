@@ -163,42 +163,46 @@ __global__ void infer(
       row_index += blockDim.x / WARP_SIZE
     ) {
       for (
-        auto grove_index = threadIdx.x % WARP_SIZE;
-        grove_index < padded_num_groves;
-        grove_index += WARP_SIZE
+        auto class_index = size_t{};
+        class_index < num_class;
+        ++class_index
       ) {
-        auto real_thread = grove_index < num_grove;
+        auto grove_offset = (
+          row_index * num_class * num_grove + class_index * num_grove
+        );
+        auto class_sum = output_t{};
         for (
-          auto class_index = size_t{};
-          class_index < num_class;
-          ++class_index
+          auto grove_index = threadIdx.x % WARP_SIZE;
+          grove_index < padded_num_groves;
+          grove_index += WARP_SIZE
         ) {
-          auto grove_offset = (
-            row_index * num_class * num_grove + class_index * num_grove
-          );
+          auto real_thread = grove_index < num_grove;
           auto out_index = grove_offset + grove_index * real_thread;
-          // BUG IS HERE. Grove 0 is not always participating, so shuffle-down
-          // does not always land there
+          class_sum *= (threadIdx.x % WARP_SIZE == 0);
+          class_sum += output_workspace[out_index] * real_thread;
           for (
             auto thread_offset = (WARP_SIZE >> 1); 
             thread_offset > 0;
             thread_offset >>= 1
           ) {
-            output_workspace[out_index] += __shfl_down_sync(
+            class_sum += __shfl_down_sync(
               0xFFFFFFFF,
-              output_workspace[out_index] * real_thread,
+              class_sum,
               thread_offset
             );
           }
         }
-        __syncwarp();
         if (threadIdx.x % WARP_SIZE == 0) {
-          postproc(
-            output_workspace + (row_index) * num_class * num_grove,
-            num_class, 
-            output + ((i + row_index) * num_class)
-          );
+          output_workspace[grove_offset] = class_sum;
         }
+      }
+      __syncwarp();
+      if (threadIdx.x % WARP_SIZE == 0) {
+        postproc(
+          output_workspace + row_index * num_class * num_grove,
+          num_class, 
+          output + ((i + row_index) * num_class)
+        );
       }
     }
 
