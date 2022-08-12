@@ -24,8 +24,8 @@ template<
   typename io_t
 >
 __device__ auto evaluate_tree(
-    node_t* node,
-    io_t* row
+    node_t const* __restrict__ node,
+    io_t const* __restrict__ row
 ) {
   auto cur_node = *node;
   do {
@@ -196,7 +196,6 @@ __global__ void infer(
           output_workspace[grove_offset] = class_sum;
         }
       }
-      __syncwarp();
       if (threadIdx.x % WARP_SIZE == 0) {
         postproc(
           output_workspace + row_index * num_class * num_grove,
