@@ -90,9 +90,9 @@ int main(int argc, char** argv) {
 
   auto half_index = output.size() / 2;
 
-  // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
+  auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
   // auto batch_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16};
-  auto batch_sizes = std::vector<std::size_t>{2};
+  // auto batch_sizes = std::vector<std::size_t>{1, 2};
   auto batch_timings = std::vector<std::vector<std::size_t>>(4);
 
   // Run benchmarks for each framework

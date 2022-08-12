@@ -280,7 +280,7 @@ void predict(
   // preferred value unless we cannot handle at least 1 row per block iteration
   // with available shared memory, in which case we must reduce the threads per
   // block.
-  auto constexpr const preferred_tpb = size_t{256};
+  auto constexpr const preferred_tpb = size_t{1024};
   auto threads_per_block = min(
     preferred_tpb,
     kayak::downpadded_size(
