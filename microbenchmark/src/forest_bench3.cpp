@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_herring3(
         herring3_model_gpu,
         cur_input.data,
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_herring3(
         herring3_model_gpu,
         cur_input.data,
@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_herring3(
         herring3_model_gpu,
         cur_input.data,
@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_herring3(
         herring3_model_gpu,
         cur_input.data,
