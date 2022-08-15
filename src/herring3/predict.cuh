@@ -114,8 +114,9 @@ __global__ void infer(
       task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
-      auto row_index = task_index % rows_in_this_iteration;
-      auto tree_index = task_index / rows_in_this_iteration;
+      auto real_task = task_index < task_count;
+      auto row_index = task_index * real_task % rows_in_this_iteration;
+      auto tree_index = task_index * real_task / rows_in_this_iteration;
       auto grove_index = threadIdx.x / rows_in_this_iteration;
 
       auto output_offset = (
@@ -129,33 +130,10 @@ __global__ void infer(
       >(
         forest.get_tree_root(tree_index),
         input_data + row_index * col_count
-      ) * (task_index < task_count);
+      ) * real_task;
       __syncthreads();
     }
 
-    /* task_count = rows_in_this_iteration * num_class;
-
-    for (
-      auto task_index = threadIdx.x;
-      task_index < task_count;
-      task_index += blockDim.x
-    ) {
-      auto row_index = task_index % rows_in_this_iteration;
-      auto class_index = task_index / rows_in_this_iteration;
-      auto grove_offset = (
-        row_index * num_class * num_grove + class_index * num_grove
-      );
-      for (
-        auto grove_index = size_t{1};
-        grove_index < num_grove;
-        ++grove_index
-      ) {
-        output_workspace[grove_offset] += output_workspace[
-          grove_offset + grove_index
-        ];
-      }
-    }
-    __syncthreads(); */
     auto padded_num_groves = kayak::padded_size(num_grove, WARP_SIZE);
     for (
       auto row_index = threadIdx.x / WARP_SIZE;
@@ -204,37 +182,6 @@ __global__ void infer(
         );
       }
     }
-
-    /* for (
-      auto row_index = threadIdx.x;
-      row_index < rows_in_this_iteration;
-      row_index += blockDim.x
-    ) {
-      for (
-        auto class_index = size_t{};
-        class_index < num_class;
-        ++class_index
-      ) {
-        auto grove_offset = (
-          row_index * num_class * num_grove + class_index * num_grove
-        );
-        for (
-          auto grove_index = size_t{1};
-          grove_index < num_grove;
-          ++grove_index
-        ) {
-          output_workspace[grove_offset] += output_workspace[
-            grove_offset + grove_index
-          ];
-        }
-      }
-
-      postproc(
-        output_workspace + (row_index) * num_class * num_grove,
-        num_class, 
-        output + ((i + row_index) * num_class)
-      );
-    } */
     __syncthreads();
   }
 }
@@ -266,6 +213,7 @@ void predict(
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
 
+  // std::cout << "Trees: " << forest.tree_count() << ", Rows: " << row_count << "\n";
   auto sm_count = get_sm_count(device);
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   auto max_shared_mem_per_sm = get_max_shared_mem_per_sm(device);
@@ -347,7 +295,7 @@ void predict(
     !specified_rows_per_block_iter.has_value()
     && resident_blocks_per_sm >= 2
   ) {
-    rows_per_block_iteration = size_t{2};
+    rows_per_block_iteration = size_t{32};
   }
 
   output_workspace_size = compute_output_size(

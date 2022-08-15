@@ -51,11 +51,12 @@ void run_herring3(
   float* output,
   std::size_t rows,
   std::size_t cols,
-  kayak::cuda_stream stream
+  kayak::cuda_stream stream,
+  std::size_t rpbi
 ) {
   // NVTX3_FUNC_RANGE();
-  std::visit([output, input, rows, cols, &stream](auto&& concrete_model) {
-    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), std::nullopt, 0, stream);
+  std::visit([output, input, rows, cols, &stream, rpbi](auto&& concrete_model) {
+    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), rpbi, 0, stream);
   }, model);
 }
 
@@ -90,10 +91,13 @@ int main(int argc, char** argv) {
 
   auto half_index = output.size() / 2;
 
-  auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
+  // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
   // auto batch_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16};
-  // auto batch_sizes = std::vector<std::size_t>{1, 2};
-  auto batch_timings = std::vector<std::vector<std::size_t>>(4);
+  // auto batch_sizes = std::vector<std::size_t>{1};
+  auto batch_sizes = std::vector<std::size_t>{
+    1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536
+  };
+  auto batch_timings = std::vector<std::vector<std::size_t>>(6);
 
   // Run benchmarks for each framework
   auto fil_output = std::vector<float>(2 * output.size());
@@ -109,7 +113,7 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_fil(fil_model, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
@@ -134,14 +138,16 @@ int main(int argc, char** argv) {
 
     auto batch_start = std::chrono::high_resolution_clock::now();
     for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      // std::cout << gpu_buffer.size() / sizeof(float) << ", " << j * batch << "\n";
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
       run_herring3(
         herring3_model_gpu,
         cur_input.data,
         reinterpret_cast<float*>(gpu_out_buffer.data()),
         cur_input.rows,
         cur_input.cols,
-        fil_model.get_stream()
+        fil_model.get_stream(),
+        2
       );
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
@@ -153,6 +159,98 @@ int main(int argc, char** argv) {
   auto her_output = std::vector<float>(output.size());
   cudaMemcpy(her_output.data(), gpu_out_buffer.data(), her_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
   std::cout << "WH: " << her_output.data()[0] << ", " << her_output.data()[half_index] << ", " << her_output.data()[output.size() - 1] << "\n";
+
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      run_herring3(
+        herring3_model_gpu,
+        cur_input.data,
+        reinterpret_cast<float*>(gpu_out_buffer.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream(),
+        4
+      );
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[2].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
+
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      run_herring3(
+        herring3_model_gpu,
+        cur_input.data,
+        reinterpret_cast<float*>(gpu_out_buffer.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream(),
+        8
+      );
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
+
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      run_herring3(
+        herring3_model_gpu,
+        cur_input.data,
+        reinterpret_cast<float*>(gpu_out_buffer.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream(),
+        16
+      );
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[4].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
+
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
+      run_herring3(
+        herring3_model_gpu,
+        cur_input.data,
+        reinterpret_cast<float*>(gpu_out_buffer.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream(),
+        32
+      );
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[5].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
 
   std::cout << "FIL, Herring3" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";
@@ -166,8 +264,28 @@ int main(int argc, char** argv) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "Herring3-GPU";
+  std::cout << "H" << 2;
   for (auto res : batch_timings[1]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H" << 4;
+  for (auto res : batch_timings[2]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H" << 8;
+  for (auto res : batch_timings[3]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H" << 16;
+  for (auto res : batch_timings[4]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H" << 32;
+  for (auto res : batch_timings[5]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
