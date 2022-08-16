@@ -88,6 +88,19 @@ inline auto get_core_clock_rate(int device_id) {
   return size_t(result);
 }
 
+template <typename T>
+auto get_max_active_blocks_per_sm(
+  T kernel, std::size_t block_size, std::size_t dynamic_smem_size=std::size_t{}
+) {
+  auto result = int{};
+  kayak::cuda_check(
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+      &result, kernel, block_size, dynamic_smem_size
+    )
+  );
+  return size_t(result);
+}
+
 auto constexpr static const MAX_READ_CHUNK = size_t{128};
 auto constexpr static const MAX_BLOCKS = size_t{65536};
 auto constexpr static const WARP_SIZE = size_t{32};
