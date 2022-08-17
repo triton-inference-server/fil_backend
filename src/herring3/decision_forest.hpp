@@ -1,5 +1,4 @@
 #pragma once
-#include <nvtx3/nvtx3.hpp>
 #include <stddef.h>
 #include <stdint.h>
 #include <algorithm>
