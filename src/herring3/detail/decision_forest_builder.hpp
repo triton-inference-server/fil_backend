@@ -15,6 +15,7 @@
 #include <kayak/detail/index_type.hpp>
 
 namespace herring {
+namespace detail {
 
 struct model_builder_error : std::exception {
   model_builder_error() : model_builder_error("Error while building model") {}
@@ -139,4 +140,5 @@ struct decision_forest_builder {
   std::vector<std::size_t> root_node_indexes_;
 };
 
+}
 }

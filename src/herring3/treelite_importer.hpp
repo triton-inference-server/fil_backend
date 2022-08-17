@@ -6,7 +6,7 @@
 #include <treelite/tree.h>
 #include <treelite/typeinfo.h>
 #include <herring3/decision_forest.hpp>
-#include <herring3/decision_forest_builder.hpp>
+#include <herring3/detail/decision_forest_builder.hpp>
 #include <herring3/postprocessor.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
@@ -466,7 +466,7 @@ struct treelite_importer {
     if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
-        auto builder = decision_forest_builder<forest_model_t>(align_bytes.value());
+        auto builder = detail::decision_forest_builder<forest_model_t>(align_bytes.value());
         auto tree_count = num_trees(tl_model);
         auto tree_index = std::size_t{};
         tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
