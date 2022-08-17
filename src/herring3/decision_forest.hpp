@@ -6,7 +6,7 @@
 #include <herring3/constants.hpp>
 #include <herring3/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
-#include <herring3/forest.hpp>
+#include <herring3/detail/forest.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/tree_layout.hpp>

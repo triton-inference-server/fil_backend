@@ -8,7 +8,7 @@
 #include <optional>
 #include <vector>
 #include <herring3/postprocessor.hpp>
-#include <herring3/forest.hpp>
+#include <herring3/detail/forest.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
