@@ -12,15 +12,15 @@
 
 struct ForestModel {
   using device_id_t = int;
-  ForestModel(std::unique_ptr<treelite::Model>& tl_model)
+  ForestModel(std::unique_ptr<treelite::Model>& tl_model, bool sparse=false)
       : device_id_{}, raft_handle_{},
-        fil_forest_{[this, &tl_model]() {
+        fil_forest_{[this, &tl_model, sparse]() {
           auto result = ML::fil::forest_t{};
           auto config = ML::fil::treelite_params_t{
             ML::fil::algo_t::ALGO_AUTO,
             true,
             0.5,
-            ML::fil::storage_type_t::DENSE,
+            sparse ? ML::fil::storage_type_t::SPARSE : ML::fil::storage_type_t::DENSE,
             0,
             1,
             0,

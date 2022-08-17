@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
 
   auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
 
-  auto fil_model = ForestModel(tl_model);
+  auto fil_model = ForestModel(tl_model, false);
+  auto fil_model_sparse = ForestModel(tl_model, true);
   herring::initialize_gpu_options();
   auto herring3_model_gpu = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
     *tl_model,
@@ -97,7 +98,7 @@ int main(int argc, char** argv) {
   auto batch_sizes = std::vector<std::size_t>{
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536
   };
-  auto batch_timings = std::vector<std::vector<std::size_t>>(6);
+  auto batch_timings = std::vector<std::vector<std::size_t>>(7);
 
   // Run benchmarks for each framework
   auto fil_output = std::vector<float>(2 * output.size());
@@ -127,6 +128,23 @@ int main(int argc, char** argv) {
   std::cout << "WH: " << fil_output.data()[1] << ", " << fil_output.data()[half_index * 2 + 1] << ", " << fil_output.data()[output.size() * 2 - 1] << "\n";
 
   start = std::chrono::high_resolution_clock::now();
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
+      run_fil(fil_model_sparse, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[1].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
+  end = std::chrono::high_resolution_clock::now();
+
+  start = std::chrono::high_resolution_clock::now();
 
   gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
 
@@ -152,7 +170,7 @@ int main(int argc, char** argv) {
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[1].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[2].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
   end = std::chrono::high_resolution_clock::now();
   auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
@@ -180,7 +198,7 @@ int main(int argc, char** argv) {
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[2].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
 
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -203,7 +221,7 @@ int main(int argc, char** argv) {
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[3].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[4].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
 
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -226,7 +244,7 @@ int main(int argc, char** argv) {
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[4].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[5].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
 
   for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
@@ -249,7 +267,7 @@ int main(int argc, char** argv) {
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[5].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+    batch_timings[6].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
 
   std::cout << "FIL, Herring3" << "\n";
@@ -259,33 +277,38 @@ int main(int argc, char** argv) {
     std::cout << "," << size;
   }
   std::cout << "\n";
-  std::cout << "FIL";
+  std::cout << "FIL-Dense";
   for (auto res : batch_timings[0]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "H" << 2;
+  std::cout << "FIL-Sparse";
   for (auto res : batch_timings[1]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "H" << 4;
+  std::cout << "H" << 2;
   for (auto res : batch_timings[2]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "H" << 8;
+  std::cout << "H" << 4;
   for (auto res : batch_timings[3]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "H" << 16;
+  std::cout << "H" << 8;
   for (auto res : batch_timings[4]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
-  std::cout << "H" << 32;
+  std::cout << "H" << 16;
   for (auto res : batch_timings[5]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H" << 32;
+  for (auto res : batch_timings[6]) {
     std::cout << "," << res;
   }
   std::cout << "\n";
