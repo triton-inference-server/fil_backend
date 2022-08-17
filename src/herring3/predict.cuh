@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/padding.hpp>
-#include <herring3/ceildiv.hpp>
+#include <kayak/ceildiv.hpp>
 #include <herring3/constants.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest.hpp>
@@ -93,7 +93,7 @@ __global__ void infer(
 
     auto task_count = rows_in_this_iteration * forest.tree_count();
 
-    auto num_grove = ceildiv(
+    auto num_grove = kayak::ceildiv(
       min(size_t{blockDim.x}, task_count),
       rows_in_this_iteration
     );
@@ -106,7 +106,7 @@ __global__ void infer(
     // deadlock on __syncthreads, so we round the task_count up to the next
     // multiple of the number of threads in this block. We then only perform
     // work within the loop if the task_index is below the actual task_count.
-    auto const task_count_rounded_up = blockDim.x * ceildiv(task_count, blockDim.x);
+    auto const task_count_rounded_up = blockDim.x * kayak::ceildiv(task_count, blockDim.x);
 
     // Infer on each tree and row
     for (
@@ -191,7 +191,7 @@ auto compute_output_size(
   size_t threads_per_block,
   size_t rows_per_block_iteration
 ) {
-  return row_output_size * ceildiv(
+  return row_output_size * kayak::ceildiv(
     threads_per_block,
     rows_per_block_iteration
   ) * rows_per_block_iteration;
@@ -285,7 +285,7 @@ void predict(
   );
 
   auto resident_blocks_per_sm = min(
-    ceildiv(max_shared_mem_per_sm, shared_mem_per_block),
+    kayak::ceildiv(max_shared_mem_per_sm, shared_mem_per_block),
     max_resident_blocks
   );
 
@@ -313,7 +313,7 @@ void predict(
   );
 
   auto num_blocks = std::min(
-    ceildiv(row_count, rows_per_block_iteration),
+    kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
 
