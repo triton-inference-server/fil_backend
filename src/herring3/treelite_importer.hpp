@@ -7,7 +7,7 @@
 #include <treelite/typeinfo.h>
 #include <herring3/decision_forest.hpp>
 #include <herring3/detail/decision_forest_builder.hpp>
-#include <herring3/postprocessor.hpp>
+#include <herring3/postproc_ops.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
 

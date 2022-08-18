@@ -11,7 +11,7 @@
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/gpu_introspection.hpp>
-#include <herring3/postprocessor.hpp>
+#include <herring3/detail/postprocessor.hpp>
 #include <herring3/shared_memory_buffer.cuh>
 
 namespace herring {

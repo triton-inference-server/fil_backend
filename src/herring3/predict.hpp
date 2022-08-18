@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <optional>
-#include <herring3/postprocessor.hpp>
+#include <herring3/detail/postprocessor.hpp>
 #include <kayak/cuda_stream.hpp>
 namespace herring {
 

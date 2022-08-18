@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <herring3/constants.hpp>
-#include <herring3/postprocessor.hpp>
+#include <herring3/postproc_ops.hpp>
+#include <herring3/detail/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
 #include <kayak/buffer.hpp>
