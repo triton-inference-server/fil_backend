@@ -88,6 +88,7 @@ struct decision_forest_builder {
   }
 
   auto get_decision_forest(
+      std::size_t num_feature,
       std::size_t num_class,
       kayak::device_type mem_type=kayak::device_type::cpu,
       int device=0,
@@ -113,6 +114,7 @@ struct decision_forest_builder {
         device,
         stream
       },
+      num_feature,
       num_class,
       output_size_,
       row_postproc_,

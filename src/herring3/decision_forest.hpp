@@ -5,11 +5,13 @@
 #include <cstddef>
 #include <herring3/constants.hpp>
 #include <herring3/postproc_ops.hpp>
+#include <herring3/predict.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
+#include <kayak/exceptions.hpp>
 #include <kayak/tree_layout.hpp>
 #include <limits>
 #include <optional>
@@ -35,6 +37,7 @@ struct decision_forest {
   using leaf_output_type = typename forest_type::leaf_output_type;
   using postprocessor_type = postprocessor<leaf_output_type, io_type>;
 
+  auto num_feature() const { return num_feature_; }
   auto num_class() const { return num_class_; }
   auto leaf_size() const { return leaf_size_; }
 
@@ -59,6 +62,7 @@ struct decision_forest {
   decision_forest() :
     nodes_{},
     root_node_indexes_{},
+    num_feature_{},
     num_class_{},
     leaf_size_{},
     row_postproc_{},
@@ -70,6 +74,7 @@ struct decision_forest {
   decision_forest(
     kayak::buffer<node_type>&& nodes,
     kayak::buffer<size_t>&& root_node_indexes,
+    size_t num_feature,
     size_t num_class=size_t{2},
     size_t leaf_size=size_t{1},
     row_op row_postproc=row_op::disable,
@@ -80,6 +85,7 @@ struct decision_forest {
   ) :
     nodes_{nodes},
     root_node_indexes_{root_node_indexes},
+    num_feature_{num_feature},
     num_class_{num_class},
     leaf_size_{leaf_size},
     row_postproc_{row_postproc},
@@ -88,7 +94,52 @@ struct decision_forest {
     bias_{bias},
     postproc_constant_{postproc_constant}
   {
-    // TODO: Check for inconsistent memory type
+    if (nodes.memory_type() != root_node_indexes.memory_type()) {
+      throw kayak::mem_type_mismatch(
+        "Nodes and indexes of forest must both be stored on either host or device"
+      );
+    }
+    if (nodes.device_index() != root_node_indexes.device_index()) {
+      throw kayak::mem_type_mismatch(
+        "Nodes and indexes of forest must both be stored on same device"
+      );
+    }
+  }
+
+  auto memory_type() {
+    return nodes_.memory_type();
+  }
+  auto device_index() {
+    return nodes_.device_index();
+  }
+
+  void predict(
+    kayak::buffer<typename forest_type::io_type>& output,
+    kayak::buffer<typename forest_type::io_type> const& input,
+    kayak::cuda_stream stream = kayak::cuda_stream{},
+    std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt
+  ) {
+    if (output.memory_type() != memory_type() || input.memory_type() != memory_type()) {
+      throw kayak::wrong_device_type{
+        "Tried to use host I/O data with model on device or vice versa"
+      };
+    }
+    if (output.device_index() != device_index() || input.device_index() != device_index()) {
+      throw kayak::wrong_device{
+        "I/O data on different device than model"
+      };
+    }
+    herring::predict(
+      obj(),
+      output.data(),
+      input.data(),
+      input.size() / num_feature_,
+      num_feature_,
+      num_class_,
+      specified_rows_per_block_iter,
+      device_index(),
+      stream
+    );
   }
 
  private:
@@ -98,6 +149,7 @@ struct decision_forest {
   kayak::buffer<size_t> root_node_indexes_;
 
   // Metadata
+  size_t num_feature_;
   size_t num_class_;
   size_t leaf_size_;
   // Postprocessing constants

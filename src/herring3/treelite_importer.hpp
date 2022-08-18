@@ -510,7 +510,7 @@ struct treelite_importer {
         builder.set_row_postproc(postproc_params.row);
         builder.set_postproc_constant(postproc_params.constant);
 
-        result.template emplace<variant_index>(builder.get_decision_forest(num_class, mem_type, device, stream));
+        result.template emplace<variant_index>(builder.get_decision_forest(std::size_t{num_feature.value()}, num_class, mem_type, device, stream));
       } else {
         result = import_to_specific_variant<variant_index +1>(
           target_variant_index,

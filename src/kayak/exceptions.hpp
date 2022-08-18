@@ -31,4 +31,26 @@ struct wrong_device_type : std::exception {
   char const* msg_;
 };
 
+struct mem_type_mismatch : std::exception {
+  mem_type_mismatch() : mem_type_mismatch(
+    "Memory type does not match expected type"
+  ) {}
+  mem_type_mismatch(char const* msg) : msg_{msg} {}
+  virtual char const* what() const noexcept { return msg_; }
+
+ private:
+  char const* msg_;
+};
+
+struct wrong_device : std::exception {
+  wrong_device() : wrong_device(
+    "Attempted to use incorrect device"
+  ) {}
+  wrong_device(char const* msg) : msg_{msg} {}
+  virtual char const* what() const noexcept { return msg_; }
+
+ private:
+  char const* msg_;
+};
+
 }
