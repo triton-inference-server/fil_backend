@@ -40,8 +40,8 @@ __device__ auto evaluate_tree(
   return cur_node.template output<leaf_output_t>();
 }
 
-template<size_t rows_per_block_iteration, bool has_vector_leaves, bool
-is_categorical, typename forest_t, typename vector_output_t=std::nullptr_t>
+template<bool has_vector_leaves, bool is_categorical, typename forest_t,
+  typename vector_output_t=std::nullptr_t>
 __global__ void infer(
     forest_t forest,
     postprocessor<
@@ -54,6 +54,7 @@ __global__ void infer(
     size_t num_outputs,
     size_t shared_mem_byte_size,
     size_t output_workspace_size,
+    size_t rows_per_block_iteration,
     vector_output_t vector_output_p=nullptr
 ) {
   extern __shared__ std::byte shared_mem_raw[];
@@ -335,86 +336,18 @@ void predict(
     kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-
-  switch(rows_per_block_iteration) {
-    case size_t{1}:
-      infer<size_t{1}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{2}:
-      infer<size_t{2}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{4}:
-      infer<size_t{4}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{8}:
-      infer<size_t{8}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    case size_t{16}:
-      infer<size_t{16}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-      break;
-    default:
-      infer<size_t{32}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        shared_mem_per_block,
-        output_workspace_size
-      );
-  }
+  infer<false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+    forest,
+    postproc,
+    output,
+    input,
+    row_count,
+    col_count,
+    class_count,
+    shared_mem_per_block,
+    output_workspace_size,
+    rows_per_block_iteration
+  );
 }
 
 extern template void predict<

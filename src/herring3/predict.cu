@@ -32,42 +32,7 @@ void initialize_gpu_options(int device) {
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   kayak::cuda_check(
     cudaFuncSetAttribute(
-      infer<size_t{1}, false, false, forest_t>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      max_shared_mem_per_block
-    )
-  );
-  kayak::cuda_check(
-    cudaFuncSetAttribute(
-      infer<size_t{2}, false, false, forest_t>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      max_shared_mem_per_block
-    )
-  );
-  kayak::cuda_check(
-    cudaFuncSetAttribute(
-      infer<size_t{4}, false, false, forest_t>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      max_shared_mem_per_block
-    )
-  );
-  kayak::cuda_check(
-    cudaFuncSetAttribute(
-      infer<size_t{8}, false, false, forest_t>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      max_shared_mem_per_block
-    )
-  );
-  kayak::cuda_check(
-    cudaFuncSetAttribute(
-      infer<size_t{16}, false, false, forest_t>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      max_shared_mem_per_block
-    )
-  );
-  kayak::cuda_check(
-    cudaFuncSetAttribute(
-      infer<size_t{32}, false, false, forest_t>,
+      infer<false, false, forest_t>,
       cudaFuncAttributeMaxDynamicSharedMemorySize,
       max_shared_mem_per_block
     )
