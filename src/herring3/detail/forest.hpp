@@ -1,7 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <kayak/gpu_support.hpp>
-#include <herring3/node.hpp>
+#include <herring3/detail/node.hpp>
 
 namespace herring {
 
