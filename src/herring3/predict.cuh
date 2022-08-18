@@ -12,7 +12,7 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/gpu_introspection.hpp>
 #include <herring3/detail/postprocessor.hpp>
-#include <herring3/shared_memory_buffer.cuh>
+#include <herring3/detail/shared_memory_buffer.cuh>
 
 namespace herring {
 
@@ -40,7 +40,8 @@ __device__ auto evaluate_tree(
   return cur_node.template output<leaf_output_t>();
 }
 
-template<size_t rows_per_block_iteration, typename forest_t>
+template<size_t rows_per_block_iteration, bool has_vector_leaves, bool
+is_categorical, typename forest_t, typename vector_output_t=std::nullptr_t>
 __global__ void infer(
     forest_t forest,
     postprocessor<
@@ -50,9 +51,10 @@ __global__ void infer(
     typename forest_t::io_type const* input,
     size_t row_count,
     size_t col_count,
-    size_t num_class,
+    size_t num_outputs,
     size_t shared_mem_byte_size,
-    size_t output_workspace_size
+    size_t output_workspace_size,
+    vector_output_t vector_output_p=nullptr
 ) {
   extern __shared__ std::byte shared_mem_raw[];
 
@@ -60,14 +62,10 @@ __global__ void infer(
 
   using node_t = typename forest_t::node_type;
 
-  // TODO(wphicks): Handle vector leaves
   using output_t = std::conditional_t<
-    std::is_same_v<
-      typename node_t::threshold_type,
-      typename forest_t::leaf_output_type
-    >,
-    typename node_t::threshold_type,
-    typename node_t::index_type
+    has_vector_leaves,
+    vector_output_t,
+    typename node_t::threshold_type
   >;
 
   using io_t = typename forest_t::io_type;
@@ -119,18 +117,39 @@ __global__ void infer(
       auto tree_index = task_index * real_task / rows_in_this_iteration;
       auto grove_index = threadIdx.x / rows_in_this_iteration;
 
-      auto output_offset = (
-        row_index * num_class * num_grove
-        + (tree_index % num_class) * num_grove
-        + grove_index
-      ) * (task_index < task_count);
-
-      output_workspace[output_offset] += evaluate_tree<
-        typename forest_t::leaf_output_type
-      >(
-        forest.get_tree_root(tree_index),
-        input_data + row_index * col_count
-      ) * real_task;
+      if constexpr (has_vector_leaves) {
+        auto leaf_index = evaluate_tree<typename
+          forest_t::leaf_output_type
+        >(
+          forest.get_tree_root(tree_index),
+          input_data + row_index * col_count
+        );
+        for (
+          auto class_index=size_t{};
+          class_index < num_outputs;
+          ++class_index
+        ) {
+          output_workspace[
+            row_index * num_outputs * num_grove
+            + class_index * num_grove
+            + grove_index
+          ] += vector_output_p[
+            leaf_index * num_outputs + class_index
+          ];
+        }
+      } else {
+        auto output_offset = (
+          row_index * num_outputs * num_grove
+          + (tree_index % num_outputs) * num_grove
+          + grove_index
+        ) * (task_index < task_count);
+        output_workspace[output_offset] += evaluate_tree<
+          typename forest_t::leaf_output_type
+        >(
+          forest.get_tree_root(tree_index),
+          input_data + row_index * col_count
+        ) * real_task;
+      }
       __syncthreads();
     }
 
@@ -142,11 +161,11 @@ __global__ void infer(
     ) {
       for (
         auto class_index = size_t{};
-        class_index < num_class;
+        class_index < num_outputs;
         ++class_index
       ) {
         auto grove_offset = (
-          row_index * num_class * num_grove + class_index * num_grove
+          row_index * num_outputs * num_grove + class_index * num_grove
         );
         auto class_sum = output_t{};
         for (
@@ -176,9 +195,9 @@ __global__ void infer(
       }
       if (threadIdx.x % WARP_SIZE == 0) {
         postproc(
-          output_workspace + row_index * num_class * num_grove,
-          num_class, 
-          output + ((i + row_index) * num_class)
+          output_workspace + row_index * num_outputs * num_grove,
+          num_outputs, 
+          output + ((i + row_index) * num_outputs)
         );
       }
     }
@@ -319,7 +338,7 @@ void predict(
 
   switch(rows_per_block_iteration) {
     case size_t{1}:
-      infer<size_t{1}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{1}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
@@ -332,7 +351,7 @@ void predict(
       );
       break;
     case size_t{2}:
-      infer<size_t{2}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{2}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
@@ -345,7 +364,7 @@ void predict(
       );
       break;
     case size_t{4}:
-      infer<size_t{4}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{4}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
@@ -358,7 +377,7 @@ void predict(
       );
       break;
     case size_t{8}:
-      infer<size_t{8}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{8}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
@@ -371,7 +390,7 @@ void predict(
       );
       break;
     case size_t{16}:
-      infer<size_t{16}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{16}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
@@ -384,7 +403,7 @@ void predict(
       );
       break;
     default:
-      infer<size_t{32}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+      infer<size_t{32}, false, false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
         forest,
         postproc,
         output,
