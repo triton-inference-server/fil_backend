@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <herring3/constants.hpp>
 #include <herring3/postproc_ops.hpp>
-#include <herring3/predict.hpp>
+#include <herring3/detail/predict.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
@@ -36,28 +36,6 @@ struct decision_forest {
   using threshold_type = threshold_t;
   using leaf_output_type = typename forest_type::leaf_output_type;
   using postprocessor_type = postprocessor<leaf_output_type, io_type>;
-
-  auto num_feature() const { return num_feature_; }
-  auto num_outputs() const { return num_class_; }
-  auto leaf_size() const { return leaf_size_; }
-
-  auto obj() const {
-    return forest_type{
-      nodes_.data(),
-      root_node_indexes_.data(),
-      root_node_indexes_.size()
-    };
-  }
-
-  auto get_postprocessor() const {
-    return postprocessor_type {
-      row_postproc_,
-      elem_postproc_,
-      average_factor_,
-      bias_,
-      postproc_constant_
-    };
-  }
 
   decision_forest() :
     nodes_{},
@@ -105,6 +83,9 @@ struct decision_forest {
       );
     }
   }
+
+  auto num_feature() const { return num_feature_; }
+  auto num_outputs() const { return num_class_; }
 
   auto memory_type() {
     return nodes_.memory_type();
@@ -159,6 +140,26 @@ struct decision_forest {
   io_type average_factor_;
   io_type bias_;
   io_type postproc_constant_;
+
+  auto obj() const {
+    return forest_type{
+      nodes_.data(),
+      root_node_indexes_.data(),
+      root_node_indexes_.size()
+    };
+  }
+
+  auto get_postprocessor() const {
+    return postprocessor_type {
+      row_postproc_,
+      elem_postproc_,
+      average_factor_,
+      bias_,
+      postproc_constant_
+    };
+  }
+
+  auto leaf_size() const { return leaf_size_; }
 };
 
 template<

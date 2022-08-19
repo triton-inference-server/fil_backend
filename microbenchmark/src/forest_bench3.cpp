@@ -1,5 +1,5 @@
 #include <herring3/decision_forest.hpp>
-#include <herring3/predict.hpp>
+#include <herring3/detail/predict.hpp>
 #include <herring3/treelite_importer.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_check.hpp>
@@ -68,7 +68,6 @@ void run_herring3(
       kayak::device_type::gpu
     );
     concrete_model.predict(out_buf, in_buf, stream, rpbi);
-    // predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_outputs(), rpbi, 0, stream);
   }, model);
 }
 

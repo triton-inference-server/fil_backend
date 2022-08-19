@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <herring3/constants.hpp>
 #include <herring3/detail/postprocessor.hpp>
-#include <herring3/predict.cuh>
+#include <herring3/detail/predict.cuh>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/tree_layout.hpp>
 namespace herring {
