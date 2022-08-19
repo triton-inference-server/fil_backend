@@ -1,6 +1,7 @@
 #include <herring3/decision_forest.hpp>
 #include <herring3/predict.hpp>
 #include <herring3/treelite_importer.hpp>
+#include <kayak/buffer.hpp>
 #include <kayak/cuda_check.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/data_array.hpp>
@@ -56,7 +57,18 @@ void run_herring3(
 ) {
   // NVTX3_FUNC_RANGE();
   std::visit([output, input, rows, cols, &stream, rpbi](auto&& concrete_model) {
-    predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_class(), rpbi, 0, stream);
+    auto in_buf = kayak::buffer(
+      input,
+      rows * cols,
+      kayak::device_type::gpu
+    );
+    auto out_buf = kayak::buffer(
+      output,
+      rows * concrete_model.num_outputs(),
+      kayak::device_type::gpu
+    );
+    concrete_model.predict(out_buf, in_buf, stream, rpbi);
+    // predict(concrete_model.obj(), concrete_model.get_postprocessor(), output, input, rows, cols, concrete_model.num_outputs(), rpbi, 0, stream);
   }, model);
 }
 

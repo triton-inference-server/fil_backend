@@ -38,7 +38,7 @@ struct decision_forest {
   using postprocessor_type = postprocessor<leaf_output_type, io_type>;
 
   auto num_feature() const { return num_feature_; }
-  auto num_class() const { return num_class_; }
+  auto num_outputs() const { return num_class_; }
   auto leaf_size() const { return leaf_size_; }
 
   auto obj() const {
@@ -131,6 +131,7 @@ struct decision_forest {
     }
     herring::predict(
       obj(),
+      get_postprocessor(),
       output.data(),
       input.data(),
       input.size() / num_feature_,
