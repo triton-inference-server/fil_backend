@@ -18,7 +18,7 @@
 
 #include <type_traits>
 
-namespace herring {
+namespace herring_old {
   template<typename T, template<typename...> class U>
   struct is_container_specialization : std::false_type {
     using value_type = T;

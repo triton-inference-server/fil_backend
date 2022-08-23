@@ -23,7 +23,7 @@
 #include <herring/node.hpp>
 #include "herring/type_helpers.hpp"
 
-namespace herring {
+namespace herring_old {
   /* A tree that can just return the stored value of nodes as its output */
   template <typename value_t, typename feature_index_t, typename offset_t, typename output_index_t, typename output_t>
   struct simple_tree {

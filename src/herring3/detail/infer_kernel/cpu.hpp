@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <iostream>
 #include <new>
 #include <numeric>
 #include <vector>
@@ -46,7 +47,7 @@ void infer_kernel_cpu(
   auto const task_count = num_grove * num_chunk;
 
   // Infer on each grove and chunk
-// TODO(wphicks): #pragma omp parallel
+#pragma omp parallel for
   for(auto task_index = std::size_t{}; task_index < task_count; ++task_index) {
     auto const grove_index = task_index / num_chunk;
     auto const chunk_index = task_index % num_chunk;
@@ -82,7 +83,8 @@ void infer_kernel_cpu(
             row_index * num_outputs * num_grove
             + (tree_index % num_outputs) * num_grove
             + grove_index
-          ) * (task_index < task_count);
+          );
+          // std::cout << output_offset << "\n";
           output_workspace[output_offset] += evaluate_tree<
             typename forest_t::leaf_output_type
           >(
@@ -95,7 +97,7 @@ void infer_kernel_cpu(
   }  // Tasks
 
   // Sum over grove and postprocess
-// TODO(wphicks): #pragma omp parallel
+#pragma omp parallel for
   for (auto row_index=std::size_t{}; row_index < row_count; ++row_index) {
     for (
       auto class_index = std::size_t{};

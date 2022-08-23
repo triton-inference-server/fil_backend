@@ -26,7 +26,7 @@
 #include <herring/model.hpp>
 #include <herring/output_ops.hpp>
 
-namespace herring {
+namespace herring_old {
 
 struct unconvertible_model_exception : std::exception {
   unconvertible_model_exception () : msg_{"Model could not be converted"}

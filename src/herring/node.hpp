@@ -18,7 +18,7 @@
 #include <bitset>
 #include <cstdint>
 
-namespace herring {
+namespace herring_old {
   /* Summary of Types
    * ----------------
    *  value_t (float or double): The value used for testing a node condition or

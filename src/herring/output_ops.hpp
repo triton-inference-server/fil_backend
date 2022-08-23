@@ -16,7 +16,7 @@
 
 #pragma once
 
-namespace herring {
+namespace herring_old {
 
   /* Enum representing possible element-wise operations on output */
   enum class element_op {

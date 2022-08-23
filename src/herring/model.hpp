@@ -30,7 +30,7 @@
 
 
 
-namespace herring {
+namespace herring_old {
 
 #ifdef __cpp_lib_hardware_interference_size
   using std::hardware_constructive_interference_size;
@@ -170,7 +170,7 @@ namespace herring {
         thread_count<int> nthread) const {
 
       if (row_postproc != row_op::max_index) {
-#pragma omp parallel for num_threads(static_cast<int>(nthread))
+#pragma omp parallel for
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto const grove_output_index = row_index * num_class * num_grove;
           for (auto class_index = std::size_t{}; class_index < num_class; ++class_index) {
@@ -204,7 +204,7 @@ namespace herring {
           }
         }
       } else {
-#pragma omp parallel for num_threads(static_cast<int>(nthread))
+#pragma omp parallel for
         for (auto row_index = std::size_t{}; row_index < num_row; ++row_index) {
           auto grove_output_index = row_index * num_class * num_grove;
           auto row_output = std::vector<float>(num_class, 0);
@@ -247,7 +247,7 @@ namespace herring {
         sum_elem_type{}
       );
 
-#pragma omp parallel for num_threads(static_cast<int>(nthread))
+#pragma omp parallel for
       for (auto task_index = std::size_t{}; task_index < num_grove * num_block; ++task_index) {
         auto const grove_index = task_index / num_block;
         auto const block_index = task_index % num_block;
