@@ -69,6 +69,30 @@ void run_herring3(
     concrete_model.predict(out_buf, in_buf, stream, rpbi);
   }, model);
 }
+void run_herring3_cpu(
+  herring::forest_model_variant& model,
+  float* input,
+  float* output,
+  std::size_t rows,
+  std::size_t cols,
+  kayak::cuda_stream stream,
+  std::size_t rpbi
+) {
+  // NVTX3_FUNC_RANGE();
+  std::visit([output, input, rows, cols, &stream, rpbi](auto&& concrete_model) {
+    auto in_buf = kayak::buffer(
+      input,
+      rows * cols,
+      kayak::device_type::cpu
+    );
+    auto out_buf = kayak::buffer(
+      output,
+      rows * concrete_model.num_outputs(),
+      kayak::device_type::cpu
+    );
+    concrete_model.predict(out_buf, in_buf, stream, rpbi);
+  }, model);
+}
 
 int main(int argc, char** argv) {
   if (argc != 5) {
@@ -95,6 +119,11 @@ int main(int argc, char** argv) {
     0,
     fil_model.get_stream()
   );
+  auto herring3_model_cpu = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
+    *tl_model,
+    128u,
+    kayak::device_type::cpu
+  );
 
   auto output = std::vector<float>(treelite::gtil::GetPredictOutputSize(tl_model.get(), input.rows));
   auto out_cols = output.size() / input.rows;
@@ -107,7 +136,7 @@ int main(int argc, char** argv) {
   auto batch_sizes = std::vector<std::size_t>{
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, rows
   };
-  auto batch_timings = std::vector<std::vector<std::size_t>>(7);
+  auto batch_timings = std::vector<std::vector<std::size_t>>(8);
 
   // Run benchmarks for each framework
   auto fil_output = std::vector<float>(2 * output.size());
@@ -279,6 +308,34 @@ int main(int argc, char** argv) {
     batch_timings[6].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
 
+  std::fill(std::begin(output), std::end(output), 0);
+  start = std::chrono::high_resolution_clock::now();
+  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
+    auto batch = batch_sizes[i];
+    auto total_batches = rows / batch + (rows % batch != 0);
+    // total_batches = 3;
+
+    auto batch_start = std::chrono::high_resolution_clock::now();
+    for (auto j = std::size_t{}; j < total_batches; ++j) {
+      // std::cout << gpu_buffer.size() / sizeof(float) << ", " << j * batch << "\n";
+      auto cur_input = matrix{reinterpret_cast<float*>(buffer.data()) + j * batch * features, std::min(batch, rows - j * batch), features};
+      run_herring3_cpu(
+        herring3_model_cpu,
+        cur_input.data,
+        reinterpret_cast<float*>(output.data()),
+        cur_input.rows,
+        cur_input.cols,
+        fil_model.get_stream(),
+        64
+      );
+    }
+    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    batch_timings[7].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
+  }
+  end = std::chrono::high_resolution_clock::now();
+  std::cout << "WH: " << output.data()[0] << ", " << output.data()[half_index] << ", " << output.data()[output.size() - 1] << "\n";
+
   std::cout << "FIL, Herring3" << "\n";
   std::cout << fil_elapsed << ", " << her_gpu_elapsed << "\n";
   std::cout << "Framework";
@@ -318,6 +375,11 @@ int main(int argc, char** argv) {
   std::cout << "\n";
   std::cout << "H" << 32;
   for (auto res : batch_timings[6]) {
+    std::cout << "," << res;
+  }
+  std::cout << "\n";
+  std::cout << "H3-CPU";
+  for (auto res : batch_timings[7]) {
     std::cout << "," << res;
   }
   std::cout << "\n";

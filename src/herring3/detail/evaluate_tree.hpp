@@ -1,4 +1,7 @@
 #pragma once
+#ifndef __CUDACC__
+#include <math.h>
+#endif
 #include <kayak/gpu_support.hpp>
 namespace herring {
 namespace detail {

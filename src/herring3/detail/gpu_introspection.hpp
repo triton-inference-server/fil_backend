@@ -5,6 +5,7 @@
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
 namespace herring {
+namespace detail {
 
 inline auto get_max_shared_mem_per_block(kayak::device_id<kayak::device_type::gpu> device_id) {
   auto result = int{};
@@ -107,4 +108,5 @@ auto constexpr static const MAX_READ_CHUNK = size_t{128};
 auto constexpr static const MAX_BLOCKS = size_t{65536};
 auto constexpr static const WARP_SIZE = size_t{32};
 
+}
 }

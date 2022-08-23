@@ -9,6 +9,7 @@
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
+#include <kayak/gpu_support.hpp>
 #include <kayak/padding.hpp>
 
 namespace herring {

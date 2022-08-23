@@ -1,4 +1,7 @@
 #pragma once
+#ifndef __CUDACC__
+#include <math.h>
+#endif
 #include <stddef.h>
 #include <limits>
 #include <type_traits>

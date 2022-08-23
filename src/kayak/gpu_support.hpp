@@ -13,12 +13,10 @@ auto constexpr static const GPU_ENABLED = false;
 #ifdef __CUDACC__
 #define HOST __host__
 #define DEVICE __device__
-#define GLOBAL __global__
 auto constexpr static const GPU_COMPILATION = true;
 #else
 #define HOST
 #define DEVICE
-#define GLOBAL
 auto constexpr static const GPU_COMPILATION = false;
 #endif
 
