@@ -329,7 +329,6 @@ int main(int argc, char** argv) {
         64
       );
     }
-    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
     auto batch_end = std::chrono::high_resolution_clock::now();
     batch_timings[7].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
   }
