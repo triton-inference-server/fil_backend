@@ -5,7 +5,8 @@
 #include <cstddef>
 #include <herring3/constants.hpp>
 #include <herring3/postproc_ops.hpp>
-#include <herring3/detail/predict.hpp>
+#include <herring3/detail/device_initialization.hpp>
+#include <herring3/detail/infer.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
@@ -82,6 +83,7 @@ struct decision_forest {
         "Nodes and indexes of forest must both be stored on same device"
       );
     }
+    detail::initialize_device<forest_type>(nodes.device());
   }
 
   auto num_feature() const { return num_feature_; }
@@ -110,18 +112,36 @@ struct decision_forest {
         "I/O data on different device than model"
       };
     }
-    herring::predict(
-      obj(),
-      get_postprocessor(),
-      output.data(),
-      input.data(),
-      input.size() / num_feature_,
-      num_feature_,
-      num_class_,
-      specified_rows_per_block_iter,
-      device_index(),
-      stream
-    );
+    switch(nodes_.device().index()) {
+      case 0:
+        herring::detail::infer(
+          obj(),
+          get_postprocessor(),
+          output.data(),
+          input.data(),
+          input.size() / num_feature_,
+          num_feature_,
+          num_class_,
+          specified_rows_per_block_iter,
+          std::get<0>(nodes_.device()),
+          stream
+        );
+        break;
+      case 1:
+        herring::detail::infer(
+          obj(),
+          get_postprocessor(),
+          output.data(),
+          input.data(),
+          input.size() / num_feature_,
+          num_feature_,
+          num_class_,
+          specified_rows_per_block_iter,
+          std::get<1>(nodes_.device()),
+          stream
+        );
+        break;
+    }
   }
 
  private:

@@ -273,6 +273,10 @@ struct buffer {
     return result;
   }
 
+  auto device() const noexcept {
+    return device_;
+  }
+
   auto device_index() const noexcept {
     auto result = int{};
     switch(device_.index()) {

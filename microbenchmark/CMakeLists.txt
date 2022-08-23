@@ -19,7 +19,9 @@ add_executable(forest_bench
 )
 add_executable(forest_bench3
   microbenchmark/src/forest_bench3.cpp
-  src/herring3/specializations/predict.cu
+  src/herring3/specializations/device_initialization.cu
+  src/herring3/specializations/infer.cu
+  src/herring3/specializations/infer.cpp
 )
 
 if(TRITON_ENABLE_GPU)

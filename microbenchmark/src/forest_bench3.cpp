@@ -1,5 +1,4 @@
 #include <herring3/decision_forest.hpp>
-#include <herring3/detail/predict.hpp>
 #include <herring3/treelite_importer.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_check.hpp>
@@ -89,7 +88,6 @@ int main(int argc, char** argv) {
 
   auto fil_model = ForestModel(tl_model, false);
   auto fil_model_sparse = ForestModel(tl_model, true);
-  herring::initialize_gpu_options();
   auto herring3_model_gpu = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
     *tl_model,
     128u,
