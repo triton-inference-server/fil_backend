@@ -51,6 +51,25 @@ struct decision_forest_builder {
     }
   }
 
+  template<typename iter_t>
+  void add_node(
+    iter_t vec_begin,
+    iter_t vec_end,
+    bool is_leaf_node=true,
+    bool default_to_distant_child=false,
+    bool is_categorical_node=false,
+    typename node_type::metadata_storage_type feature = typename node_type::metadata_storage_type{},
+    typename node_type::offset_type offset = typename node_type::offset_type{1},
+    bool is_inclusive=false
+  ) {
+    auto leaf_index = typename node_type::index_type(vector_output_.size() / output_size_);
+    std::copy(vec_begin, vec_end, std::back_inserter(vector_output_));
+    nodes_.emplace_back(
+      leaf_index, is_leaf_node, default_to_distant_child, is_categorical_node, feature, offset
+    );
+    ++cur_tree_size_;
+  }
+
   template<typename value_t>
   void add_node(
     value_t val,
