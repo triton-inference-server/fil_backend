@@ -12,7 +12,7 @@
 namespace herring {
 namespace detail {
 
-template<bool has_vector_leaves, bool is_categorical, typename forest_t,
+template<bool is_categorical, typename forest_t,
   typename vector_output_t=std::nullptr_t>
 void infer_kernel_cpu(
     forest_t const& forest,
@@ -28,6 +28,10 @@ void infer_kernel_cpu(
     std::size_t grove_size=hardware_constructive_interference_size,
     vector_output_t vector_output_p=nullptr
 ) {
+  auto constexpr has_vector_leaves = (
+    !std::is_same_v<vector_output_t, std::nullptr_t>
+    && std::is_integral_v<typename forest_t::leaf_output_type>
+  );
   using node_t = typename forest_t::node_type;
 
   using output_t = std::conditional_t<

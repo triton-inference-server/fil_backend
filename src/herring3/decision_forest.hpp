@@ -122,6 +122,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
+          nullptr,
           specified_rows_per_block_iter,
           std::get<0>(nodes_.device()),
           stream
@@ -136,6 +137,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
+          nullptr,
           specified_rows_per_block_iter,
           std::get<1>(nodes_.device()),
           stream

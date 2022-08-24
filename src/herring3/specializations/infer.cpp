@@ -26,6 +26,7 @@ template void infer<
   std::size_t,
   std::size_t,
   std::size_t,
+  std::nullptr_t,
   std::optional<std::size_t>,
   kayak::device_id<kayak::device_type::cpu>,
   kayak::cuda_stream stream

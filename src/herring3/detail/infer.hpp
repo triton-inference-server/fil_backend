@@ -1,11 +1,13 @@
 #pragma once
 #include <cstddef>
 #include <optional>
+#include <type_traits>
 #include <herring3/detail/infer/cpu.hpp>
 #ifdef ENABLE_GPU
 #include <herring3/detail/infer/gpu.hpp>
 #endif
 #include <herring3/detail/postprocessor.hpp>
+#include <herring3/exceptions.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
@@ -21,22 +23,46 @@ void infer(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  typename forest_t::io_type* vector_output=nullptr,
   std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
-  inference::infer<D, forest_t> (
-    forest,
-    postproc,
-    output,
-    input,
-    row_count,
-    col_count,
-    class_count,
-    specified_chunk_size,
-    device,
-    stream
-  );
+  if (vector_output == nullptr) {
+    inference::infer<D, forest_t, std::nullptr_t> (
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      nullptr,
+      specified_chunk_size,
+      device,
+      stream
+    );
+  } else {
+    if constexpr (std::is_integral_v<typename forest_t::leaf_output_type>) {
+      inference::infer<D, forest_t> (
+        forest,
+        postproc,
+        output,
+        input,
+        row_count,
+        col_count,
+        class_count,
+        vector_output,
+        specified_chunk_size,
+        device,
+        stream
+      );
+    } else {
+      throw unusable_model_exception(
+        "Model with vector leaves has non-integral outputs for vector indexes"
+      );
+    }
+  }
 }
 
 }

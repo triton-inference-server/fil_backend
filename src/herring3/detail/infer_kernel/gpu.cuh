@@ -11,7 +11,7 @@
 namespace herring {
 namespace detail {
 
-template<bool has_vector_leaves, bool is_categorical, typename forest_t,
+template<bool is_categorical, typename forest_t,
   typename vector_output_t=std::nullptr_t>
 __global__ void infer_kernel(
     forest_t forest,
@@ -28,6 +28,9 @@ __global__ void infer_kernel(
     size_t chunk_size,
     vector_output_t vector_output_p=nullptr
 ) {
+  auto constexpr has_vector_leaves = !std::is_same_v<
+    vector_output_t, std::nullptr_t
+  >;
   extern __shared__ std::byte shared_mem_raw[];
 
   auto shared_mem = shared_memory_buffer(shared_mem_raw, shared_mem_byte_size);
