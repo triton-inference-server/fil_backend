@@ -92,10 +92,20 @@ struct treelite_importer {
       return tree.IsLeaf(node_id);
     }
 
+    template <typename io_t>
     auto get_output() {
-      auto result = std::vector<tl_output_t>{};
+      auto result = std::vector<io_t>{};
       if (tree.HasLeafVector(node_id)) {
-        result = tree.LeafVector(node_id);
+        auto tl_leaf_vector = tree.LeafVector(node_id);
+        if constexpr (std::is_same_v<io_t, tl_output_t>) {
+          result = tl_leaf_vector;
+        } else {
+          std::copy(
+            std::begin(tl_leaf_vector),
+            std::end(tl_leaf_vector),
+            std::back_inserter(result)
+          );
+        }
       } else {
         result.push_back(tree.LeafValue(node_id));
       }
@@ -474,7 +484,7 @@ struct treelite_importer {
           auto node_index = std::size_t{};
           node_for_each(tree, [&builder, &tree_index, &node_index, &offsets](auto&& node) {
             if (node.is_leaf()) {
-              auto output = node.get_output();
+              auto output = node.template get_output<typename forest_model_t::io_type>();
               if (output.size() > std::size_t{1}) {
                 throw model_import_error{"Vector leaves not yet implemented"};
               }
