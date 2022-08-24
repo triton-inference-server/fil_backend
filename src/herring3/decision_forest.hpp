@@ -41,6 +41,7 @@ struct decision_forest {
   decision_forest() :
     nodes_{},
     root_node_indexes_{},
+    vector_output_{},
     num_feature_{},
     num_class_{},
     leaf_size_{},
@@ -55,6 +56,7 @@ struct decision_forest {
     kayak::buffer<size_t>&& root_node_indexes,
     size_t num_feature,
     size_t num_class=size_t{2},
+    std::optional<kayak::buffer<io_type>>&& vector_output=std::nullopt,
     size_t leaf_size=size_t{1},
     row_op row_postproc=row_op::disable,
     element_op elem_postproc=element_op::disable,
@@ -64,6 +66,7 @@ struct decision_forest {
   ) :
     nodes_{nodes},
     root_node_indexes_{root_node_indexes},
+    vector_output_{vector_output},
     num_feature_{num_feature},
     num_class_{num_class},
     leaf_size_{leaf_size},
@@ -112,6 +115,9 @@ struct decision_forest {
         "I/O data on different device than model"
       };
     }
+    auto* vector_output_p = (
+      vector_output_.has_value() ? vector_output_->data() : static_cast<io_type*>(nullptr)
+    );
     switch(nodes_.device().index()) {
       case 0:
         herring::detail::infer(
@@ -151,6 +157,8 @@ struct decision_forest {
   kayak::buffer<node_type> nodes_;
   /** The index of the root node for each tree in the forest */
   kayak::buffer<size_t> root_node_indexes_;
+  /** Buffer of outputs for all leaves in vector-leaf models */
+  std::optional<kayak::buffer<io_type>> vector_output_;
 
   // Metadata
   size_t num_feature_;

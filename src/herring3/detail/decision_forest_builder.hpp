@@ -84,7 +84,8 @@ struct decision_forest_builder {
     postproc_constant_{},
     max_tree_size_{},
     nodes_{},
-    root_node_indexes_{} {
+    root_node_indexes_{},
+    vector_output_{} {
   }
 
   auto get_decision_forest(
@@ -116,6 +117,14 @@ struct decision_forest_builder {
       },
       num_feature,
       num_class,
+      vector_output_.size() == 0 ?
+        std::nullopt :
+        std::make_optional<kayak::buffer<typename node_type::threshold_type>>(
+          kayak::buffer{vector_output_.data(), vector_output_.size()},
+          mem_type,
+          device,
+          stream
+        ),
       output_size_,
       row_postproc_,
       element_postproc_,
@@ -140,6 +149,7 @@ struct decision_forest_builder {
 
   std::vector<node_type> nodes_;
   std::vector<std::size_t> root_node_indexes_;
+  std::vector<typename node_type::threshold_type> vector_output_;
 };
 
 }
