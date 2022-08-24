@@ -25,7 +25,7 @@ __global__ void infer_kernel(
     size_t num_outputs,
     size_t shared_mem_byte_size,
     size_t output_workspace_size,
-    size_t rows_per_block_iteration,
+    size_t chunk_size,
     vector_output_t vector_output_p=nullptr
 ) {
   extern __shared__ std::byte shared_mem_raw[];
@@ -43,9 +43,9 @@ __global__ void infer_kernel(
   using io_t = typename forest_t::io_type;
 
   for (
-    auto i=blockIdx.x * rows_per_block_iteration;
+    auto i=blockIdx.x * chunk_size;
     i < row_count;
-    i += rows_per_block_iteration * gridDim.x
+    i += chunk_size * gridDim.x
   ) {
 
     shared_mem.clear();
@@ -53,7 +53,7 @@ __global__ void infer_kernel(
 
     // Handle as many rows as requested per loop or as many rows as are left to
     // process
-    auto rows_in_this_iteration = min(rows_per_block_iteration, row_count - i);
+    auto rows_in_this_iteration = min(chunk_size, row_count - i);
 
     auto* input_data = shared_mem.copy(
       input + i * col_count,

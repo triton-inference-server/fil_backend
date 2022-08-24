@@ -21,7 +21,7 @@ void infer(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
-  std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt,
+  std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
@@ -33,7 +33,7 @@ void infer(
     row_count,
     col_count,
     class_count,
-    specified_rows_per_block_iter,
+    specified_chunk_size,
     device,
     stream
   );

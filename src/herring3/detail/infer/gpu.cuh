@@ -38,7 +38,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
-  std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt,
+  std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
@@ -93,7 +93,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
 
   // Compute shared memory usage based on minimum or specified
   // rows_per_block_iteration
-  auto rows_per_block_iteration = specified_rows_per_block_iter.value_or(
+  auto rows_per_block_iteration = specified_chunk_size.value_or(
     size_t{1}
   );
   auto constexpr const output_item_bytes = sizeof(
@@ -121,7 +121,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   // If caller has not specified the number of rows per block iteration, apply
   // the following heuristic to identify an approximately optimal value
   if (
-    !specified_rows_per_block_iter.has_value()
+    !specified_chunk_size.has_value()
     && resident_blocks_per_sm >= 2
   ) {
     rows_per_block_iteration = size_t{32};
