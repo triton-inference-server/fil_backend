@@ -15,9 +15,7 @@ template<bool is_categorical, typename forest_t,
   typename vector_output_t=std::nullptr_t>
 __global__ void infer_kernel(
     forest_t forest,
-    postprocessor<
-      typename forest_t::leaf_output_type, typename forest_t::io_type
-    > postproc,
+    postprocessor<typename forest_t::io_type> postproc,
     typename forest_t::io_type* output,
     typename forest_t::io_type const* input,
     size_t row_count,

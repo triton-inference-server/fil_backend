@@ -20,11 +20,10 @@ namespace herring {
   template<
     row_op row_wise_v,
     element_op elem_wise_v,
-    typename leaf_output_t,
     typename io_t
   >
   HOST DEVICE void postprocess(
-    leaf_output_t* val,
+    io_t* val,
     size_t class_count,
     io_t* out,
     io_t average_factor=io_t{1},
@@ -38,9 +37,9 @@ namespace herring {
       if constexpr (elem_wise_v == element_op::signed_square) {
         val[i] = copysign(val[i] * val[i], val[i]);
       } else if constexpr (elem_wise_v == element_op::hinge) {
-        val[i] = leaf_output_t(val[i] > leaf_output_t{});
+        val[i] = io_t(val[i] > io_t{});
       } else if constexpr (elem_wise_v == element_op::sigmoid) {
-        val[i] = leaf_output_t{1} / (leaf_output_t{1} + exp(-constant * val[i]));
+        val[i] = io_t{1} / (io_t{1} + exp(-constant * val[i]));
       } else if constexpr (elem_wise_v == element_op::exponential) {
         val[i] = exp(val[i] / constant);
       } else if constexpr (elem_wise_v == element_op::logarithm_one_plus_exp) {
@@ -66,7 +65,7 @@ namespace herring {
     }
   }
 
-  template <typename leaf_output_t, typename io_t>
+  template <typename io_t>
   struct postprocessor {
     HOST DEVICE postprocessor(
       row_op row_wise=row_op::disable,
@@ -82,7 +81,7 @@ namespace herring {
       elem_wise_{elem_wise} {
     }
 
-    HOST DEVICE void operator()(leaf_output_t* val, size_t class_count, io_t* out) const {
+    HOST DEVICE void operator()(io_t* val, size_t class_count, io_t* out) const {
       switch(ops_to_val(row_wise_, elem_wise_)) {
         case ops_to_val(row_op::disable, element_op::signed_square):
           postprocess<row_op::disable, element_op::signed_square>(

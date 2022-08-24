@@ -17,7 +17,7 @@ namespace inference {
 template<kayak::device_type D, typename forest_t, typename vector_output_t=std::nullptr_t>
 std::enable_if_t<D==kayak::device_type::cpu || !kayak::GPU_ENABLED, void> infer(
   forest_t const& forest,
-  postprocessor<typename forest_t::leaf_output_type, typename forest_t::io_type> const& postproc,
+  postprocessor<typename forest_t::io_type> const& postproc,
   typename forest_t::io_type* output,
   typename forest_t::io_type* input,
   std::size_t row_count,
@@ -55,7 +55,7 @@ extern template void infer<
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   > const&,
-  postprocessor<float, float> const&,
+  postprocessor<float> const&,
   float*,
   float*,
   std::size_t,

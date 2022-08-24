@@ -30,9 +30,7 @@ inline auto compute_output_size(
 template<kayak::device_type D, typename forest_t, typename vector_output_t=std::nullptr_t>
 std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   forest_t const& forest,
-  postprocessor<
-    typename forest_t::leaf_output_type, typename forest_t::io_type
-  > const& postproc,
+  postprocessor<typename forest_t::io_type> const& postproc,
   typename forest_t::io_type* output,
   typename forest_t::io_type* input,
   std::size_t row_count,
@@ -52,7 +50,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
   auto row_output_size = max(forest.leaf_size(), class_count);
   auto row_output_size_bytes = sizeof(
-    typename forest_t::leaf_output_type
+    typename forest_t::io_type
   ) * row_output_size;
 
   // First determine the number of threads per block. This is the indicated
@@ -98,7 +96,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     size_t{1}
   );
   auto constexpr const output_item_bytes = sizeof(
-    typename forest_t::leaf_output_type
+    typename forest_t::io_type
   );
   auto output_workspace_size = compute_output_size(
     row_output_size, threads_per_block, rows_per_block_iteration
@@ -170,7 +168,7 @@ extern template void infer<
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   > const&,
-  postprocessor<float, float> const&,
+  postprocessor<float> const&,
   float*,
   float*,
   std::size_t,

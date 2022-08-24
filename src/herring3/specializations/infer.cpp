@@ -20,7 +20,7 @@ template void infer<
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
   > const&,
-  postprocessor<float, float> const&,
+  postprocessor<float> const&,
   float*,
   float*,
   std::size_t,

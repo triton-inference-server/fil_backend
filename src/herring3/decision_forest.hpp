@@ -36,7 +36,7 @@ struct decision_forest {
   using io_type = typename forest_type::io_type;
   using threshold_type = threshold_t;
   using leaf_output_type = typename forest_type::leaf_output_type;
-  using postprocessor_type = postprocessor<leaf_output_type, io_type>;
+  using postprocessor_type = postprocessor<io_type>;
 
   decision_forest() :
     nodes_{},
