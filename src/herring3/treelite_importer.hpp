@@ -481,11 +481,12 @@ struct treelite_importer {
                   std::end(output),
                   true
                 );
+              } else {
+                builder.add_node(
+                  typename forest_model_t::io_type(output[0]),
+                  true
+                );
               }
-              builder.add_node(
-                typename forest_model_t::io_type(output[0]),
-                true
-              );
             } else {
               if (node.is_categorical()) {
                 auto categories = node.get_categories();
