@@ -34,13 +34,6 @@
 #include <cuda_runtime_api.h>
 //#endif
 
-auto load_tl_ckpt(std::string path) {
-  auto* file = std::fopen(path.c_str(), "rb");
-  auto result = treelite::Model::DeserializeFromFile(file);
-  std::fclose(file);
-  return result;
-}
-
 auto load_array(std::string path, std::size_t rows, std::size_t cols) {
   auto result = std::vector<float>(rows * cols);
   auto input = std::ifstream(path, std::ifstream::binary);
@@ -125,14 +118,12 @@ int main(int argc, char** argv) {
   auto buffer = load_array(data_path, rows, features);
   auto input = matrix{buffer.data(), rows, features};
 
-  // auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
-  auto tl_model = load_tl_ckpt(model_path);
+  auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
 
   auto old_converted_model = tl_model->Dispatch([](auto const& concrete_model) {
     return herring_old::convert_model(concrete_model);
   });
-  std::cout << "Index: " << old_converted_model.index() << "\n";
-  auto old_herring_model = std::get<19>(old_converted_model);
+  auto old_herring_model = std::get<2>(old_converted_model);
 
   auto fil_model = ForestModel(tl_model, false);
   auto fil_model_sparse = ForestModel(tl_model, true);
@@ -157,7 +148,6 @@ int main(int argc, char** argv) {
   // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
   // auto batch_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16};
   // auto batch_sizes = std::vector<std::size_t>{1};
-  // auto batch_sizes = std::vector<std::size_t>{rows};
   auto batch_sizes = std::vector<std::size_t>{
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, rows
   };
@@ -325,7 +315,7 @@ int main(int argc, char** argv) {
         cur_input.rows,
         cur_input.cols,
         fil_model.get_stream(),
-        16 // REVERT ME TO 32
+        32
       );
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
