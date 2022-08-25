@@ -120,10 +120,10 @@ int main(int argc, char** argv) {
 
   auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
 
-  auto old_converted_model = tl_model->Dispatch([](auto const& concrete_model) {
+  /* auto old_converted_model = tl_model->Dispatch([](auto const& concrete_model) {
     return herring_old::convert_model(concrete_model);
   });
-  auto old_herring_model = std::get<2>(old_converted_model);
+  auto old_herring_model = std::get<2>(old_converted_model); */
 
   auto fil_model = ForestModel(tl_model, false);
   auto fil_model_sparse = ForestModel(tl_model, true);
@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
     for (auto j = std::size_t{}; j < total_batches; ++j) {
       // std::cout << gpu_buffer.size() / sizeof(float) << ", " << j * batch << "\n";
       auto cur_input = matrix{reinterpret_cast<float*>(buffer.data()) + j * features * batch, std::min(batch, rows - j * batch), features};
-      run_old_herring(old_herring_model, cur_input, output);
+      // run_old_herring(old_herring_model, cur_input, output);
     }
     auto batch_end = std::chrono::high_resolution_clock::now();
     batch_timings[9].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
