@@ -157,6 +157,7 @@ int main(int argc, char** argv) {
   // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
   // auto batch_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16};
   // auto batch_sizes = std::vector<std::size_t>{1};
+  // auto batch_sizes = std::vector<std::size_t>{rows};
   auto batch_sizes = std::vector<std::size_t>{
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, rows
   };
@@ -324,7 +325,7 @@ int main(int argc, char** argv) {
         cur_input.rows,
         cur_input.cols,
         fil_model.get_stream(),
-        32
+        16 // REVERT ME TO 32
       );
     }
     kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
