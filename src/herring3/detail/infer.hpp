@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <iostream>
 #include <optional>
 #include <type_traits>
 #include <herring3/detail/infer/cpu.hpp>

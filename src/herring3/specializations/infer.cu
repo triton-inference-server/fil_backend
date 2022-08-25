@@ -32,6 +32,28 @@ template void infer<
   kayak::cuda_stream stream
 );
 
+template void infer<
+  kayak::device_type::gpu,
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  >,
+  float*
+>(
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  > const&,
+  postprocessor<float> const&,
+  float*,
+  float*,
+  std::size_t,
+  std::size_t,
+  std::size_t,
+  float*,
+  std::optional<std::size_t>,
+  kayak::device_id<kayak::device_type::gpu>,
+  kayak::cuda_stream stream
+);
+
 }
 }
 }

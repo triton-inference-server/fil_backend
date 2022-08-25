@@ -113,7 +113,7 @@ struct decision_forest {
         "I/O data on different device than model"
       };
     }
-    auto* vector_output_p = (
+    auto* vector_output_data = (
       vector_output_.has_value() ? vector_output_->data() : static_cast<io_type*>(nullptr)
     );
     switch(nodes_.device().index()) {
@@ -126,7 +126,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
-          nullptr,
+          vector_output_data,
           specified_rows_per_block_iter,
           std::get<0>(nodes_.device()),
           stream
@@ -141,7 +141,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
-          nullptr,
+          vector_output_data,
           specified_rows_per_block_iter,
           std::get<1>(nodes_.device()),
           stream

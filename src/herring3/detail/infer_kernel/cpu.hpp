@@ -12,8 +12,7 @@
 namespace herring {
 namespace detail {
 
-template<bool is_categorical, typename forest_t,
-  typename vector_output_t=std::nullptr_t>
+template<bool is_categorical, typename forest_t, typename vector_output_t=std::nullptr_t>
 void infer_kernel_cpu(
     forest_t const& forest,
     postprocessor<typename forest_t::io_type> const& postproc,
@@ -32,7 +31,7 @@ void infer_kernel_cpu(
 
   using output_t = std::conditional_t<
     has_vector_leaves,
-    vector_output_t,
+    std::remove_pointer_t<vector_output_t>,
     typename node_t::threshold_type
   >;
 
@@ -59,7 +58,6 @@ void infer_kernel_cpu(
     for (auto row_index = start_row; row_index < end_row; ++row_index){
       for (auto tree_index = start_tree; tree_index < end_tree; ++tree_index) {
         if constexpr (has_vector_leaves) {
-          std::cout << "IT'S WORKING!!!! IT'S WORKING!!!!\n";
           auto leaf_index = evaluate_tree<has_vector_leaves>(
             forest.get_tree_root(tree_index),
             input + row_index * col_count

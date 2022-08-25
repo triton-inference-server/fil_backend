@@ -35,7 +35,7 @@ __global__ void infer_kernel(
 
   using output_t = std::conditional_t<
     has_vector_leaves,
-    vector_output_t,
+    std::remove_pointer_t<vector_output_t>,
     typename node_t::threshold_type
   >;
 
