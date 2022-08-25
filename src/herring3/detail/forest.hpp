@@ -7,10 +7,9 @@ namespace herring {
 
 /** A collection of trees which together form a forest model
  */
-template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t, typename leaf_output_t>
+template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
 struct forest {
   using node_type = node<layout_v, threshold_t, index_t, metadata_storage_t, offset_t>;
-  using leaf_output_type = leaf_output_t;
   using io_type = threshold_t;
 
   HOST DEVICE forest(node_type* forest_nodes, size_t* forest_root_indexes, size_t num_trees) :
@@ -24,10 +23,6 @@ struct forest {
   /** Return the number of trees in this forest */
   HOST DEVICE auto tree_count() const {
     return num_trees_;
-  }
-
-  HOST DEVICE auto leaf_size() const {
-    return size_t{1};
   }
  private:
   node_type* nodes_;

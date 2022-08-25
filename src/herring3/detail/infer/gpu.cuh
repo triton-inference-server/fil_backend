@@ -48,7 +48,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   auto max_shared_mem_per_sm = get_max_shared_mem_per_sm(device);
 
   auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
-  auto row_output_size = max(forest.leaf_size(), class_count);
+  auto row_output_size = class_count;
   auto row_output_size_bytes = sizeof(
     typename forest_t::io_type
   ) * row_output_size;
@@ -162,11 +162,11 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
 extern template void infer<
   kayak::device_type::gpu,
   forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >
 >(
   forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   > const&,
   postprocessor<float> const&,
   float*,

@@ -7,7 +7,7 @@ namespace herring {
 namespace detail {
 
 template<
-  typename leaf_output_t,
+  bool has_vector_leaves,
   typename node_t,
   typename io_t
 >
@@ -25,7 +25,7 @@ HOST DEVICE auto evaluate_tree(
     node += cur_node.child_offset(condition);
     cur_node = *node;
   } while (!cur_node.is_leaf());
-  return cur_node.template output<leaf_output_t>();
+  return cur_node.template output<has_vector_leaves>();
 }
 
 }

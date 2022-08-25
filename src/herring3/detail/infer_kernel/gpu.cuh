@@ -26,9 +26,7 @@ __global__ void infer_kernel(
     size_t chunk_size,
     vector_output_t vector_output_p=nullptr
 ) {
-  auto constexpr has_vector_leaves = !std::is_same_v<
-    vector_output_t, std::nullptr_t
-  >;
+  auto constexpr has_vector_leaves = !std::is_same_v<vector_output_t, std::nullptr_t>;
   extern __shared__ std::byte shared_mem_raw[];
 
   auto shared_mem = shared_memory_buffer(shared_mem_raw, shared_mem_byte_size);
@@ -91,9 +89,7 @@ __global__ void infer_kernel(
       auto grove_index = threadIdx.x / rows_in_this_iteration;
 
       if constexpr (has_vector_leaves) {
-        auto leaf_index = evaluate_tree<typename
-          forest_t::leaf_output_type
-        >(
+        auto leaf_index = evaluate_tree<has_vector_leaves>(
           forest.get_tree_root(tree_index),
           input_data + row_index * col_count
         );
@@ -116,9 +112,7 @@ __global__ void infer_kernel(
           + (tree_index % num_outputs) * num_grove
           + grove_index
         ) * (task_index < task_count);
-        output_workspace[output_offset] += evaluate_tree<
-          typename forest_t::leaf_output_type
-        >(
+        output_workspace[output_offset] += evaluate_tree<has_vector_leaves>(
           forest.get_tree_root(tree_index),
           input_data + row_index * col_count
         ) * real_task;

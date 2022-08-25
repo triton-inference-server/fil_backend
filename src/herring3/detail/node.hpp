@@ -56,12 +56,11 @@ auto constexpr get_node_alignment() {
  * either float or double.
  *
  * @tparam index_t The type used as an index to the output data for leaf nodes,
- * to the categorical set for a categorical non-leaf node, or simply as an
- * output itself for leaf nodes expected to return integral data. This type
- * should be large enough to index the entire array of output data or
- * categorical sets stored in the forest. Typically, this type is either
- * uint32_t or uint64_t. Smaller types offer no benefit, since this value is
- * stored in a union with threshold_t, which is at least 32 bits.
+ * or to the categorical set for a categorical non-leaf node. This type should
+ * be large enough to index the entire array of output data or categorical sets
+ * stored in the forest. Typically, this type is either uint32_t or uint64_t.
+ * Smaller types offer no benefit, since this value is stored in a union with
+ * threshold_t, which is at least 32 bits.
  *
  * @tparam metadata_storage_t An unsigned integral type used for a bit-wise
  * representation of metadata about this node. The first three bits encode
@@ -166,14 +165,12 @@ struct alignas(detail::get_node_alignment<threshold_t, index_t, metadata_storage
    *
    * @tparam output_t The expected output type for this node.
    */
-  template <typename output_t>
+  template <bool has_vector_leaves>
   HOST DEVICE auto constexpr output() const {
-    if constexpr (
-        std::is_same_v<std::remove_const_t<threshold_type>, std::remove_const_t<output_t>>
-    ) {
-      return stored_value.value;
-    } else {
+    if constexpr (has_vector_leaves) {
       return stored_value.index;
+    } else {
+      return stored_value.value;
     }
   }
 

@@ -49,11 +49,11 @@ std::enable_if_t<D==kayak::device_type::cpu || !kayak::GPU_ENABLED, void> infer(
 extern template void infer<
   kayak::device_type::cpu,
   forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >
 >(
   forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   > const&,
   postprocessor<float> const&,
   float*,

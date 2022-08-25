@@ -43,25 +43,19 @@ void infer(
       stream
     );
   } else {
-    if constexpr (std::is_integral_v<typename forest_t::leaf_output_type>) {
-      inference::infer<D, forest_t> (
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        vector_output,
-        specified_chunk_size,
-        device,
-        stream
-      );
-    } else {
-      throw unusable_model_exception(
-        "Model with vector leaves has non-integral outputs for vector indexes"
-      );
-    }
+    inference::infer<D, forest_t> (
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      vector_output,
+      specified_chunk_size,
+      device,
+      stream
+    );
   }
 }
 

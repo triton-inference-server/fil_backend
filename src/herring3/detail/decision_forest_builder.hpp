@@ -9,6 +9,7 @@
 #include <vector>
 #include <herring3/postproc_ops.hpp>
 #include <herring3/detail/forest.hpp>
+#include <herring3/exceptions.hpp>
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
@@ -91,6 +92,12 @@ struct decision_forest_builder {
   void set_average_factor(double val) { average_factor_ = val; }
   void set_bias(double val) { bias_ = val; }
   void set_postproc_constant(double val) { postproc_constant_ = val; }
+  void set_output_size(std::size_t val) {
+    if (output_size_ != std::size_t{1} && output_size_ != val) {
+      throw model_import_error("Inconsistent leaf vector size");
+    }
+    output_size_ = val;
+  }
 
   decision_forest_builder(std::size_t align_bytes=std::size_t{}) :
     cur_tree_size_{},

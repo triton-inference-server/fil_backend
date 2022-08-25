@@ -20,7 +20,7 @@
 
 namespace herring {
 
-template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t, typename leaf_output_t>
+template <kayak::tree_layout layout_v, typename threshold_t, typename index_t, typename metadata_storage_t, typename offset_t>
 struct decision_forest {
 
   auto constexpr static const layout = layout_v;
@@ -29,13 +29,11 @@ struct decision_forest {
     threshold_t,
     index_t,
     metadata_storage_t,
-    offset_t,
-    leaf_output_t
+    offset_t
   >;
   using node_type = typename forest_type::node_type;
   using io_type = typename forest_type::io_type;
   using threshold_type = threshold_t;
-  using leaf_output_type = typename forest_type::leaf_output_type;
   using postprocessor_type = postprocessor<io_type>;
 
   decision_forest() :
@@ -193,7 +191,6 @@ struct decision_forest {
 };
 
 template<
-  typename leaf_output_t,
   kayak::tree_layout layout,
   bool double_precision,
   bool many_features,
@@ -204,12 +201,11 @@ using forest_model = decision_forest<
   std::conditional_t<double_precision, double, float>,
   uint32_t,
   std::conditional_t<many_features, uint32_t, uint16_t>,
-  std::conditional_t<large_trees, uint32_t, uint16_t>,
-  leaf_output_t
+  std::conditional_t<large_trees, uint32_t, uint16_t>
 >;
 
 using forest_model_variant = std::variant<
-  forest_model<float, preferred_tree_layout, false, false, false>
+  forest_model<preferred_tree_layout, false, false, false>
 >;
 
 inline auto get_forest_variant_index(

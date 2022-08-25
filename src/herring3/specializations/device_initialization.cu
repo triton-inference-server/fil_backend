@@ -11,7 +11,7 @@ namespace device_initialization {
 
 template void initialize_device<
   forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t, float
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >,
   kayak::device_type::gpu
 >(kayak::device_id<kayak::device_type::gpu> device);

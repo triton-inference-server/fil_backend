@@ -7,6 +7,7 @@
 #include <treelite/typeinfo.h>
 #include <herring3/decision_forest.hpp>
 #include <herring3/detail/decision_forest_builder.hpp>
+#include <herring3/exceptions.hpp>
 #include <herring3/postproc_ops.hpp>
 #include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
@@ -14,15 +15,6 @@
 namespace herring {
 
 using kayak::raw_index_t;
-
-struct model_import_error : std::exception {
-  model_import_error() : model_import_error("Error while importing model") {}
-  model_import_error(char const* msg) : msg_{msg} {}
-  virtual char const* what() const noexcept { return msg_; }
-
- private:
-  char const* msg_;
-};
 
 template <kayak::tree_layout layout, typename T>
 struct traversal_container {
@@ -475,6 +467,7 @@ struct treelite_importer {
           node_for_each(tree, [&builder, &tree_index, &node_index, &offsets](auto&& node) {
             if (node.is_leaf()) {
               auto output = node.get_output();
+              builder.set_output_size(output.size());
               if (output.size() > std::size_t{1}) {
                 builder.add_node(
                   std::begin(output),

@@ -26,10 +26,8 @@ void infer_kernel_cpu(
     std::size_t grove_size=hardware_constructive_interference_size,
     vector_output_t vector_output_p=nullptr
 ) {
-  auto constexpr has_vector_leaves = (
-    !std::is_same_v<vector_output_t, std::nullptr_t>
-    && std::is_integral_v<typename forest_t::leaf_output_type>
-  );
+  auto constexpr has_vector_leaves = !std::is_same_v<vector_output_t, std::nullptr_t>;
+  
   using node_t = typename forest_t::node_type;
 
   using output_t = std::conditional_t<
@@ -61,9 +59,8 @@ void infer_kernel_cpu(
     for (auto row_index = start_row; row_index < end_row; ++row_index){
       for (auto tree_index = start_tree; tree_index < end_tree; ++tree_index) {
         if constexpr (has_vector_leaves) {
-          auto leaf_index = evaluate_tree<typename
-            forest_t::leaf_output_type
-          >(
+          std::cout << "IT'S WORKING!!!! IT'S WORKING!!!!\n";
+          auto leaf_index = evaluate_tree<has_vector_leaves>(
             forest.get_tree_root(tree_index),
             input + row_index * col_count
           );
@@ -87,9 +84,7 @@ void infer_kernel_cpu(
             + grove_index
           );
           // std::cout << output_offset << "\n";
-          output_workspace[output_offset] += evaluate_tree<
-            typename forest_t::leaf_output_type
-          >(
+          output_workspace[output_offset] += evaluate_tree<has_vector_leaves>(
             forest.get_tree_root(tree_index),
             input + row_index * col_count
           );
