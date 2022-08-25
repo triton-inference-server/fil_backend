@@ -98,13 +98,15 @@ __global__ void infer_kernel(
           class_index < num_outputs;
           ++class_index
         ) {
-          output_workspace[
-            row_index * num_outputs * num_grove
-            + class_index * num_grove
-            + grove_index
-          ] += vector_output_p[
-            leaf_index * num_outputs + class_index
-          ];
+          if (real_task) {
+            output_workspace[
+              row_index * num_outputs * num_grove
+              + class_index * num_grove
+              + grove_index
+            ] += vector_output_p[
+              leaf_index * num_outputs + class_index
+            ];
+          }
         }
       } else {
         auto output_offset = (
@@ -112,10 +114,12 @@ __global__ void infer_kernel(
           + (tree_index % num_outputs) * num_grove
           + grove_index
         ) * (task_index < task_count);
-        output_workspace[output_offset] += evaluate_tree<has_vector_leaves>(
-          forest.get_tree_root(tree_index),
-          input_data + row_index * col_count
-        ) * real_task;
+        if (real_task) {
+          output_workspace[output_offset] += evaluate_tree<has_vector_leaves>(
+            forest.get_tree_root(tree_index),
+            input_data + row_index * col_count
+          );
+        }
       }
       __syncthreads();
     }
