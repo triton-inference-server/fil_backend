@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <stdint.h>
 #include <iterator>
 #include <memory>
@@ -7,7 +8,6 @@
 #include <kayak/detail/const_agnostic.hpp>
 #include <kayak/detail/copy.hpp>
 #include <kayak/cuda_stream.hpp>
-#include <kayak/detail/index_type.hpp>
 #include <kayak/detail/non_owning_buffer.hpp>
 #include <kayak/detail/owning_buffer.hpp>
 #include <kayak/device_id.hpp>
@@ -22,7 +22,7 @@ namespace kayak {
  */
 template<typename T>
 struct buffer {
-  using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
+  using index_type = std::size_t;
   using value_type = T;
 
   using data_store = std::variant<
@@ -289,7 +289,7 @@ struct buffer {
  private:
   device_id_variant device_;
   data_store data_;
-  raw_index_t size_;
+  index_type size_;
   T* cached_ptr;
 };
 
