@@ -161,6 +161,11 @@ struct alignas(detail::get_node_alignment<threshold_t, index_t, metadata_storage
   HOST DEVICE auto constexpr threshold() const {
     return stored_value.value;
   }
+
+  /** The index value for this node */
+  HOST DEVICE auto const& index() const {
+    return stored_value.index;
+  }
   /** The output value for this node
    *
    * @tparam output_t The expected output type for this node.

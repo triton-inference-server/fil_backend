@@ -11,7 +11,7 @@
 #include <kayak/gpu_support.hpp>
 
 namespace kayak {
-template<typename storage_t=std::byte, typename index_t=size_t>
+template<typename index_t=size_t, typename storage_t=std::byte>
 struct bitset {
   using storage_type = storage_t;
   using index_type = index_t;
