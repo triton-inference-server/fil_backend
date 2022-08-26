@@ -80,6 +80,7 @@ struct decision_forest_builder {
     typename node_type::offset_type offset = typename node_type::offset_type{1},
     bool is_inclusive=false
   ) {
+    // TODO(wphicks): Construct categorical set and add node appropriately
     nodes_.emplace_back(
       val, is_leaf_node, default_to_distant_child, is_categorical_node, feature, offset
     );
@@ -98,8 +99,12 @@ struct decision_forest_builder {
     output_size_ = val;
   }
 
-  decision_forest_builder(std::size_t align_bytes=std::size_t{}) :
+  decision_forest_builder(
+      std::size_t max_num_categories=std::size_t{},
+      std::size_t align_bytes=std::size_t{}
+    ) :
     cur_tree_size_{},
+    max_num_categories_{max_num_categories},
     alignment_{std::lcm(align_bytes, sizeof(node_type))},
     output_size_{1},
     element_postproc_{},
@@ -150,6 +155,14 @@ struct decision_forest_builder {
           device,
           stream
         ),
+      categorical_storage_.size() == 0 ?
+        std::nullopt :
+        std::make_optional<kayak::buffer<typename node_type::index_type>>(
+          kayak::buffer{categorical_storage_.data(), categorical_storage_.size()},
+          mem_type,
+          device,
+          stream
+        ),
       output_size_,
       row_postproc_,
       element_postproc_,
@@ -163,6 +176,7 @@ struct decision_forest_builder {
 
  private:
   std::size_t cur_tree_size_;
+  std::size_t max_num_categories_;
   std::size_t alignment_;
   std::size_t output_size_;
   row_op row_postproc_;
@@ -175,6 +189,7 @@ struct decision_forest_builder {
   std::vector<node_type> nodes_;
   std::vector<std::size_t> root_node_indexes_;
   std::vector<typename node_type::threshold_type> vector_output_;
+  std::vector<typename node_type::index_type> categorical_storage_;
 };
 
 }

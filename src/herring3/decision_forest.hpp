@@ -41,9 +41,11 @@ struct decision_forest {
     nodes_{},
     root_node_indexes_{},
     vector_output_{},
+    categorical_storage_{},
     num_feature_{},
     num_class_{},
     leaf_size_{},
+    has_categorical_nodes_{false},
     row_postproc_{},
     elem_postproc_{},
     average_factor_{},
@@ -55,7 +57,9 @@ struct decision_forest {
     kayak::buffer<size_t>&& root_node_indexes,
     size_t num_feature,
     size_t num_class=size_t{2},
+    bool has_categorical_nodes = false,
     std::optional<kayak::buffer<io_type>>&& vector_output=std::nullopt,
+    std::optional<kayak::buffer<typename node_type::index_type>>&& categorical_storage=std::nullopt,
     size_t leaf_size=size_t{1},
     row_op row_postproc=row_op::disable,
     element_op elem_postproc=element_op::disable,
@@ -65,10 +69,12 @@ struct decision_forest {
   ) :
     nodes_{nodes},
     root_node_indexes_{root_node_indexes},
-    vector_output_{vector_output},
+    vector_output_{categorical_storage},
+    categorical_storage_{},
     num_feature_{num_feature},
     num_class_{num_class},
     leaf_size_{leaf_size},
+    has_categorical_nodes_{has_categorical_nodes},
     row_postproc_{row_postproc},
     elem_postproc_{elem_postproc},
     average_factor_{average_factor},
@@ -163,7 +169,7 @@ struct decision_forest {
   /** Buffer of outputs for all leaves in vector-leaf models */
   std::optional<kayak::buffer<io_type>> vector_output_;
   /** Buffer of outputs for all leaves in vector-leaf models */
-  std::optional<kayak::buffer<categorical_storage_type>> categorical_storage;
+  std::optional<kayak::buffer<categorical_storage_type>> categorical_storage_;
 
   // Metadata
   size_t num_feature_;
