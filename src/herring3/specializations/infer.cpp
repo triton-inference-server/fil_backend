@@ -58,6 +58,106 @@ template void infer<
   kayak::cuda_stream stream
 );
 
+template void infer<
+  kayak::device_type::cpu,
+  true,
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  >,
+  std::nullptr_t,
+  std::nullptr_t
+>(
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  > const&,
+  postprocessor<float> const&,
+  float*,
+  float*,
+  std::size_t,
+  std::size_t,
+  std::size_t,
+  std::nullptr_t,
+  std::nullptr_t,
+  std::optional<std::size_t>,
+  kayak::device_id<kayak::device_type::cpu>,
+  kayak::cuda_stream stream
+);
+
+template void infer<
+  kayak::device_type::cpu,
+  true,
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  >,
+  float*,
+  std::nullptr_t
+>(
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  > const&,
+  postprocessor<float> const&,
+  float*,
+  float*,
+  std::size_t,
+  std::size_t,
+  std::size_t,
+  float*,
+  std::nullptr_t,
+  std::optional<std::size_t>,
+  kayak::device_id<kayak::device_type::cpu>,
+  kayak::cuda_stream stream
+);
+
+template void infer<
+  kayak::device_type::cpu,
+  true,
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  >,
+  std::nullptr_t,
+  uint32_t*
+>(
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  > const&,
+  postprocessor<float> const&,
+  float*,
+  float*,
+  std::size_t,
+  std::size_t,
+  std::size_t,
+  std::nullptr_t,
+  uint32_t*,
+  std::optional<std::size_t>,
+  kayak::device_id<kayak::device_type::cpu>,
+  kayak::cuda_stream stream
+);
+
+template void infer<
+  kayak::device_type::cpu,
+  true,
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  >,
+  float*,
+  uint32_t*
+>(
+  forest<
+    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
+  > const&,
+  postprocessor<float> const&,
+  float*,
+  float*,
+  std::size_t,
+  std::size_t,
+  std::size_t,
+  float*,
+  uint32_t*,
+  std::optional<std::size_t>,
+  kayak::device_id<kayak::device_type::cpu>,
+  kayak::cuda_stream stream
+);
+
 }
 }
 }
