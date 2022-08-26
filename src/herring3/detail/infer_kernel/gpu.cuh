@@ -11,8 +11,12 @@
 namespace herring {
 namespace detail {
 
-template<bool is_categorical, typename forest_t,
-  typename vector_output_t=std::nullptr_t>
+template<
+  bool has_categorical_nodes,
+  typename forest_t,
+  typename vector_output_t=std::nullptr_t,
+  typename categorical_data_t=std::nullptr_t
+>
 __global__ void infer_kernel(
     forest_t forest,
     postprocessor<typename forest_t::io_type> postproc,
@@ -24,9 +28,11 @@ __global__ void infer_kernel(
     size_t shared_mem_byte_size,
     size_t output_workspace_size,
     size_t chunk_size,
-    vector_output_t vector_output_p=nullptr
+    vector_output_t vector_output_p=nullptr,
+    categorical_data_t categorical_data=nullptr
 ) {
   auto constexpr has_vector_leaves = !std::is_same_v<vector_output_t, std::nullptr_t>;
+  auto constexpr has_nonlocal_categories = !std::is_same_v<categorical_data_t, std::nullptr_t>;
   extern __shared__ std::byte shared_mem_raw[];
 
   auto shared_mem = shared_memory_buffer(shared_mem_raw, shared_mem_byte_size);
@@ -88,11 +94,23 @@ __global__ void infer_kernel(
       auto tree_index = task_index * real_task / rows_in_this_iteration;
       auto grove_index = threadIdx.x / rows_in_this_iteration;
 
-      if constexpr (has_vector_leaves) {
-        auto leaf_index = evaluate_tree<has_vector_leaves>(
+      auto tree_output = std::conditional_t<
+        has_vector_leaves, typename node_t::index_type, typename node_t::threshold_type
+      >{};
+      if constexpr (has_nonlocal_categories) {
+        tree_output = evaluate_tree<has_categorical_nodes, has_vector_leaves>(
+          forest.get_tree_root(tree_index),
+          input_data + row_index * col_count,
+          categorical_data
+        );
+      } else {
+        tree_output = evaluate_tree<has_categorical_nodes, has_vector_leaves>(
           forest.get_tree_root(tree_index),
           input_data + row_index * col_count
         );
+      }
+
+      if constexpr (has_vector_leaves) {
         for (
           auto class_index=size_t{};
           class_index < num_outputs;
@@ -104,23 +122,20 @@ __global__ void infer_kernel(
               + class_index * num_grove
               + grove_index
             ] += vector_output_p[
-              leaf_index * num_outputs + class_index
+              tree_output * num_outputs + class_index
             ];
           }
         }
       } else {
-        auto output_offset = (
-          row_index * num_outputs * num_grove
-          + (tree_index % num_outputs) * num_grove
-          + grove_index
-        ) * (task_index < task_count);
         if (real_task) {
-          output_workspace[output_offset] += evaluate_tree<has_vector_leaves>(
-            forest.get_tree_root(tree_index),
-            input_data + row_index * col_count
-          );
+          output_workspace[
+            row_index * num_outputs * num_grove
+            + (tree_index % num_outputs) * num_grove
+            + grove_index
+          ] += tree_output;
         }
       }
+
       __syncthreads();
     }
 
