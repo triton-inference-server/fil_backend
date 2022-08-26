@@ -127,6 +127,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
+          has_categorical_nodes_,
           vector_output_data,
           nullptr,
           specified_rows_per_block_iter,
@@ -143,6 +144,7 @@ struct decision_forest {
           input.size() / num_feature_,
           num_feature_,
           num_class_,
+          has_categorical_nodes_,
           vector_output_data,
           nullptr,
           specified_rows_per_block_iter,
@@ -167,6 +169,7 @@ struct decision_forest {
   size_t num_feature_;
   size_t num_class_;
   size_t leaf_size_;
+  bool has_categorical_nodes_;
   // Postprocessing constants
   row_op row_postproc_;
   element_op elem_postproc_;

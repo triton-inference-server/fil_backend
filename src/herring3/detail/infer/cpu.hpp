@@ -16,6 +16,7 @@ namespace inference {
 
 template<
   kayak::device_type D,
+  bool has_categorical_nodes,
   typename forest_t,
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t
@@ -37,7 +38,7 @@ std::enable_if_t<D==kayak::device_type::cpu || !kayak::GPU_ENABLED, void> infer(
   if constexpr(D==kayak::device_type::gpu) {
     throw kayak::gpu_unsupported("Tried to use GPU inference in CPU-only build");
   } else {
-    infer_kernel_cpu<false>(
+    infer_kernel_cpu<has_categorical_nodes>(
       forest,
       postproc,
       output,
@@ -55,6 +56,7 @@ std::enable_if_t<D==kayak::device_type::cpu || !kayak::GPU_ENABLED, void> infer(
 
 extern template void infer<
   kayak::device_type::cpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >,
@@ -78,6 +80,7 @@ extern template void infer<
 
 extern template void infer<
   kayak::device_type::cpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >,

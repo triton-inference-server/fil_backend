@@ -29,6 +29,7 @@ inline auto compute_output_size(
 
 template<
   kayak::device_type D,
+  bool has_categorical_nodes,
   typename forest_t,
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t
@@ -150,7 +151,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-  infer_kernel<false><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+  infer_kernel<has_categorical_nodes><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
     postproc,
     output,
@@ -168,6 +169,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
 
 extern template void infer<
   kayak::device_type::gpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >
@@ -190,6 +192,7 @@ extern template void infer<
 
 extern template void infer<
   kayak::device_type::gpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >,

@@ -13,6 +13,7 @@ namespace inference {
 
 template void infer<
   kayak::device_type::gpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >
@@ -35,6 +36,7 @@ template void infer<
 
 template void infer<
   kayak::device_type::gpu,
+  false,
   forest<
     preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
   >,

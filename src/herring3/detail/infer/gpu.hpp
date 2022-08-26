@@ -12,6 +12,7 @@ namespace inference {
 
 template<
   kayak::device_type D,
+  bool has_categorical_nodes,
   typename forest_t,
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t

@@ -24,6 +24,7 @@ void infer(
   std::size_t row_count,
   std::size_t col_count,
   std::size_t class_count,
+  bool has_categorical_nodes,
   typename forest_t::io_type* vector_output=nullptr,
   typename forest_t::node_type::index_type* categorical_data=nullptr,
   std::optional<std::size_t> specified_chunk_size=std::nullopt,
@@ -32,22 +33,39 @@ void infer(
 ) {
   if (vector_output == nullptr) {
     if (categorical_data == nullptr) {
-      inference::infer<D, forest_t, std::nullptr_t> (
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        nullptr,
-        nullptr,
-        specified_chunk_size,
-        device,
-        stream
-      );
+      if (!has_categorical_nodes) {
+        inference::infer<D, false, forest_t, std::nullptr_t, std::nullptr_t> (
+          forest,
+          postproc,
+          output,
+          input,
+          row_count,
+          col_count,
+          class_count,
+          nullptr,
+          nullptr,
+          specified_chunk_size,
+          device,
+          stream
+        );
+      } else {
+        inference::infer<D, true, forest_t, std::nullptr_t, std::nullptr_t> (
+          forest,
+          postproc,
+          output,
+          input,
+          row_count,
+          col_count,
+          class_count,
+          nullptr,
+          nullptr,
+          specified_chunk_size,
+          device,
+          stream
+        );
+      }
     } else {
-      inference::infer<D, forest_t, std::nullptr_t> (
+      inference::infer<D, true, forest_t, std::nullptr_t> (
         forest,
         postproc,
         output,
@@ -64,22 +82,39 @@ void infer(
     }
   } else {
     if (categorical_data == nullptr) {
-      inference::infer<D, forest_t> (
-        forest,
-        postproc,
-        output,
-        input,
-        row_count,
-        col_count,
-        class_count,
-        vector_output,
-        nullptr,
-        specified_chunk_size,
-        device,
-        stream
-      );
+      if (!has_categorical_nodes) {
+        inference::infer<D, false, forest_t> (
+          forest,
+          postproc,
+          output,
+          input,
+          row_count,
+          col_count,
+          class_count,
+          vector_output,
+          nullptr,
+          specified_chunk_size,
+          device,
+          stream
+        );
+      } else {
+        inference::infer<D, true, forest_t> (
+          forest,
+          postproc,
+          output,
+          input,
+          row_count,
+          col_count,
+          class_count,
+          vector_output,
+          nullptr,
+          specified_chunk_size,
+          device,
+          stream
+        );
+      }
     } else {
-      inference::infer<D, forest_t> (
+      inference::infer<D, true, forest_t> (
         forest,
         postproc,
         output,
