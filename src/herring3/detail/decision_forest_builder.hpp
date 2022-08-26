@@ -11,6 +11,8 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/exceptions.hpp>
 #include <kayak/buffer.hpp>
+#include <kayak/bitset.hpp>
+#include <kayak/ceildiv.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
 
@@ -52,20 +54,57 @@ struct decision_forest_builder {
   }
 
   template<typename iter_t>
-  void add_node(
+  void add_categorical_node(
     iter_t vec_begin,
     iter_t vec_end,
-    bool is_leaf_node=true,
     bool default_to_distant_child=false,
-    bool is_categorical_node=false,
     typename node_type::metadata_storage_type feature = typename node_type::metadata_storage_type{},
-    typename node_type::offset_type offset = typename node_type::offset_type{1},
-    bool is_inclusive=false
+    typename node_type::offset_type offset = typename node_type::offset_type{1}
+  ) {
+    auto constexpr const bin_width = sizeof(typename node_type::index_type) * 8;
+    auto node_value = typename node_type::index_type{};
+    auto set_storage = &node_value;
+    auto max_node_category = *std::max_element(vec_begin, vec_end);
+    if (max_num_categories_ > bin_width) {
+      // TODO(wphicks): Check for overflow here
+      node_value = categorical_storage_.size();
+      auto bins_required = kayak::ceildiv(max_node_category, bin_width);
+      categorical_storage_.push_back(bins_required);
+      categorical_storage_.resize(categorical_storage_.size() + bins_required);
+      set_storage = &(categorical_storage_[node_value + 1]);
+    }
+    auto set = kayak::bitset{set_storage, max_node_category};
+    std::for_each(
+      vec_begin,
+      vec_end, 
+      [&set](auto&& cat_index) {
+        set.set(cat_index);
+      }
+    );
+    add_node(
+      node_value,
+      false,
+      default_to_distant_child,
+      feature,
+      offset,
+      false
+    );
+  }
+
+  template<typename iter_t>
+  void add_leaf_vector_node(
+    iter_t vec_begin,
+    iter_t vec_end
   ) {
     auto leaf_index = typename node_type::index_type(vector_output_.size() / output_size_);
     std::copy(vec_begin, vec_end, std::back_inserter(vector_output_));
     nodes_.emplace_back(
-      leaf_index, is_leaf_node, default_to_distant_child, is_categorical_node, feature, offset
+      leaf_index,
+      true,
+      false,
+      false,
+      typename node_type::metadata_storage_type{},
+      typename node_type::offset_type{1}
     );
     ++cur_tree_size_;
   }
@@ -147,6 +186,7 @@ struct decision_forest_builder {
       },
       num_feature,
       num_class,
+      max_num_categories_ != 0,
       vector_output_.size() == 0 ?
         std::nullopt :
         std::make_optional<kayak::buffer<typename node_type::threshold_type>>(

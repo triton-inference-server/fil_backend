@@ -69,8 +69,8 @@ struct decision_forest {
   ) :
     nodes_{nodes},
     root_node_indexes_{root_node_indexes},
-    vector_output_{categorical_storage},
-    categorical_storage_{},
+    vector_output_{vector_output},
+    categorical_storage_{categorical_storage},
     num_feature_{num_feature},
     num_class_{num_class},
     leaf_size_{leaf_size},

@@ -438,6 +438,7 @@ struct treelite_importer {
     treelite::Model const& tl_model,
     std::size_t num_class,
     std::size_t num_feature,
+    std::size_t max_num_categories,
     std::vector<std::vector<std::size_t>> const& offsets,
     std::size_t align_bytes = std::size_t{},
     kayak::device_type mem_type=kayak::device_type::cpu,
@@ -449,7 +450,7 @@ struct treelite_importer {
     if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
-        auto builder = detail::decision_forest_builder<forest_model_t>(align_bytes);
+        auto builder = detail::decision_forest_builder<forest_model_t>(max_num_categories, align_bytes);
         auto tree_count = num_trees(tl_model);
         auto tree_index = std::size_t{};
         tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
@@ -460,10 +461,9 @@ struct treelite_importer {
               auto output = node.get_output();
               builder.set_output_size(output.size());
               if (output.size() > std::size_t{1}) {
-                builder.add_node(
+                builder.add_leaf_vector_node(
                   std::begin(output),
-                  std::end(output),
-                  true
+                  std::end(output)
                 );
               } else {
                 builder.add_node(
@@ -474,7 +474,13 @@ struct treelite_importer {
             } else {
               if (node.is_categorical()) {
                 auto categories = node.get_categories();
-                throw model_import_error{"Categorical nodes not yet implemented"};
+                builder.add_categorical_node(
+                  std::begin(categories),
+                  std::end(categories),
+                  node.default_distant(),
+                  node.get_feature(),
+                  offsets[tree_index][node_index]
+                );
               } else {
                 builder.add_node(
                   typename forest_model_t::threshold_type(node.threshold()),
@@ -506,6 +512,7 @@ struct treelite_importer {
           tl_model,
           num_class,
           num_feature,
+          max_num_categories,
           offsets,
           align_bytes,
           mem_type,
@@ -565,6 +572,7 @@ struct treelite_importer {
       tl_model,
       num_class,
       num_feature,
+      max_num_categories,
       offsets,
       align_bytes,
       mem_type,
