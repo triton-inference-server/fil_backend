@@ -27,7 +27,12 @@ inline auto compute_output_size(
   ) * rows_per_block_iteration;
 }
 
-template<kayak::device_type D, typename forest_t, typename vector_output_t=std::nullptr_t>
+template<
+  kayak::device_type D,
+  typename forest_t,
+  typename vector_output_t=std::nullptr_t,
+  typename categorical_data_t=std::nullptr_t
+>
 std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   forest_t const& forest,
   postprocessor<typename forest_t::io_type> const& postproc,
@@ -37,6 +42,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   std::size_t col_count,
   std::size_t class_count,
   vector_output_t vector_output=nullptr,
+  categorical_data_t categorical_data=nullptr,
   std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
@@ -155,7 +161,8 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     shared_mem_per_block,
     output_workspace_size,
     rows_per_block_iteration,
-    vector_output
+    vector_output,
+    categorical_data
   );
 }
 
@@ -174,6 +181,7 @@ extern template void infer<
   std::size_t,
   std::size_t,
   std::size_t,
+  std::nullptr_t,
   std::nullptr_t,
   std::optional<std::size_t>,
   kayak::device_id<kayak::device_type::gpu>,
@@ -197,6 +205,7 @@ extern template void infer<
   std::size_t,
   std::size_t,
   float*,
+  std::nullptr_t,
   std::optional<std::size_t>,
   kayak::device_id<kayak::device_type::gpu>,
   kayak::cuda_stream stream

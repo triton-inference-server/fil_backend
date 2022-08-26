@@ -35,6 +35,7 @@ struct decision_forest {
   using io_type = typename forest_type::io_type;
   using threshold_type = threshold_t;
   using postprocessor_type = postprocessor<io_type>;
+  using categorical_storage_type = typename node_type::index_type;
 
   decision_forest() :
     nodes_{},
@@ -127,6 +128,7 @@ struct decision_forest {
           num_feature_,
           num_class_,
           vector_output_data,
+          nullptr,
           specified_rows_per_block_iter,
           std::get<0>(nodes_.device()),
           stream
@@ -142,6 +144,7 @@ struct decision_forest {
           num_feature_,
           num_class_,
           vector_output_data,
+          nullptr,
           specified_rows_per_block_iter,
           std::get<1>(nodes_.device()),
           stream
@@ -157,6 +160,8 @@ struct decision_forest {
   kayak::buffer<size_t> root_node_indexes_;
   /** Buffer of outputs for all leaves in vector-leaf models */
   std::optional<kayak::buffer<io_type>> vector_output_;
+  /** Buffer of outputs for all leaves in vector-leaf models */
+  std::optional<kayak::buffer<categorical_storage_type>> categorical_storage;
 
   // Metadata
   size_t num_feature_;

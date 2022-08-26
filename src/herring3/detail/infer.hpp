@@ -25,38 +25,75 @@ void infer(
   std::size_t col_count,
   std::size_t class_count,
   typename forest_t::io_type* vector_output=nullptr,
+  typename forest_t::node_type::index_type* categorical_data=nullptr,
   std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
   if (vector_output == nullptr) {
-    inference::infer<D, forest_t, std::nullptr_t> (
-      forest,
-      postproc,
-      output,
-      input,
-      row_count,
-      col_count,
-      class_count,
-      nullptr,
-      specified_chunk_size,
-      device,
-      stream
-    );
+    if (categorical_data == nullptr) {
+      inference::infer<D, forest_t, std::nullptr_t> (
+        forest,
+        postproc,
+        output,
+        input,
+        row_count,
+        col_count,
+        class_count,
+        nullptr,
+        nullptr,
+        specified_chunk_size,
+        device,
+        stream
+      );
+    } else {
+      inference::infer<D, forest_t, std::nullptr_t> (
+        forest,
+        postproc,
+        output,
+        input,
+        row_count,
+        col_count,
+        class_count,
+        nullptr,
+        categorical_data,
+        specified_chunk_size,
+        device,
+        stream
+      );
+    }
   } else {
-    inference::infer<D, forest_t> (
-      forest,
-      postproc,
-      output,
-      input,
-      row_count,
-      col_count,
-      class_count,
-      vector_output,
-      specified_chunk_size,
-      device,
-      stream
-    );
+    if (categorical_data == nullptr) {
+      inference::infer<D, forest_t> (
+        forest,
+        postproc,
+        output,
+        input,
+        row_count,
+        col_count,
+        class_count,
+        vector_output,
+        nullptr,
+        specified_chunk_size,
+        device,
+        stream
+      );
+    } else {
+      inference::infer<D, forest_t> (
+        forest,
+        postproc,
+        output,
+        input,
+        row_count,
+        col_count,
+        class_count,
+        vector_output,
+        categorical_data,
+        specified_chunk_size,
+        device,
+        stream
+      );
+    }
   }
 }
 

@@ -10,7 +10,12 @@ namespace herring {
 namespace detail {
 namespace inference {
 
-template<kayak::device_type D, typename forest_t, typename vector_output_t=std::nullptr_t>
+template<
+  kayak::device_type D,
+  typename forest_t,
+  typename vector_output_t=std::nullptr_t,
+  typename categorical_data_t=std::nullptr_t
+>
 std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   forest_t const& forest,
   postprocessor<typename forest_t::io_type> const& postproc,
@@ -20,6 +25,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   std::size_t col_count,
   std::size_t class_count,
   vector_output_t vector_output=nullptr,
+  categorical_data_t categorical_data=nullptr,
   std::optional<std::size_t> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
