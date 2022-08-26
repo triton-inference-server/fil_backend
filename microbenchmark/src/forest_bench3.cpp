@@ -4,7 +4,6 @@
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_check.hpp>
 #include <kayak/cuda_stream.hpp>
-#include <kayak/data_array.hpp>
 #include <kayak/device_type.hpp>
 #include <kayak/tree_layout.hpp>
 #include <nvtx3/nvtx3.hpp>

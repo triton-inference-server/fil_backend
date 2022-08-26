@@ -1,22 +1,24 @@
 #pragma once
-#include <stdint.h>
+#include <cstddef>
+#ifndef __CUDACC__
+#include <math.h>
+#endif
+#include <variant>
+#include <stddef.h>
 #include <type_traits>
 #include <variant>
-#include <kayak/detail/index_type.hpp>
-#include <kayak/detail/raw_array.hpp>
-#include <kayak/detail/universal_cmp.hpp>
 #include <kayak/device_type.hpp>
 #include <kayak/gpu_support.hpp>
 
 namespace kayak {
-template<typename storage_t>
+template<typename storage_t=std::byte, typename index_t=size_t>
 struct bitset {
   using storage_type = storage_t;
-  using index_type = detail::index_type<!GPU_ENABLED && DEBUG_ENABLED>;
+  using index_type = index_t;
 
-  auto constexpr static const bin_width = raw_index_t{
-    detail::index_type<false>{sizeof(storage_type) * 8}
-  };
+  auto constexpr static const bin_width = index_type(
+    sizeof(storage_type) * 8
+  );
 
   HOST DEVICE bitset()
     : data_{nullptr}, num_bits_{0}
@@ -29,7 +31,7 @@ struct bitset {
   }
 
   HOST DEVICE bitset(storage_type* data)
-    : data_{data}, num_bits_{detail::index_type<false>{sizeof(storage_type) * 8}}
+    : data_{data}, num_bits_(sizeof(storage_type) * 8)
   {
   }
 
@@ -57,7 +59,7 @@ struct bitset {
     return result;
   }
   HOST DEVICE auto& flip() {
-    for (auto i = raw_index_t{}; i < bin_count(); ++i) {
+    for (auto i = index_type{}; i < bin_count(); ++i) {
       data_[i] = ~data_[i];
     }
     return *this;
@@ -65,19 +67,19 @@ struct bitset {
 
   // Bit-wise boolean operations
   HOST DEVICE auto& operator&=(bitset<storage_type> const& other) {
-    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
+    for (auto i = index_type{}; i < min(size(), other.size()); ++i) {
       data_[i] &= other.data_[i];
     }
     return *this;
   }
-  HOST DEVICE auto& operator|=(bitset<storage_t> const& other) {
-    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
+  HOST DEVICE auto& operator|=(bitset<storage_type> const& other) {
+    for (auto i = index_type{}; i < min(size(), other.size()); ++i) {
       data_[i] |= other.data_[i];
     }
     return *this;
   }
-  HOST DEVICE auto& operator^=(bitset<storage_t> const& other) {
-    for (auto i = raw_index_t{}; i < detail::universal_min(size(), other.size()); ++i) {
+  HOST DEVICE auto& operator^=(bitset<storage_type> const& other) {
+    for (auto i = index_type{}; i < min(size(), other.size()); ++i) {
       data_[i] ^= other.data_[i];
     }
     return *this;
@@ -89,13 +91,13 @@ struct bitset {
 
  private:
   storage_type* data_;
-  raw_index_t num_bits_;
+  index_type num_bits_;
 
-  HOST DEVICE auto mask_in_bin(raw_index_t index) const {
-    return storage_t{1} << (index % bin_width);
+  HOST DEVICE auto mask_in_bin(index_type index) const {
+    return storage_type{1} << (index % bin_width);
   }
 
-  HOST DEVICE auto bin_from_index(raw_index_t index) const {
+  HOST DEVICE auto bin_from_index(index_type index) const {
     return index / bin_width;
   }
 };

@@ -13,7 +13,6 @@
 #include <kayak/buffer.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_type.hpp>
-#include <kayak/detail/index_type.hpp>
 
 namespace herring {
 namespace detail {

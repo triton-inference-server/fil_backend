@@ -9,12 +9,9 @@
 #include <herring3/detail/decision_forest_builder.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/postproc_ops.hpp>
-#include <kayak/detail/index_type.hpp>
 #include <kayak/tree_layout.hpp>
 
 namespace herring {
-
-using kayak::raw_index_t;
 
 template <kayak::tree_layout layout, typename T>
 struct traversal_container {
@@ -221,19 +218,13 @@ struct treelite_importer {
 
   template<typename tl_threshold_t, typename tl_output_t>
   auto get_offsets(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree) {
-    auto result = std::vector<raw_index_t>(tl_tree.num_nodes);
+    auto result = std::vector<std::size_t>(tl_tree.num_nodes);
     auto nodes = get_nodes(tl_tree);
-    try {
-      for (auto i = std::size_t{}; i < nodes.size(); ++i) {
-        // Current index should always be greater than or equal to parent index.
-        // Later children will overwrite values set by earlier children, ensuring
-        // that most distant offset is used.
-        result[nodes[i].parent_index] = kayak::detail::index_type<true>{i - nodes[i].parent_index};
-      }
-    } catch(kayak::detail::bad_index const& err) {
-      throw model_import_error(
-        "Offset between parent and child node was invalid or exceeded maximum allowed value"
-      );
+    for (auto i = std::size_t{}; i < nodes.size(); ++i) {
+      // Current index should always be greater than or equal to parent index.
+      // Later children will overwrite values set by earlier children, ensuring
+      // that most distant offset is used.
+      result[nodes[i].parent_index] = std::size_t{i - nodes[i].parent_index};
     }
 
     return result;
@@ -283,7 +274,7 @@ struct treelite_importer {
   }
 
   auto get_offsets(treelite::Model const& tl_model) {
-    auto result = std::vector<std::vector<raw_index_t>>{};
+    auto result = std::vector<std::vector<std::size_t>>{};
     result.reserve(num_trees(tl_model));
     tree_transform(tl_model, std::back_inserter(result), [this](auto&&tree) {
       return get_offsets(tree);
@@ -292,7 +283,7 @@ struct treelite_importer {
   }
 
   auto get_tree_sizes(treelite::Model const& tl_model) {
-    auto result = std::vector<raw_index_t>{};
+    auto result = std::vector<std::size_t>{};
     tree_transform(
       tl_model,
       std::back_inserter(result),
@@ -302,7 +293,7 @@ struct treelite_importer {
   }
 
   auto get_num_class(treelite::Model const& tl_model) {
-    auto result = kayak::detail::index_type<true>{};
+    auto result = std::size_t{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       result = concrete_tl_model.task_param.num_class;
     });
@@ -310,7 +301,7 @@ struct treelite_importer {
   }
 
   auto get_num_feature(treelite::Model const& tl_model) {
-    auto result = kayak::detail::index_type<true>{};
+    auto result = std::size_t{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       result = concrete_tl_model.num_feature;
     });
@@ -318,7 +309,7 @@ struct treelite_importer {
   }
 
   auto get_max_num_categories(treelite::Model const& tl_model) {
-    return tree_accumulate(tl_model, raw_index_t{}, [this](auto&& accum, auto&& tree) {
+    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
       return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
         auto result = cur_accum;
         for (auto&& cat : tl_node.categories()) {
@@ -445,10 +436,10 @@ struct treelite_importer {
   auto import_to_specific_variant(
     std::size_t target_variant_index,
     treelite::Model const& tl_model,
-    kayak::detail::index_type<true> num_class,
-    kayak::detail::index_type<true> num_feature,
-    std::vector<std::vector<raw_index_t>> const& offsets,
-    kayak::detail::index_type<true> align_bytes = raw_index_t{},
+    std::size_t num_class,
+    std::size_t num_feature,
+    std::vector<std::vector<std::size_t>> const& offsets,
+    std::size_t align_bytes = std::size_t{},
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
@@ -458,7 +449,7 @@ struct treelite_importer {
     if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
-        auto builder = detail::decision_forest_builder<forest_model_t>(align_bytes.value());
+        auto builder = detail::decision_forest_builder<forest_model_t>(align_bytes);
         auto tree_count = num_trees(tl_model);
         auto tree_index = std::size_t{};
         tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
@@ -508,7 +499,7 @@ struct treelite_importer {
         builder.set_row_postproc(postproc_params.row);
         builder.set_postproc_constant(postproc_params.constant);
 
-        result.template emplace<variant_index>(builder.get_decision_forest(std::size_t{num_feature.value()}, num_class, mem_type, device, stream));
+        result.template emplace<variant_index>(builder.get_decision_forest(num_feature, num_class, mem_type, device, stream));
       } else {
         result = import_to_specific_variant<variant_index +1>(
           target_variant_index,
@@ -528,7 +519,7 @@ struct treelite_importer {
 
   auto import(
     treelite::Model const& tl_model,
-    kayak::detail::index_type<true> align_bytes = raw_index_t{},
+    std::size_t align_bytes = std::size_t{},
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
@@ -544,26 +535,20 @@ struct treelite_importer {
     auto max_offset = std::accumulate(
       std::begin(offsets),
       std::end(offsets),
-      raw_index_t{},
+      std::size_t{},
       [&offsets](auto&& cur_max, auto&& tree_offsets) {
         return std::max(cur_max, *std::max_element(std::begin(tree_offsets), std::end(tree_offsets)));
       }
     );
-    auto tree_sizes = std::vector<raw_index_t>{};
-    try {
-      std::transform(
-        std::begin(offsets),
-        std::end(offsets),
-        std::back_inserter(tree_sizes),
-        [](auto&& tree_offsets) {
-          return kayak::detail::index_type<true>{tree_offsets.size()};
-        }
-      );
-    } catch(kayak::detail::bad_index const& err) {
-      throw model_import_error(
-        "Tree too large to be represented in Herring format"
-      );
-    }
+    auto tree_sizes = std::vector<std::size_t>{};
+    std::transform(
+      std::begin(offsets),
+      std::end(offsets),
+      std::back_inserter(tree_sizes),
+      [](auto&& tree_offsets) {
+        return tree_offsets.size();
+      }
+    );
 
     auto variant_index = std::size_t{};
     /* auto variant_index = get_forest_variant_index(
