@@ -61,7 +61,7 @@ the section on [Configuration](#configuration) for instructions.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:22.07-py3
+docker pull nvcr.io/nvidia/tritonserver:22.08-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -122,7 +122,7 @@ models](https://github.com/triton-inference-server/fil_backend/blob/main/SKLearn
 for use in Triton.
 
 **NOTE: XGBoost 1.6 introduced a change in the XGBoost JSON serialization
-format. This change will be supported in Triton 22.07. Earlier versions of
+format. This change will be supported in Triton 22.08. Earlier versions of
 Triton will NOT support JSON-serialized models from XGBoost>=1.6.**
 
 Once you have a serialized model, you will need to prepare a
