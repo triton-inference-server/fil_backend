@@ -64,16 +64,16 @@ struct decision_forest_builder {
     auto constexpr const bin_width = sizeof(typename node_type::index_type) * 8;
     auto node_value = typename node_type::index_type{};
     auto set_storage = &node_value;
-    auto max_node_category = *std::max_element(vec_begin, vec_end);
+    auto max_node_categories = *std::max_element(vec_begin, vec_end) + 1;
     if (max_num_categories_ > bin_width) {
       // TODO(wphicks): Check for overflow here
       node_value = categorical_storage_.size();
-      auto bins_required = kayak::ceildiv(max_node_category, bin_width);
+      auto bins_required = kayak::ceildiv(max_node_categories, bin_width);
       categorical_storage_.push_back(bins_required);
       categorical_storage_.resize(categorical_storage_.size() + bins_required);
       set_storage = &(categorical_storage_[node_value + 1]);
     }
-    auto set = kayak::bitset{set_storage, max_node_category};
+    auto set = kayak::bitset{set_storage, max_node_categories};
     std::for_each(
       vec_begin,
       vec_end, 
@@ -85,6 +85,7 @@ struct decision_forest_builder {
       node_value,
       false,
       default_to_distant_child,
+      true,
       feature,
       offset,
       false
