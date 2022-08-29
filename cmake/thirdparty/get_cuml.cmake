@@ -58,7 +58,7 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
-                        FORK       wphicks
-                        PINNED_TAG 3e8bd99cef42c083a5a0fe26433ea0d1c1f08146
+                        FORK       rapidsai
+                        PINNED_TAG 80621f0b3718f565ece410ee3f71f36a8f44f5aa
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
