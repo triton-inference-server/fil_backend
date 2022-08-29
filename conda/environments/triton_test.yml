@@ -6,7 +6,8 @@ channels:
 dependencies:
   - aws-sdk-cpp<1.9
   - clang-tools=11.1.0
-  - cudatoolkit=11.4
+  - cudatoolkit=11.5
+  - cuda-python<11.7.0
   - cuml=22.08
   - flake8
   - hypothesis<6.46.8
