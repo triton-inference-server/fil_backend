@@ -65,7 +65,7 @@ void infer(
         );
       }
     } else {
-      inference::infer<D, true, forest_t, std::nullptr_t> (
+      inference::infer<D, true, forest_t> (
         forest,
         postproc,
         output,

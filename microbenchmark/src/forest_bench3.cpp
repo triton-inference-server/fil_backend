@@ -150,6 +150,7 @@ int main(int argc, char** argv) {
   auto batch_sizes = std::vector<std::size_t>{
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, rows
   };
+  // auto batch_sizes = std::vector<std::size_t>{1024};
   auto batch_timings = std::vector<std::vector<std::size_t>>(10);
 
   // Run benchmarks for each framework

@@ -123,6 +123,9 @@ struct decision_forest {
     auto* vector_output_data = (
       vector_output_.has_value() ? vector_output_->data() : static_cast<io_type*>(nullptr)
     );
+    auto* categorical_storage_data = (
+      categorical_storage_.has_value() ? categorical_storage_->data() : static_cast<categorical_storage_type*>(nullptr)
+    );
     switch(nodes_.device().index()) {
       case 0:
         herring::detail::infer(
@@ -135,7 +138,7 @@ struct decision_forest {
           num_class_,
           has_categorical_nodes_,
           vector_output_data,
-          nullptr,
+          categorical_storage_data,
           specified_rows_per_block_iter,
           std::get<0>(nodes_.device()),
           stream
@@ -152,7 +155,7 @@ struct decision_forest {
           num_class_,
           has_categorical_nodes_,
           vector_output_data,
-          nullptr,
+          categorical_storage_data,
           specified_rows_per_block_iter,
           std::get<1>(nodes_.device()),
           stream

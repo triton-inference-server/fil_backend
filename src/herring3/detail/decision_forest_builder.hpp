@@ -69,7 +69,7 @@ struct decision_forest_builder {
       // TODO(wphicks): Check for overflow here
       node_value = categorical_storage_.size();
       auto bins_required = kayak::ceildiv(max_node_categories, bin_width);
-      categorical_storage_.push_back(bins_required);
+      categorical_storage_.push_back(max_node_categories);
       categorical_storage_.resize(categorical_storage_.size() + bins_required);
       set_storage = &(categorical_storage_[node_value + 1]);
     }
@@ -81,6 +81,7 @@ struct decision_forest_builder {
         set.set(cat_index);
       }
     );
+
     add_node(
       node_value,
       false,
