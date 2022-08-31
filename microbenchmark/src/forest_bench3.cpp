@@ -55,7 +55,7 @@ void run_gtil(std::unique_ptr<treelite::Model>& tl_model, matrix& input, std::ve
 }
 
 void run_herring3(
-  herring::forest_model_variant& model,
+  herring::forest_model& model,
   float* input,
   float* output,
   std::size_t rows,
@@ -63,23 +63,21 @@ void run_herring3(
   kayak::cuda_stream stream,
   std::size_t rpbi
 ) {
-  // NVTX3_FUNC_RANGE();
-  std::visit([output, input, rows, cols, &stream, rpbi](auto&& concrete_model) {
-    auto in_buf = kayak::buffer(
-      input,
-      rows * cols,
-      kayak::device_type::gpu
-    );
-    auto out_buf = kayak::buffer(
-      output,
-      rows * concrete_model.num_outputs(),
-      kayak::device_type::gpu
-    );
-    concrete_model.predict(out_buf, in_buf, stream, rpbi);
-  }, model);
+  auto in_buf = kayak::buffer(
+    input,
+    rows * cols,
+    kayak::device_type::gpu
+  );
+  auto out_buf = kayak::buffer(
+    output,
+    rows * model.num_outputs(),
+    kayak::device_type::gpu
+  );
+  model.predict(out_buf, in_buf, stream, rpbi);
 }
+
 void run_herring3_cpu(
-  herring::forest_model_variant& model,
+  herring::forest_model& model,
   float* input,
   float* output,
   std::size_t rows,
@@ -87,20 +85,17 @@ void run_herring3_cpu(
   kayak::cuda_stream stream,
   std::size_t rpbi
 ) {
-  // NVTX3_FUNC_RANGE();
-  std::visit([output, input, rows, cols, &stream, rpbi](auto&& concrete_model) {
-    auto in_buf = kayak::buffer(
-      input,
-      rows * cols,
-      kayak::device_type::cpu
-    );
-    auto out_buf = kayak::buffer(
-      output,
-      rows * concrete_model.num_outputs(),
-      kayak::device_type::cpu
-    );
-    concrete_model.predict(out_buf, in_buf, stream, rpbi);
-  }, model);
+  auto in_buf = kayak::buffer(
+    input,
+    rows * cols,
+    kayak::device_type::cpu
+  );
+  auto out_buf = kayak::buffer(
+    output,
+    rows * model.num_outputs(),
+    kayak::device_type::cpu
+  );
+  model.predict(out_buf, in_buf, stream, rpbi);
 }
 
 int main(int argc, char** argv) {

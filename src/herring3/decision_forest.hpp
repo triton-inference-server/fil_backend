@@ -207,32 +207,62 @@ struct decision_forest {
   auto leaf_size() const { return leaf_size_; }
 };
 
+namespace detail {
 template<
   kayak::tree_layout layout,
   bool double_precision,
-  bool many_features,
   bool large_trees
 >
-using forest_model = decision_forest<
+using preset_decision_forest = decision_forest<
   layout,
   std::conditional_t<double_precision, double, float>,
-  uint32_t,
-  std::conditional_t<many_features, uint32_t, uint16_t>,
+  std::conditional_t<double_precision, uint64_t, uint32_t>,
+  std::conditional_t<large_trees, uint32_t, uint16_t>,
   std::conditional_t<large_trees, uint32_t, uint16_t>
 >;
+}
 
-using forest_model_variant = std::variant<
-  forest_model<preferred_tree_layout, false, false, false>
+using decision_forest_variant = std::variant<
+  detail::preset_decision_forest<preferred_tree_layout, false, false>,
+  detail::preset_decision_forest<preferred_tree_layout, false, true>,
+  detail::preset_decision_forest<preferred_tree_layout, true, false>,
+  detail::preset_decision_forest<preferred_tree_layout, true, true>
 >;
 
 inline auto get_forest_variant_index(
+  bool use_double_thresholds,
   std::size_t max_node_offset,
   std::size_t num_features,
-  std::size_t max_num_categories,
-  bool use_double_thresholds,
-  bool use_double_output,
-  bool use_integer_output
+  std::size_t num_categorical_nodes = std::size_t{},
+  std::size_t max_num_categories = std::size_t{},
+  std::size_t num_vector_leaves = std::size_t{}
 ) {
-  return std::size_t{};
+  auto max_local_categories = sizeof(std::uint32_t) * 8;
+  // If the index required for pointing to categorical storage bins or vector
+  // leaf output exceeds what we can store in a uint32_t, uint64_t will be used
+  //
+  // TODO(wphicks): We are overestimating categorical storage required here
+  auto double_indexes_required = (
+    max_num_categories > max_local_categories
+    && (
+      (
+        kayak::ceildiv(max_num_categories, max_local_categories) + 1
+        * num_categorical_nodes
+      ) > std::numeric_limits<std::uint32_t>::max()
+    )
+  ) || num_vector_leaves > std::numeric_limits<std::uint32_t>::max();
+
+  auto double_precision = use_double_thresholds || double_indexes_required;
+
+  auto large_trees = (
+    num_features > (
+      std::numeric_limits<std::uint16_t>::max() >> reserved_node_metadata_bits
+    ) || max_node_offset > std::numeric_limits<std::uint16_t>::max()
+  );
+
+  return (
+    (std::size_t{double_precision} << std::size_t{1})
+    + std::size_t{large_trees}
+  );
 }
 }

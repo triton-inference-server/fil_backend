@@ -8,6 +8,7 @@
 #include <herring3/decision_forest.hpp>
 #include <herring3/detail/decision_forest_builder.hpp>
 #include <herring3/exceptions.hpp>
+#include <herring3/forest_model.hpp>
 #include <herring3/postproc_ops.hpp>
 #include <kayak/tree_layout.hpp>
 
@@ -320,6 +321,22 @@ struct treelite_importer {
     });
   }
 
+  auto get_num_categorical_nodes(treelite::Model const& tl_model) {
+    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
+      return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
+        return cur_accum + tl_node.is_categorical();
+      });
+    });
+  }
+
+  auto get_num_leaf_vector_nodes(treelite::Model const& tl_model) {
+    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
+      return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
+        return cur_accum + (tl_node.is_leaf() && tl_node.get_output().size() > 1);
+      });
+    });
+  }
+
   auto get_average_factor(treelite::Model const& tl_model) {
     auto result = double{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
@@ -445,11 +462,11 @@ struct treelite_importer {
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
-    auto result = forest_model_variant{};
-    // if constexpr (variant_index != std::variant_size_v<forest_model_variant>) {
+    auto result = decision_forest_variant{};
+    // if constexpr (variant_index != std::variant_size_v<decision_forest_variant>) {
     if constexpr (variant_index != 1) {
       if (variant_index == target_variant_index) {
-        using forest_model_t = std::variant_alternative_t<variant_index, forest_model_variant>;
+        using forest_model_t = std::variant_alternative_t<variant_index, decision_forest_variant>;
         auto builder = detail::decision_forest_builder<forest_model_t>(max_num_categories, align_bytes);
         auto tree_count = num_trees(tl_model);
         auto tree_index = std::size_t{};
@@ -531,9 +548,11 @@ struct treelite_importer {
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
-    auto result = forest_model_variant{};
+    auto result = decision_forest_variant{};
     auto num_feature = get_num_feature(tl_model);
     auto max_num_categories = get_max_num_categories(tl_model);
+    auto num_categorical_nodes = get_num_categorical_nodes(tl_model);
+    auto num_leaf_vector_nodes = get_num_leaf_vector_nodes(tl_model);
     auto use_double_thresholds = uses_double_thresholds(tl_model);
     auto use_double_output = uses_double_outputs(tl_model);
     auto use_integer_output = uses_integer_outputs(tl_model);
@@ -557,17 +576,18 @@ struct treelite_importer {
       }
     );
 
-    auto variant_index = std::size_t{};
-    /* auto variant_index = get_forest_variant_index(
+    auto variant_index = get_forest_variant_index(
+      use_double_thresholds,
       max_offset,
       num_feature,
+      num_categorical_nodes,
       max_num_categories,
-      use_double_thresholds,
-      use_double_output,
-      use_integer_output
-    ); */
+      num_leaf_vector_nodes
+    );
+    std::cout << "VARIANT: " << variant_index << "\n";
+    variant_index = std::size_t{};
     auto num_class = get_num_class(tl_model);
-    return import_to_specific_variant<std::size_t{}>(
+    return forest_model{import_to_specific_variant<std::size_t{}>(
       variant_index,
       tl_model,
       num_class,
@@ -578,7 +598,7 @@ struct treelite_importer {
       mem_type,
       device,
       stream
-    );
+    )};
   }
 };
 
