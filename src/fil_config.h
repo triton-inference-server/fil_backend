@@ -81,7 +81,9 @@ tl_to_fil_config(treelite_config const& tl_config)
       tl_config.blocks_per_sm,
       tl_config.threads_per_tree,
       0,
-      nullptr};
+      nullptr,
+      ML::fil::precision_t::PRECISION_FLOAT32
+  };
 }
 
 }}}  // namespace triton::backend::NAMESPACE
