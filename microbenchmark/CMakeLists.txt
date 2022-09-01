@@ -19,7 +19,10 @@ add_executable(forest_bench
 )
 add_executable(forest_bench3
   microbenchmark/src/forest_bench3.cpp
-  src/herring3/specializations/device_initialization.cu
+  src/herring3/specializations/device_initialization0.cu
+  src/herring3/specializations/device_initialization1.cu
+  src/herring3/specializations/device_initialization2.cu
+  src/herring3/specializations/device_initialization3.cu
   src/herring3/specializations/infer0.cu
   src/herring3/specializations/infer0.cpp
   src/herring3/specializations/infer1.cu

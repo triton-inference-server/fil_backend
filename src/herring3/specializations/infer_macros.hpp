@@ -5,13 +5,10 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/specialization_types.hpp>
+#include <herring3/specializations/forest_macros.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
-
-#define HERRING_SPEC(variant_index) typename std::variant_alternative_t<variant_index, herring::detail::specialization_variant>
-
-#define HERRING_FOREST(variant_index) forest<preferred_tree_layout, HERRING_SPEC(variant_index)::threshold_type, HERRING_SPEC(variant_index)::index_type, HERRING_SPEC(variant_index)::metadata_type, HERRING_SPEC(variant_index)::offset_type>
 
 #define HERRING_SCALAR_LOCAL_ARGS(dev, variant_index)(\
   HERRING_FOREST(variant_index) const&,\

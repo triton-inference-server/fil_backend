@@ -5,6 +5,7 @@
 #include <herring3/detail/gpu_introspection.hpp>
 #include <herring3/detail/infer_kernel/gpu.cuh>
 #include <herring3/detail/forest.hpp>
+#include <herring3/specializations/device_initialization_macros.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_setter.hpp>
 #include <kayak/device_type.hpp>
@@ -26,12 +27,11 @@ std::enable_if_t<kayak::GPU_ENABLED && D==kayak::device_type::gpu, void> initial
     )
   );
 }
-extern template void initialize_device<
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  kayak::device_type::gpu
->(kayak::device_id<kayak::device_type::gpu> device);
+
+HERRING_INITIALIZE_DEVICE(extern template, 0)
+HERRING_INITIALIZE_DEVICE(extern template, 1)
+HERRING_INITIALIZE_DEVICE(extern template, 2)
+HERRING_INITIALIZE_DEVICE(extern template, 3)
 
 }
 }
