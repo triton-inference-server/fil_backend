@@ -6,7 +6,7 @@
 #include <herring3/detail/gpu_introspection.hpp>
 #include <herring3/detail/infer_kernel/gpu.cuh>
 #include <herring3/detail/postprocessor.hpp>
-#include <herring3/detail/specialization_macros.hpp>
+#include <herring3/specializations/infer_macros.hpp>
 #include <herring3/exceptions.hpp>
 #include <kayak/ceildiv.hpp>
 #include <kayak/cuda_stream.hpp>

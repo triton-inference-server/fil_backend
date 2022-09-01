@@ -6,7 +6,7 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/infer_kernel/cpu.hpp>
 #include <herring3/detail/postprocessor.hpp>
-#include <herring3/detail/specialization_macros.hpp>
+#include <herring3/specializations/infer_macros.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>

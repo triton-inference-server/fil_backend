@@ -1,5 +1,5 @@
 #include <herring3/detail/infer/cpu.hpp>
-#include <herring3/detail/specialization_macros.hpp>
+#include <herring3/specializations/infer_macros.hpp>
 namespace herring {
 namespace detail {
 namespace inference {
