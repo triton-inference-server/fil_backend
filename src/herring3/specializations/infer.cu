@@ -3,6 +3,7 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/infer/gpu.cuh>
+#include <herring3/detail/specialization_macros.hpp>
 #include <kayak/cuda_stream.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
@@ -10,154 +11,10 @@
 namespace herring {
 namespace detail {
 namespace inference {
-
-template void infer<
-  kayak::device_type::gpu,
-  false,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  std::nullptr_t,
-  std::nullptr_t,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
-template void infer<
-  kayak::device_type::gpu,
-  false,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  float*
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  float*,
-  std::nullptr_t,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
-template void infer<
-  kayak::device_type::gpu,
-  true,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  std::nullptr_t,
-  std::nullptr_t
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  std::nullptr_t,
-  std::nullptr_t,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
-template void infer<
-  kayak::device_type::gpu,
-  true,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  float*,
-  std::nullptr_t
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  float*,
-  std::nullptr_t,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
-template void infer<
-  kayak::device_type::gpu,
-  true,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  std::nullptr_t,
-  uint32_t*
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  std::nullptr_t,
-  uint32_t*,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
-template void infer<
-  kayak::device_type::gpu,
-  true,
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  >,
-  float*,
-  uint32_t*
->(
-  forest<
-    preferred_tree_layout, float, uint32_t, uint16_t, uint16_t
-  > const&,
-  postprocessor<float> const&,
-  float*,
-  float*,
-  std::size_t,
-  std::size_t,
-  std::size_t,
-  float*,
-  uint32_t*,
-  std::optional<std::size_t>,
-  kayak::device_id<kayak::device_type::gpu>,
-  kayak::cuda_stream stream
-);
-
+HERRING_INFER_ALL(template, kayak::device_type::gpu, 0)
+HERRING_INFER_ALL(template, kayak::device_type::gpu, 1)
+HERRING_INFER_ALL(template, kayak::device_type::gpu, 2)
+HERRING_INFER_ALL(template, kayak::device_type::gpu, 3)
 }
 }
 }

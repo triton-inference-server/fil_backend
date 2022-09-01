@@ -8,6 +8,7 @@
 #include <herring3/detail/device_initialization.hpp>
 #include <herring3/detail/infer.hpp>
 #include <herring3/detail/postprocessor.hpp>
+#include <herring3/detail/specialization_types.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/detail/forest.hpp>
 #include <kayak/buffer.hpp>
@@ -215,11 +216,12 @@ template<
 >
 using preset_decision_forest = decision_forest<
   layout,
-  std::conditional_t<double_precision, double, float>,
-  std::conditional_t<double_precision, uint64_t, uint32_t>,
-  std::conditional_t<large_trees, uint32_t, uint16_t>,
-  std::conditional_t<large_trees, uint32_t, uint16_t>
+  typename specialization_types<double_precision, large_trees>::threshold_type,
+  typename specialization_types<double_precision, large_trees>::index_type,
+  typename specialization_types<double_precision, large_trees>::metadata_type,
+  typename specialization_types<double_precision, large_trees>::offset_type
 >;
+
 }
 
 using decision_forest_variant = std::variant<
@@ -237,7 +239,8 @@ inline auto get_forest_variant_index(
   std::size_t max_num_categories = std::size_t{},
   std::size_t num_vector_leaves = std::size_t{}
 ) {
-  auto max_local_categories = sizeof(std::uint32_t) * 8;
+  using small_index_t = typename detail::specialization_types<false, false>::index_type;
+  auto max_local_categories = sizeof(small_index_t) * 8;
   // If the index required for pointing to categorical storage bins or vector
   // leaf output exceeds what we can store in a uint32_t, uint64_t will be used
   //
@@ -248,16 +251,19 @@ inline auto get_forest_variant_index(
       (
         kayak::ceildiv(max_num_categories, max_local_categories) + 1
         * num_categorical_nodes
-      ) > std::numeric_limits<std::uint32_t>::max()
+      ) > std::numeric_limits<small_index_t>::max()
     )
-  ) || num_vector_leaves > std::numeric_limits<std::uint32_t>::max();
+  ) || num_vector_leaves > std::numeric_limits<small_index_t>::max();
 
   auto double_precision = use_double_thresholds || double_indexes_required;
 
+  using small_metadata_t = typename detail::specialization_types<false, false>::metadata_type;
+  using small_offset_t = typename detail::specialization_types<false, false>::offset_type;
+
   auto large_trees = (
     num_features > (
-      std::numeric_limits<std::uint16_t>::max() >> reserved_node_metadata_bits
-    ) || max_node_offset > std::numeric_limits<std::uint16_t>::max()
+      std::numeric_limits<small_metadata_t>::max() >> reserved_node_metadata_bits
+    ) || max_node_offset > std::numeric_limits<small_offset_t>::max()
   );
 
   return (
