@@ -584,8 +584,6 @@ struct treelite_importer {
       max_num_categories,
       num_leaf_vector_nodes
     );
-    std::cout << "VARIANT: " << variant_index << "\n";
-    variant_index = std::size_t{};
     auto num_class = get_num_class(tl_model);
     return forest_model{import_to_specific_variant<std::size_t{}>(
       variant_index,
