@@ -1,8 +1,13 @@
 #pragma once
+#include <cstddef>
 #include <variant>
 #include <herring3/constants.hpp>
 #include <herring3/detail/forest.hpp>
+#include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/specialization_types.hpp>
+#include <kayak/cuda_stream.hpp>
+#include <kayak/device_id.hpp>
+#include <kayak/device_type.hpp>
 
 #define HERRING_SPEC(variant_index) typename std::variant_alternative_t<variant_index, herring::detail::specialization_variant>
 
