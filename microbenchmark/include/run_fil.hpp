@@ -40,12 +40,12 @@ struct ForestModel {
 
   ~ForestModel() noexcept { ML::fil::free(raft_handle_, fil_forest_); };
 
-  void predict(float* output, matrix& input, bool predict_proba) const {
+  /* void predict(float* output, matrix& input, bool predict_proba) const {
     ML::fil::predict(
         raft_handle_, fil_forest_, output, input.data, input.rows,
         predict_proba);
     raft_handle_.sync_stream();
-  }
+  } */
 
   auto get_stream() {
     return raft_handle_.get_stream();

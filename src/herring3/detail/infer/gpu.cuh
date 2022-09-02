@@ -136,14 +136,20 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     rows_per_block_iteration = size_t{32};
   }
 
-  output_workspace_size = compute_output_size(
-    row_output_size, threads_per_block, rows_per_block_iteration
-  );
-  output_workspace_size_bytes = output_item_bytes * output_workspace_size;
+  do {
+    output_workspace_size = compute_output_size(
+      row_output_size, threads_per_block, rows_per_block_iteration
+    );
+    output_workspace_size_bytes = output_item_bytes * output_workspace_size;
 
-  shared_mem_per_block = (
-    rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
-  );
+    shared_mem_per_block = (
+      rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
+    );
+    if (shared_mem_per_block > max_shared_mem_per_sm) {
+      rows_per_block_iteration >>= size_t{1};
+    }
+  } while (shared_mem_per_block > max_shared_mem_per_sm);
+
 
   // Divide shared mem evenly
   shared_mem_per_block = max_shared_mem_per_sm / (

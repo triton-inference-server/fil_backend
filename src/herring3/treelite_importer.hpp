@@ -463,8 +463,7 @@ struct treelite_importer {
     kayak::cuda_stream stream=kayak::cuda_stream{}
   ) {
     auto result = decision_forest_variant{};
-    // if constexpr (variant_index != std::variant_size_v<decision_forest_variant>) {
-    if constexpr (variant_index != 1) {
+    if constexpr (variant_index != std::variant_size_v<decision_forest_variant>) {
       if (variant_index == target_variant_index) {
         using forest_model_t = std::variant_alternative_t<variant_index, decision_forest_variant>;
         auto builder = detail::decision_forest_builder<forest_model_t>(max_num_categories, align_bytes);
@@ -524,7 +523,7 @@ struct treelite_importer {
 
         result.template emplace<variant_index>(builder.get_decision_forest(num_feature, num_class, mem_type, device, stream));
       } else {
-        result = import_to_specific_variant<variant_index +1>(
+        result = import_to_specific_variant<variant_index + 1>(
           target_variant_index,
           tl_model,
           num_class,
@@ -544,6 +543,7 @@ struct treelite_importer {
   auto import(
     treelite::Model const& tl_model,
     std::size_t align_bytes = std::size_t{},
+    std::optional<bool> use_double_precision = std::nullopt,
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
@@ -553,9 +553,7 @@ struct treelite_importer {
     auto max_num_categories = get_max_num_categories(tl_model);
     auto num_categorical_nodes = get_num_categorical_nodes(tl_model);
     auto num_leaf_vector_nodes = get_num_leaf_vector_nodes(tl_model);
-    auto use_double_thresholds = uses_double_thresholds(tl_model);
-    auto use_double_output = uses_double_outputs(tl_model);
-    auto use_integer_output = uses_integer_outputs(tl_model);
+    auto use_double_thresholds = use_double_precision.value_or(uses_double_thresholds(tl_model));
 
     auto offsets = get_offsets(tl_model);
     auto max_offset = std::accumulate(
@@ -584,6 +582,7 @@ struct treelite_importer {
       max_num_categories,
       num_leaf_vector_nodes
     );
+    std::cout << "VARIANT " << variant_index << "\n";
     auto num_class = get_num_class(tl_model);
     return forest_model{import_to_specific_variant<std::size_t{}>(
       variant_index,
