@@ -134,7 +134,7 @@ auto convert_tree(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree, bo
       if (!categorical) {
         cur_node.value.value = tl_tree.Threshold(cur_node_id);
         auto inclusive_threshold_node = (
-          tl_operator == treelite::Operator::kLE || tl_operator == treelite::Operator::kGE
+          tl_operator == treelite::Operator::kLE || tl_operator == treelite::Operator::kGT
         );
         if (!inclusive_threshold_node && use_inclusive_threshold) {
           throw unconvertible_model_exception{"Inconsistent use of inclusive threshold"};

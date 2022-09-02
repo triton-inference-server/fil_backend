@@ -43,6 +43,7 @@ function(find_and_configure_cuml)
               "BUILD_CUML_BENCH OFF"
               "BUILD_CUML_PRIMS_BENCH OFF"
               "BUILD_CUML_STD_COMMS OFF"
+              "BUILD_SHARED_LIBS ON"
               "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
               "USE_CCACHE ON"
               "RAFT_COMPILE_LIBRARIES OFF"
@@ -59,6 +60,6 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       rapidsai
-                        PINNED_TAG branch-${RAPIDS_DEPENDENCIES_VERSION}
+                        PINNED_TAG 80621f0b3718f565ece410ee3f71f36a8f44f5aa
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )

@@ -61,7 +61,7 @@ the section on [Configuration](#configuration) for instructions.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:22.03-py3
+docker pull nvcr.io/nvidia/tritonserver:22.08-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -119,7 +119,13 @@ binary format, XGBoost's JSON format, LightGBM's text format, and Treelite's
 binary checkpoint format. For those using cuML or Scikit-Learn random forest
 models, please see the [documentation on how to prepare such
 models](https://github.com/triton-inference-server/fil_backend/blob/main/SKLearn_and_cuML.md)
-for use in Triton. Once you have a serialized model, you will need to prepare a
+for use in Triton.
+
+**NOTE: XGBoost 1.6 introduced a change in the XGBoost JSON serialization
+format. This change will be supported in Triton 22.08. Earlier versions of
+Triton will NOT support JSON-serialized models from XGBoost>=1.6.**
+
+Once you have a serialized model, you will need to prepare a
 directory structure similar to the following example, which uses an XGBoost
 binary file:
 
@@ -467,9 +473,7 @@ configuration.
 
 This mode is still considered experimental in release 22.04, so it must be
 explicitly turned on by setting `use_experimental_optimizations` to `true` in
-the model's `config.pbtxt`. Currently, this mode does not support models with
-categorical features, but the FIL backend will automatically fall back to the
-older CPU execution mode for such models.
+the model's `config.pbtxt`.
 
 ## Modifications and Code Contributions
 For full implementation details as well as information on modifying the FIL

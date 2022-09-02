@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=22.04
+ARG TRITON_VERSION=22.08
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -57,7 +57,7 @@ RUN conda run --no-capture-output -n triton_test \
 FROM wheel-install-${USE_CLIENT_WHEEL} as conda-test
 RUN conda run --no-capture-output -n triton_test \
     pip install git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
-RUN conda-pack -n triton_test -o /tmp/env.tar \
+RUN conda-pack --ignore-missing-files -n triton_test -o /tmp/env.tar \
  && mkdir /conda/test/ \
  && cd /conda/test/ \
  && tar xf /tmp/env.tar \
@@ -130,8 +130,8 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 ARG TRITON_ENABLE_STATS=ON
 ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
-ARG RAPIDS_DEPENDENCIES_VERSON=22.04
-ENV RAPIDS_DEPENDENCIES_VERSON=$RAPIDS_DEPENDENCIES_VERSON
+ARG RAPIDS_DEPENDENCIES_VERSION=22.08
+ENV RAPIDS_DEPENDENCIES_VERSION=$RAPIDS_DEPENDENCIES_VERSION
 
 ARG TRITON_FIL_USE_TREELITE_STATIC=ON
 ENV TRITON_FIL_USE_TREELITE_STATIC=$TRITON_FIL_USE_TREELITE_STATIC
@@ -155,7 +155,7 @@ RUN source /conda/dev/bin/activate \
       -DTRITON_BACKEND_REPO_TAG="${TRITON_BACKEND_REPO_TAG}" \
       -DTRITON_ENABLE_GPU="${TRITON_ENABLE_GPU}" \
       -DTRITON_ENABLE_STATS="${TRITON_ENABLE_STATS}" \
-      -DRAPIDS_DEPENDENCIES_VERSION="${RAPIDS_DEPENDENCIES_VERSON}" \
+      -DRAPIDS_DEPENDENCIES_VERSION="${RAPIDS_DEPENDENCIES_VERSION}" \
       -DTRITON_FIL_USE_TREELITE_STATIC="${TRITON_FIL_USE_TREELITE_STATIC}" \
       -DTRITON_FIL_ENABLE_TREESHAP="${TRITON_FIL_ENABLE_TREESHAP}" \
       -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
