@@ -1,231 +1,291 @@
-#include <herring/tl_helpers.hpp>
-#include <herring2/decision_forest.hpp>
-#include <herring2/treelite_importer.hpp>
-#include <kayak/cuda_check.hpp>
-#include <kayak/cuda_stream.hpp>
-#include <kayak/data_array.hpp>
-#include <kayak/device_type.hpp>
-#include <kayak/tree_layout.hpp>
-#include <nvtx3/nvtx3.hpp>
-#include <rmm/device_buffer.hpp>
-#include <treelite/tree.h>
-#include <treelite/gtil.h>
-#include <treelite/frontend.h>
-#include <xgboost/c_api.h>
-
-#include <algorithm>
 #include <cstddef>
-#include <exception>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-
+#include <filesystem>
 #include <iostream>
-#include <memory>
-#include <limits>
-#include <chrono>
-#include <algorithm>
-
-#include <matrix.hpp>
-//#ifdef TRITON_ENABLE_GPU
+#include <string>
+#include <variant>
+#include <vector>
+#include <algorithm_val.hpp>
+#include <binary_data.hpp>
+#include <csv.hpp>
+#include <data_format.hpp>
+#include <herring3/treelite_importer.hpp>
+#include <input_data.hpp>
+#include <kayak/tree_layout.hpp>
+#include <opt_parser.hpp>
+#include <precision_val.hpp>
+#include <rapids_triton/exceptions.hpp>
+#include <results.hpp>
 #include <run_fil.hpp>
-#include <cuda_runtime_api.h>
-//#endif
+#include <run_herring.hpp>
+#include <serialization.h>
+#include <tl_utils.h>
 
-void xgb_check(int err) {
-  if (err != 0) {
-    throw std::runtime_error(std::string{XGBGetLastError()});
-  }
-}
-
-auto load_array(std::string path, std::size_t rows, std::size_t cols) {
-  auto result = std::vector<float>(rows * cols);
-  auto input = std::ifstream(path, std::ifstream::binary);
-  auto* buffer = reinterpret_cast<char*>(result.data());
-  input.read(buffer, result.size() * sizeof(float));
-  return result;
-}
-
-void run_gtil(std::unique_ptr<treelite::Model>& tl_model, matrix& input, std::vector<float>& output) {
-  treelite::gtil::Predict(tl_model.get(), input.data, input.rows, output.data(), -1, true);
-}
-
-template <typename model_t>
-void run_herring(model_t& final_model, matrix& input, std::vector<float>& output) {
-  final_model.predict(input.data, input.rows, output.data(), 12);
-}
-
-template <typename model_t>
-void run_xgb(model_t& bst, matrix& input, std::vector<float>& output) {
-  auto dmat = DMatrixHandle{};
-  auto const* out_result = static_cast<float*>(nullptr);
-  auto out_size = bst_ulong{0};
-  xgb_check(XGDMatrixCreateFromMat(
-    input.data, input.rows, input.cols,
-    std::numeric_limits<float>::quiet_NaN(), &dmat
-  ));
-  xgb_check(XGBoosterPredict(bst, dmat, 0, 0, 0, &out_size, &out_result));
-  xgb_check(XGDMatrixFree(dmat));
-}
-
-void run_fil(ForestModel& model, matrix& input, float* output) {
-  model.predict(output, input, true);
-}
-
-void run_herring2(
-  herring::forest_model_variant& model,
-  float* input,
-  float* output,
-  std::uint32_t rows,
-  std::uint32_t cols,
-  std::uint32_t out_cols
-) {
-  auto in = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    input,
-    rows,
-    cols
-  };
-  auto out = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    output,
-    rows,
-    out_cols
-  };
-  std::visit([&out, &in](auto&& concrete_model) {
-    concrete_model.predict(out, in);
-  }, model);
-}
-
-void run_herring2(
-  herring::forest_model_variant& model,
-  float* input,
-  float* output,
-  std::uint32_t rows,
-  std::uint32_t cols,
-  std::uint32_t out_cols,
-  kayak::cuda_stream stream
-) {
-  NVTX3_FUNC_RANGE();
-  auto in = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    input,
-    rows,
-    cols
-  };
-  auto out = kayak::data_array<kayak::data_layout::dense_row_major, float>{
-    output,
-    rows,
-    out_cols
-  };
-  std::visit([&out, &in, &stream](auto&& concrete_model) {
-    concrete_model.predict(out, in, 0, stream);
-  }, model);
+auto print_usage(std::string const& executable_path) {
+  std::cerr \
+    << "usage: " \
+    << executable_path \
+    << " [model_path] [data_path] [-f model_format] [-d data_format] [-p precision] [-b [b1...]] [-a [a1...]] [-r rows] [-c cols]\n"
+    << "    -f model_format: one of 'xgboost_json' (default), 'xgboost', 'lightgbm', 'treelite_checkpoint'\n"
+    << "    -d data_format: one of 'csv' (default), 'bin_float', 'bin_double'\n"
+    << "    -p precision: one of 'float' (default) or 'double'\n"
+    << "    -b [b1...]: batch sizes to profile\n"
+    << "    -a [a1...]: algorithms to profile ('herring_cpu', 'herring_gpu', 'fil_sparse', 'fil_dense', 'fil_dense_reorg', 'fil_sparse8')\n"
+    << "    -r rows: for binary data, the number of rows\n"
+    << "    -c cols: for binary data, the number of columns\n";
 }
 
 int main(int argc, char** argv) {
-  if (argc != 5) {
-    std::cerr << "Usage: " << argv[0] << " [XGBoost model path] [Data path] [rows] [features]";
+  auto model_path = std::filesystem::path{};
+  auto data_path = std::filesystem::path{};
+  auto model_format = triton::backend::fil::SerializationFormat{};
+  auto data_format = data_format_val{};
+  auto input = std::variant<input_data<float>, input_data<double>>{};
+  auto precision = precision_val{};
+  auto batch_sizes = std::vector<std::size_t>{};
+  auto algorithms = std::vector<algorithm_val>{algorithm_val::herring_gpu};
+  auto rows = std::size_t{};
+  auto cols = std::size_t{};
+  // Parse the filepath to the model file
+  try {
+    model_path = std::filesystem::path{get_positional_value(argc, argv, 0)};
+    if (!std::filesystem::exists(model_path)) {
+      std::cerr << "ERROR: File " << model_path.c_str() << " does not exist.\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+
+    // Parse the filepath to the file containing the test data
+    data_path = std::filesystem::path{get_positional_value(argc, argv, 1)};
+    std::cout << "DATA PATH: " << data_path << "\n";
+    if (!std::filesystem::exists(data_path)) {
+      std::cerr << "ERROR: File " << data_path.c_str() << " does not exist.\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+
+    // Parse the model format
+    try {
+      auto model_format_opt = get_optional_value(argc, argv, "-f", 1);
+      if (model_format_opt.has_value()) {
+        model_format = triton::backend::fil::string_to_serialization((*model_format_opt)[0]);
+      } else {
+        model_format = triton::backend::fil::SerializationFormat::xgboost_json;
+      }
+    } catch(triton::backend::rapids::TritonException const& exc) {
+      std::cerr << "ERROR: " << exc.what() << "\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+
+    // Parse the data format
+    auto data_format_opt = get_optional_value(argc, argv, "-d", 1);
+    if (data_format_opt.has_value()) {
+      data_format = string_to_data_format((*data_format_opt)[0]);
+    } else {
+      data_format = data_format_val::csv;
+    }
+
+    // Parse the number of rows and columns
+    auto rows_opt = get_optional_value(argc, argv, "-r", 1);
+    if (rows_opt.has_value()) {
+      std::stringstream{(*rows_opt)[0]} >> rows;
+    }
+    auto cols_opt = get_optional_value(argc, argv, "-c", 1);
+    if (cols_opt.has_value()) {
+      std::stringstream{(*cols_opt)[0]} >> cols;
+    }
+
+    // Parse the desired model precision
+    auto precision_opt = get_optional_value(argc, argv, "-p", 1);
+    if (precision_opt.has_value()) {
+      precision = string_to_precision((*precision_opt)[0]);
+    } else {
+      precision = precision_val::single_precision;
+    }
+
+    // Load the data
+    // Note: We must actually execute the load here in order to determine the
+    // number of rows if not supplied
+    // TODO(wphicks)
+    switch(data_format) {
+      case data_format_val::csv:
+        {
+          if (precision == precision_val::single_precision) {
+            input = read_csv<float>(data_path);
+          } else {
+            input = read_csv<double>(data_path);
+          }
+        }
+        break;
+      case data_format_val::bin_float:
+        {
+          if (rows == std::size_t{} || cols == std::size_t{}) {
+            std::cerr << "ERROR: Rows and cols must be supplied for binary data\n";
+          }
+          if (precision == precision_val::single_precision) {
+            input = read_binary_data<float, float>(data_path, rows, cols);
+          } else {
+            input = read_binary_data<float, double>(data_path, rows, cols);
+          }
+        }
+        break;
+      case data_format_val::bin_double:
+        {
+          if (rows == std::size_t{} || cols == std::size_t{}) {
+            std::cerr << "ERROR: Rows and cols must be supplied for binary data\n";
+          }
+          if (precision == precision_val::single_precision) {
+            input = read_binary_data<double, float>(data_path, rows, cols);
+          } else {
+            input = read_binary_data<double, double>(data_path, rows, cols);
+          }
+        }
+        break;
+    }
+
+    // Parse the desired batch sizes
+    auto batches_opt = get_optional_value(argc, argv, "-b");
+    if (batches_opt.has_value()) {
+      std::transform(
+        std::begin(*batches_opt),
+        std::end(*batches_opt),
+        std::back_inserter(batch_sizes), 
+        [](auto&& str_val) {
+          auto stream = std::stringstream{str_val};
+          auto result = std::size_t{};
+          stream >> result;
+          return result;
+        }
+      );
+    } else {
+      batch_sizes.push_back(std::visit([](auto&& concrete) { return concrete.rows; }, input));
+    }
+
+    // Parse the desired algorithms
+    auto algorithms_opt = get_optional_value(argc, argv, "-a");
+    if (algorithms_opt.has_value()) {
+      algorithms.clear();
+      std::transform(
+        std::begin(*algorithms_opt),
+        std::end(*algorithms_opt),
+        std::back_inserter(algorithms), 
+        string_to_algorithm_val
+      );
+    }
+  } catch (option_parsing_exception const& exc) {
+    std::cerr << "ERROR: " << exc.what() << "\n";
+    print_usage(argv[0]);
     return 1;
   }
-
-  auto model_path = std::string{argv[1]};
-  auto data_path = std::string{argv[2]};
-  auto rows = static_cast<std::size_t>(std::stol(std::string{argv[3]}));
-  auto features = static_cast<std::size_t>(std::stol(std::string{argv[4]}));
-
-  auto buffer = load_array(data_path, rows, features);
-  auto input = matrix{buffer.data(), rows, features};
-  auto bst = BoosterHandle{};
-  xgb_check(XGBoosterCreate(nullptr, 0, &bst));
-  xgb_check(XGBoosterLoadModel(bst, model_path.c_str()));
-
-  auto tl_model = treelite::frontend::LoadXGBoostJSONModel(model_path.c_str());
-  auto converted_model = tl_model->Dispatch([](auto const& concrete_model) {
-    return herring::convert_model(concrete_model);
+  auto tl_model = load_tl_base_model(model_path, model_format);
+  auto results = std::vector<benchmark_results>{};
+  for (auto algo : algorithms) {
+    auto algo_results = std::vector<benchmark_results>{};
+    switch(algo) {
+      case algorithm_val::herring_gpu:
+        {
+          auto model = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
+            *tl_model,
+            128u,
+            precision == precision_val::double_precision,
+            kayak::device_type::gpu,
+            0,
+            kayak::cuda_stream{}
+          );
+          algo_results = std::visit([&model, &batch_sizes](auto&& concrete_input) {
+            return run_herring<kayak::device_type::gpu>(
+              model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      case algorithm_val::herring_cpu:
+        {
+          auto model = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
+            *tl_model,
+            64u,
+            precision == precision_val::double_precision,
+            kayak::device_type::cpu,
+            0,
+            kayak::cuda_stream{}
+          );
+          algo_results = std::visit([&model, &batch_sizes](auto&& concrete_input) {
+            return run_herring<kayak::device_type::cpu>(
+              model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      case algorithm_val::fil_sparse:
+        {
+          algo_results = std::visit([&tl_model, &batch_sizes](auto&& concrete_input) {
+            return run_fil<algorithm_val::fil_sparse>(
+              tl_model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      case algorithm_val::fil_dense:
+        {
+          algo_results = std::visit([&tl_model, &batch_sizes](auto&& concrete_input) {
+            return run_fil<algorithm_val::fil_dense>(
+              tl_model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      case algorithm_val::fil_dense_reorg:
+        {
+          algo_results = std::visit([&tl_model, &batch_sizes](auto&& concrete_input) {
+            return run_fil<algorithm_val::fil_dense_reorg>(
+              tl_model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      case algorithm_val::fil_sparse8:
+        {
+          algo_results = std::visit([&tl_model, &batch_sizes](auto&& concrete_input) {
+            return run_fil<algorithm_val::fil_sparse8>(
+              tl_model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
+      default:
+        std::cerr << "ERROR: algorithm " << algorithm_val_to_str(algo) << " not yet supported.\n";
+        break;
+    }
+    std::move(std::begin(algo_results), std::end(algo_results), std::back_inserter(results));
+  }
+  std::cout << "Framework";
+  std::for_each(std::begin(batch_sizes), std::end(batch_sizes), [](auto&& batch) {
+    std::cout << "," << batch;
   });
-  auto final_model = std::get<2>(converted_model);
-  auto herring2_model = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(*tl_model);
-//#ifdef TRITON_ENABLE_GPU
-  auto fil_model = ForestModel(tl_model);
-  auto herring2_model_gpu = herring::treelite_importer<kayak::tree_layout::depth_first>{}.import(
-    *tl_model,
-    128u,
-    kayak::device_type::gpu,
-    0,
-    fil_model.get_stream()
-  );
-//#endif
-
-  auto output = std::vector<float>(treelite::gtil::GetPredictOutputSize(tl_model.get(), input.rows));
-  auto out_cols = output.size() / input.rows;
-
-  // auto batch_sizes = std::vector<std::size_t>{1, 16, 128, 1024, rows};
-  auto batch_sizes = std::vector<std::size_t>{rows};
-  auto batch_timings = std::vector<std::vector<std::size_t>>(6);
-
-  // Run benchmarks for each framework
-
-
-  auto fil_output = std::vector<float>(2 * output.size());
-  auto gpu_buffer = rmm::device_buffer{buffer.size() * sizeof(float), fil_model.get_stream()};
-  cudaMemcpy(gpu_buffer.data(), buffer.data(), buffer.size() * sizeof(float), cudaMemcpyHostToDevice);
-  auto gpu_out_buffer = rmm::device_buffer{fil_output.size() * sizeof(float), fil_model.get_stream()};
-
-  auto start = std::chrono::high_resolution_clock::now();
-  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
-    auto batch = batch_sizes[i];
-    auto total_batches = rows / batch + (rows % batch != 0);
-
-    auto batch_start = std::chrono::high_resolution_clock::now();
-    for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
-      run_fil(fil_model, cur_input, reinterpret_cast<float*>(gpu_out_buffer.data()));
-    }
-    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
-    auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[4].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
-  }
-  auto end = std::chrono::high_resolution_clock::now();
-  auto fil_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-  cudaMemcpy(fil_output.data(), gpu_out_buffer.data(), fil_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-
-  start = std::chrono::high_resolution_clock::now();
-
-  gpu_out_buffer = rmm::device_buffer{output.size() * sizeof(float), fil_model.get_stream()};
-
-  start = std::chrono::high_resolution_clock::now();
-  for (auto i = std::size_t{}; i < batch_sizes.size(); ++i) {
-    auto batch = batch_sizes[i];
-    auto total_batches = rows / batch + (rows % batch != 0);
-
-    auto batch_start = std::chrono::high_resolution_clock::now();
-    for (auto j = std::size_t{}; j < total_batches; ++j) {
-      auto cur_input = matrix{reinterpret_cast<float*>(gpu_buffer.data()) + j * batch, std::min(batch, rows - j * batch), features};
-      run_herring2(
-        herring2_model_gpu,
-        cur_input.data,
-        reinterpret_cast<float*>(gpu_out_buffer.data()),
-        cur_input.rows,
-        cur_input.cols,
-        out_cols,
-        fil_model.get_stream()
-      );
-      break;
-    }
-    kayak::cuda_check(cudaStreamSynchronize(fil_model.get_stream()));
-    auto batch_end = std::chrono::high_resolution_clock::now();
-    batch_timings[5].push_back(std::chrono::duration_cast<std::chrono::microseconds>(batch_end - batch_start).count());
-    break;
-  }
-  end = std::chrono::high_resolution_clock::now();
-  auto her_gpu_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-  std::cout << her_gpu_elapsed << "\n";
-  std::cout << "Herring2-GPU";
-  for (auto res : batch_timings[5]) {
-    std::cout << "," << res;
-  }
   std::cout << "\n";
+  std::for_each(std::begin(results), std::end(results), [](auto&& algo_result) {
+    std::cout << algo_result.label;
+    std::for_each(
+      std::begin(algo_result.elapsed_times),
+      std::end(algo_result.elapsed_times),
+      [](auto&& duration) {
+        std::cout << "," << duration;
+      }
+    );
+    std::cout << "\n";
+  });
 
   return 0;
 }
