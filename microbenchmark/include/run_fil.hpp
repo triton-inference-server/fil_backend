@@ -29,7 +29,7 @@ auto run_fil(
   } else {
     fil_precision = ML::fil::precision_t::PRECISION_FLOAT64;
   }
-  if constexpr (A == algorithm_val::fil_sparse || A == algorithM_val::fil_sparse8) {
+  if constexpr (A == algorithm_val::fil_sparse || A == algorithm_val::fil_sparse8) {
     fil_algo = ML::fil::algo_t::NAIVE;
     fil_storage = ML::fil::storage_type_t::SPARSE;
   } else if constexpr (A == algorithm_val::fil_dense) {
@@ -77,7 +77,7 @@ auto run_fil(
     auto label = std::string{"FIL"};
     if constexpr (A == algorithm_val::fil_sparse) {
       label += std::string{"-SPA-"};
-    if constexpr (A == algorithm_val::fil_sparse8) {
+    } else if constexpr (A == algorithm_val::fil_sparse8) {
       label += std::string{"-SP8-"};
     } else if constexpr (A == algorithm_val::fil_dense) {
       label += std::string{"-DBR-"};

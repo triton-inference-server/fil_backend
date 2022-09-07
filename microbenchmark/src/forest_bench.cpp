@@ -56,7 +56,6 @@ int main(int argc, char** argv) {
 
     // Parse the filepath to the file containing the test data
     data_path = std::filesystem::path{get_positional_value(argc, argv, 1)};
-    std::cout << "DATA PATH: " << data_path << "\n";
     if (!std::filesystem::exists(data_path)) {
       std::cerr << "ERROR: File " << data_path.c_str() << " does not exist.\n";
       print_usage(argv[0]);
@@ -106,7 +105,7 @@ int main(int argc, char** argv) {
     // Load the data
     // Note: We must actually execute the load here in order to determine the
     // number of rows if not supplied
-    // TODO(wphicks)
+    std::cerr << "Loading data...\n";
     switch(data_format) {
       case data_format_val::csv:
         {
@@ -181,6 +180,7 @@ int main(int argc, char** argv) {
   auto results = std::vector<benchmark_results>{};
   for (auto algo : algorithms) {
     auto algo_results = std::vector<benchmark_results>{};
+    std::cerr << "Executing algorithm " << algorithm_val_to_str(algo) << "...\n";
     switch(algo) {
       case algorithm_val::herring_gpu:
         {
