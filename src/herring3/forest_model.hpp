@@ -45,16 +45,6 @@ struct forest_model {
       if constexpr(std::is_same_v<typename std::remove_reference_t<decltype(concrete_forest)>::io_type, io_t>) {
         concrete_forest.predict(output, input, stream, specified_chunk_size);
       } else {
-        if constexpr(std::is_same_v<typename std::remove_reference_t<decltype(concrete_forest)>::io_type, double>) {
-          std::cout << "DOUBLE MODEL\n";
-        } else {
-          std::cout << "FLOAT MODEL\n";
-        }
-        if constexpr (std::is_same_v<io_t, double>) {
-          std::cout << "DOUBLE\n";
-        } else {
-          std::cout << "FLOAT\n";
-        }
         throw type_error(
           "Input type does not match model_type"
         );

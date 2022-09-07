@@ -1,59 +1,126 @@
 #pragma once
 
-// #ifdef TRITON_ENABLE_GPU
-#include <cuml/fil/fil.h>
-#include <treelite/tree.h>
-
-#include <cstddef>
+#include <iostream>
 #include <memory>
+#include <algorithm_val.hpp>
+#include <results.hpp>
+#include <cuml/fil/fil.h>
+#include <input_data.hpp>
+#include <kayak/buffer.hpp>
+#include <kayak/ceildiv.hpp>
+#include <kayak/device_type.hpp>
+#include <treelite/gtil.h>
+#include <treelite/tree.h>
 #include <raft/handle.hpp>
 
-#include <matrix.hpp>
-
-struct ForestModel {
-  using device_id_t = int;
-  ForestModel(std::unique_ptr<treelite::Model>& tl_model, bool sparse=false)
-      : device_id_{}, raft_handle_{},
-        fil_forest_{[this, &tl_model, sparse]() {
-          auto result = ML::fil::forest_t{};
-          auto config = ML::fil::treelite_params_t{
-            ML::fil::algo_t::ALGO_AUTO,
-            true,
-            0.5,
-            sparse ? ML::fil::storage_type_t::SPARSE : ML::fil::storage_type_t::DENSE,
-            0,
-            1,
-            0,
-            nullptr
-          };
-          ML::fil::from_treelite(
-              raft_handle_, &result, static_cast<void*>(tl_model.get()), &config);
-          return result;
-        }()}
-  {
+template <algorithm_val A, typename T>
+auto run_fil(
+  std::unique_ptr<treelite::Model> const& tl_model,
+  input_data<T> const& input,
+  std::vector<std::size_t> const& batch_sizes
+) {
+  auto handle = raft::handle_t{};
+  auto model = ML::fil::forest_variant{};
+  auto fil_algo = ML::fil::algo_t::ALGO_AUTO;
+  auto fil_storage = ML::fil::storage_type_t::AUTO;
+  auto fil_precision = ML::fil::precision_t::PRECISION_NATIVE;
+  if constexpr (std::is_same_v<T, float>) {
+    fil_precision = ML::fil::precision_t::PRECISION_FLOAT32;
+  } else {
+    fil_precision = ML::fil::precision_t::PRECISION_FLOAT64;
+  }
+  if constexpr (A == algorithm_val::fil_sparse) {
+    fil_algo = ML::fil::algo_t::NAIVE;
+    fil_storage = ML::fil::storage_type_t::SPARSE;
+  } else if constexpr (A == algorithm_val::fil_dense) {
+    fil_algo = ML::fil::algo_t::BATCH_TREE_REORG;
+    fil_storage = ML::fil::storage_type_t::DENSE;
+  } else if constexpr (A == algorithm_val::fil_dense_reorg) {
+    fil_algo = ML::fil::algo_t::TREE_REORG;
+    fil_storage = ML::fil::storage_type_t::DENSE;
   }
 
-  ForestModel(ForestModel const& other) = default;
-  ForestModel& operator=(ForestModel const& other) = default;
-  ForestModel(ForestModel&& other) = default;
-  ForestModel& operator=(ForestModel&& other) = default;
+  auto in_buffer = kayak::buffer<T>{
+    input.data,
+    kayak::device_type::gpu,
+    0,
+    handle.get_stream().value()
+  };
+  auto out_buffer = kayak::buffer<T>{
+    treelite::gtil::GetPredictOutputSize(tl_model.get(), input.rows) * 2,
+    kayak::device_type::gpu,
+    0,
+    handle.get_stream().value()
+  };
+  auto threads_per_tree_vals = std::vector<int>{1, 2, 4, 8, 16, 32};
 
-  ~ForestModel() noexcept { ML::fil::free(raft_handle_, fil_forest_); };
+  auto result = std::vector<benchmark_results>{};
 
-  /* void predict(float* output, matrix& input, bool predict_proba) const {
-    ML::fil::predict(
-        raft_handle_, fil_forest_, output, input.data, input.rows,
-        predict_proba);
-    raft_handle_.sync_stream();
-  } */
+  for (auto tpt : threads_per_tree_vals) {
+    auto config = ML::fil::treelite_params_t {
+      fil_algo,
+      true,
+      0.5,
+      fil_storage,
+      0,
+      tpt,
+      0,
+      nullptr,
+      fil_precision
+    };
+    ML::fil::from_treelite(
+      handle,
+      &model,
+      static_cast<void*>(tl_model.get()),
+      &config
+    );
+    auto label = std::string{"FIL"};
+    if constexpr (A == algorithm_val::fil_sparse) {
+      label += std::string{"-SPA-"};
+    } else if constexpr (A == algorithm_val::fil_dense) {
+      label += std::string{"-DBR-"};
+    } else if constexpr (A == algorithm_val::fil_dense_reorg) {
+      label += std::string{"-DTR-"};
+    }
+    label += std::to_string(tpt);
 
-  auto get_stream() {
-    return raft_handle_.get_stream();
+    result.emplace_back(label, std::vector<std::size_t>{});
+    auto& chunk_result = result.back();
+
+    for (auto batch_size : batch_sizes) {
+      auto total_batches = kayak::ceildiv(input.rows, batch_size);
+      auto start = std::chrono::high_resolution_clock::now();
+      for (auto batch_index = std::size_t{}; batch_index < total_batches; ++batch_index) {
+        auto cur_rows = std::min(batch_size, input.rows - batch_index * batch_size);
+        auto batch_in = kayak::buffer<T>{
+          in_buffer.data() + batch_index * batch_size * input.cols,
+          cur_rows * input.cols,
+          kayak::device_type::gpu,
+          0
+        };
+        std::visit([&handle, &out_buffer, &batch_in, cur_rows](auto&& forest) {
+          if constexpr (
+            std::is_same_v<std::remove_reference_t<decltype(forest)>, ML::fil::forest_t<T>>
+          ) {
+            ML::fil::predict(
+              handle,
+              forest,
+              out_buffer.data(),
+              batch_in.data(),
+              cur_rows,
+              true
+            );
+          }
+        }, model);
+      }
+      handle.sync_stream();
+
+      auto end = std::chrono::high_resolution_clock::now();
+      chunk_result.elapsed_times.push_back(
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+      );
+    }
+    std::visit([&handle](auto&& forest) { ML::fil::free(handle, forest); }, model);
   }
-
- private:
-  raft::handle_t raft_handle_;
-  ML::fil::forest_t fil_forest_;
-  device_id_t device_id_;
-};
-// #endif
+  return result;
+}

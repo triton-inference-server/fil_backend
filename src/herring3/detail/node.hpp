@@ -116,7 +116,6 @@ struct alignas(detail::get_node_alignment<threshold_t, index_t, metadata_storage
     metadata{construct_metadata(
       is_leaf_node, default_to_distant_child, is_categorical_node, feature
     )} {}
-#pragma GCC diagnostic pop
 
   HOST DEVICE constexpr node(
     index_type index,
@@ -130,6 +129,7 @@ struct alignas(detail::get_node_alignment<threshold_t, index_t, metadata_storage
     metadata{construct_metadata(
       is_leaf_node, default_to_distant_child, is_categorical_node, feature
     )} {}
+#pragma GCC diagnostic pop
 
   /** The index of the feature for this node */
   HOST DEVICE auto constexpr feature_index() const {
