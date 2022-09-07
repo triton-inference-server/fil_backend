@@ -36,3 +36,33 @@ inline auto string_to_algorithm_val(std::string const& type_string) {
   }
   return result;
 }
+inline auto algorithm_val_to_str(algorithm_val const& alg) {
+  auto result = std::string{};
+  switch (alg) {
+    case algorithm_val::herring_cpu:
+      result = "herring_cpu";
+      break;
+    case algorithm_val::herring_gpu:
+      result = "herring_gpu";
+      break;
+    case algorithm_val::fil_sparse:
+      result = "fil_sparse";
+      break;
+    case algorithm_val::fil_dense:
+      result = "fil_dense";
+      break;
+    case algorithm_val::fil_dense_reorg:
+      result = "fil_dense_reorg";
+      break;
+    case algorithm_val::fil_sparse8:
+      result = "fil_sparse8";
+      break;
+    case algorithm_val::xgboost_cpu:
+      result = "xgboost_cpu";
+      break;
+    case algorithm_val::xgboost_gpu:
+      result = "xgboost_gpu";
+      break;
+  }
+  return result;
+}

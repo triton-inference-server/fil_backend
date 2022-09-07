@@ -29,7 +29,7 @@ auto print_usage(std::string const& executable_path) {
     << "    -d data_format: one of 'csv' (default), 'bin_float', 'bin_double'\n"
     << "    -p precision: one of 'float' (default) or 'double'\n"
     << "    -b [b1...]: batch sizes to profile\n"
-    << "    -a [a1...]: algorithms to profile ('herring_cpu', 'herring_gpu', 'fil_sparse', 'fil_dense', 'fil_dense_reorg', 'fil_sparse8', 'xgboost_cpu', 'xgboost_gpu')\n"
+    << "    -a [a1...]: algorithms to profile ('herring_cpu', 'herring_gpu', 'fil_sparse', 'fil_dense', 'fil_dense_reorg', 'fil_sparse8')\n"
     << "    -r rows: for binary data, the number of rows\n"
     << "    -c cols: for binary data, the number of columns\n";
 }
@@ -253,7 +253,19 @@ int main(int argc, char** argv) {
           }, input);
         }
         break;
+      case algorithm_val::fil_sparse8:
+        {
+          algo_results = std::visit([&tl_model, &batch_sizes](auto&& concrete_input) {
+            return run_fil<algorithm_val::fil_sparse8>(
+              tl_model,
+              concrete_input,
+              batch_sizes
+            );
+          }, input);
+        }
+        break;
       default:
+        std::cerr << "ERROR: algorithm " << algorithm_val_to_str(algo) << " not yet supported.\n";
         break;
     }
     std::move(std::begin(algo_results), std::end(algo_results), std::back_inserter(results));
