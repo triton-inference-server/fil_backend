@@ -29,7 +29,7 @@ auto run_herring(
   };
   auto chunk_sizes = std::vector<std::size_t>{2, 4, 8, 16, 32};
   if constexpr (D == kayak::device_type::gpu) {
-    chunk_sizes = std::vector<std::size_t>{2, 4, 8, 16, 32};
+    chunk_sizes = std::vector<std::size_t>{8};
   } else {
     chunk_sizes = std::vector<std::size_t>{64};
   }
@@ -77,6 +77,9 @@ auto run_herring(
     out_buffer,
     kayak::device_type::cpu
   };
-  std::cout << " ENTRY 0 " << print_buffer.data()[0] << "\n";
+  for (auto i = std::size_t{}; i < 12; ++i) {
+    std::cout << print_buffer.data()[i] << ", ";
+  }
+  std::cout << "\n";
   return result;
 }

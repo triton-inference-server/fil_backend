@@ -52,7 +52,7 @@ auto run_fil(
     0,
     handle.get_stream().value()
   };
-  auto threads_per_tree_vals = std::vector<int>{1, 2, 4, 8, 16, 32};
+  auto threads_per_tree_vals = std::vector<int>{8};
 
   auto result = std::vector<benchmark_results>{};
 
@@ -128,6 +128,9 @@ auto run_fil(
     out_buffer,
     kayak::device_type::cpu
   };
-  std::cout << " ENTRY 0 " << print_buffer.data()[0] << "\n";
+  for (auto i = std::size_t{}; i < 12; ++i) {
+    std::cout << print_buffer.data()[i * 2 + 1] << ", ";
+  }
+  std::cout << "\n";
   return result;
 }

@@ -19,7 +19,7 @@ template<
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t
 >
-__global__ void __launch_bounds__(512, 2) infer_kernel(
+__global__ void infer_kernel(
     forest_t forest,
     postprocessor<typename forest_t::io_type> postproc,
     typename forest_t::io_type* output,
@@ -48,11 +48,14 @@ __global__ void __launch_bounds__(512, 2) infer_kernel(
   >;
 
   using io_t = typename forest_t::io_type;
+  auto portion_count = kayak::ceildiv(row_count, simultaneous_rows);
+  // TODO: Guarantee that chunk_size is always a multiple of simultaneous_rows
+  auto portions_per_block_iteration = chunk_size / simultaneous_rows;
 
   for (
-    auto i=blockIdx.x * chunk_size;
-    i < row_count;
-    i += chunk_size * gridDim.x
+    auto i=blockIdx.x * portions_per_block_iteration;
+    i < portion_count;
+    i += portions_per_block_iteration * gridDim.x
   ) {
 
     shared_mem.clear();
@@ -60,8 +63,11 @@ __global__ void __launch_bounds__(512, 2) infer_kernel(
 
     // Handle as many rows as requested per loop or as many rows as are left to
     // process
-    auto rows_in_this_iteration = min(chunk_size, row_count - i);
-    auto portions = kayak::ceildiv(rows_in_this_iteration, simultaneous_rows);
+    auto portions_in_this_iteration = min(portions_per_block_iteration, portion_count - i);
+    auto rows_in_this_iteration = min(
+      chunk_size,
+      row_count - i * chunk_size
+    );
 
     auto* input_data = shared_mem.copy(
       input + i * col_count,
@@ -69,12 +75,12 @@ __global__ void __launch_bounds__(512, 2) infer_kernel(
       col_count
     );
 
-    auto task_count = portions * forest.tree_count();
+    auto task_count = portions_in_this_iteration * forest.tree_count();
 
     // TODO(wphicks): Correct this
     auto num_grove = kayak::ceildiv(
       min(size_t{blockDim.x}, task_count),
-      portions
+      portions_in_this_iteration
     );
 
     // Note that this sync is safe because every thread in the block will agree
@@ -87,16 +93,16 @@ __global__ void __launch_bounds__(512, 2) infer_kernel(
     // work within the loop if the task_index is below the actual task_count.
     auto const task_count_rounded_up = blockDim.x * kayak::ceildiv(task_count, blockDim.x);
 
-    // Infer on each tree and row
+    // Infer on each tree and portion
     for (
       auto task_index = threadIdx.x;
       task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
       auto real_task = task_index < task_count;
-      auto portion_index = task_index * real_task % portions;
-      auto tree_index = task_index * real_task / portions;
-      auto grove_index = threadIdx.x / portions;
+      auto portion_index = task_index * real_task % portions_in_this_iteration;
+      auto tree_index = task_index * real_task / portions_in_this_iteration;
+      auto grove_index = threadIdx.x / portions_in_this_iteration;
 
       auto rows_in_this_portion = uint8_t(min(
         size_t{simultaneous_rows},

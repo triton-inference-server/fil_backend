@@ -53,52 +53,51 @@ template<
   typename io_t,
   typename leaf_out_t
 >
-HOST DEVICE auto evaluate_tree(
+HOST DEVICE void evaluate_tree(
     node_t const* node,
     io_t const* __restrict__ row,
-    leaf_out_t* out,
+    leaf_out_t& out,
     uint8_t num_rows,
     size_t num_cols
 ) {
   using categorical_set_type = kayak::bitset<uint32_t, typename node_t::index_type const>;
-  auto nodes = kayak::raw_array<node_t const*, simultaneous_rows>{};
-  auto* result = out;
-// #pragma unroll
+  auto node_data = kayak::raw_array<node_t const*, simultaneous_rows>{};
+  auto nodes = kayak::raw_array<node_t, simultaneous_rows>{};
   for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-    nodes[i] = node;
+    node_data[i] = node;
+    nodes[i] = *node;
   }
-  uint8_t active_rows_mask = ~(1 << num_rows);
+  uint8_t active_rows_mask = (uint8_t{1} << num_rows) - uint8_t{1};
   do {
-// #pragma unroll
+#pragma unroll
     for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-      active_rows_mask &= ~(nodes[i]->is_leaf() << i);
+      active_rows_mask &= ~(nodes[i].is_leaf() << i);
       if ((active_rows_mask & (uint8_t{1} << i)) != uint8_t{}) {
-        auto input_val = row[nodes[i]->feature_index()];
-        auto condition = nodes[i]->default_distant();
+        auto input_val = row[nodes[i].feature_index() + i * num_cols];
+        auto condition = nodes[i].default_distant();
         if (!isnan(input_val)) {
           if constexpr (has_categorical_nodes) {
-            if (nodes[i]->is_categorical()) {
+            if (nodes[i].is_categorical()) {
               auto valid_categories = categorical_set_type{
-                &(nodes[i]->index()),
+                &(nodes[i].index()),
                 uint32_t(sizeof(typename node_t::index_type) * 8)
               };
               condition = valid_categories.test(input_val);
             } else {
-              condition = (input_val < nodes[i]->threshold());
+              condition = (input_val < nodes[i].threshold());
             }
           } else {
-            condition = (input_val < nodes[i]->threshold());
+            condition = (input_val < nodes[i].threshold());
           }
         }
-        nodes[i] += nodes[i]->child_offset(condition);
+        node_data[i] += nodes[i].child_offset(condition);
+        nodes[i] = *(node_data[i]);
       }
     }
   } while (active_rows_mask != uint8_t{});
-// #pragma unroll
   for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-    result[i] = nodes[i]->template output<has_vector_leaves>();
+    out[i] = nodes[i].template output<has_vector_leaves>();
   }
-  return result;
 }
 
 template<

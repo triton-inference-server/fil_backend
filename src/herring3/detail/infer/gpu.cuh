@@ -19,14 +19,15 @@ namespace herring {
 namespace detail {
 namespace inference {
 
-inline auto compute_output_size(
+template<uint8_t simultaneous_rows>
+auto compute_output_size(
   size_t row_output_size,
   size_t threads_per_block,
   size_t rows_per_block_iteration
 ) {
   return row_output_size * kayak::ceildiv(
     threads_per_block,
-    rows_per_block_iteration
+    kayak::ceildiv(rows_per_block_iteration, simultaneous_rows)
   ) * rows_per_block_iteration;
 }
 
@@ -62,6 +63,8 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   auto row_output_size_bytes = sizeof(
     typename forest_t::io_type
   ) * row_output_size;
+
+  auto constexpr const simultaneous_rows = uint8_t{1};
 
   // First determine the number of threads per block. This is the indicated
   // preferred value unless we cannot handle at least 1 row per block iteration
@@ -108,7 +111,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   auto constexpr const output_item_bytes = sizeof(
     typename forest_t::io_type
   );
-  auto output_workspace_size = compute_output_size(
+  auto output_workspace_size = compute_output_size<simultaneous_rows>(
     row_output_size, threads_per_block, rows_per_block_iteration
   );
   auto output_workspace_size_bytes = output_item_bytes * output_workspace_size;
@@ -137,7 +140,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   }
 
   do {
-    output_workspace_size = compute_output_size(
+    output_workspace_size = compute_output_size<simultaneous_rows>(
       row_output_size, threads_per_block, rows_per_block_iteration
     );
     output_workspace_size_bytes = output_item_bytes * output_workspace_size;
@@ -160,7 +163,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-  infer_kernel<has_categorical_nodes, uint8_t{1}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+  infer_kernel<has_categorical_nodes, simultaneous_rows><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
     postproc,
     output,
