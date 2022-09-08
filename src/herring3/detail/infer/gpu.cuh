@@ -160,7 +160,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-  infer_kernel<has_categorical_nodes><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
+  infer_kernel<has_categorical_nodes, uint8_t{1}><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
     forest,
     postproc,
     output,

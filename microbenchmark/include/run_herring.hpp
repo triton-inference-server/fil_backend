@@ -73,5 +73,10 @@ auto run_herring(
       );
     }
   }
+  auto print_buffer = kayak::buffer{
+    out_buffer,
+    kayak::device_type::cpu
+  };
+  std::cout << " ENTRY 0 " << print_buffer.data()[0] << "\n";
   return result;
 }

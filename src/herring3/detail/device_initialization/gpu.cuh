@@ -21,7 +21,7 @@ std::enable_if_t<kayak::GPU_ENABLED && D==kayak::device_type::gpu, void> initial
   // TODO: Include all infer variants
   kayak::cuda_check(
     cudaFuncSetAttribute(
-      infer_kernel<false, forest_t>,
+      infer_kernel<false, uint8_t{1}, forest_t>,
       cudaFuncAttributeMaxDynamicSharedMemorySize,
       max_shared_mem_per_block
     )
