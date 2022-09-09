@@ -5,7 +5,6 @@
 #endif
 #include <kayak/bitset.hpp>
 #include <kayak/gpu_support.hpp>
-#include <kayak/raw_array.hpp>
 namespace herring {
 namespace detail {
 
@@ -43,61 +42,6 @@ HOST DEVICE auto evaluate_tree(
     cur_node = *node;
   } while (!cur_node.is_leaf());
   return cur_node.template output<has_vector_leaves>();
-}
-
-template<
-  bool has_vector_leaves,
-  bool has_categorical_nodes,
-  uint8_t simultaneous_rows,
-  typename node_t,
-  typename io_t,
-  typename leaf_out_t
->
-HOST DEVICE void evaluate_tree(
-    node_t const* node,
-    io_t const* __restrict__ row,
-    leaf_out_t& out,
-    uint8_t num_rows,
-    size_t num_cols
-) {
-  using categorical_set_type = kayak::bitset<uint32_t, typename node_t::index_type const>;
-  auto node_data = kayak::raw_array<node_t const*, simultaneous_rows>{};
-  auto nodes = kayak::raw_array<node_t, simultaneous_rows>{};
-  for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-    node_data[i] = node;
-    nodes[i] = *node;
-  }
-  uint8_t active_rows_mask = (uint8_t{1} << num_rows) - uint8_t{1};
-  do {
-#pragma unroll
-    for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-      active_rows_mask &= ~(nodes[i].is_leaf() << i);
-      if ((active_rows_mask & (uint8_t{1} << i)) != uint8_t{}) {
-        auto input_val = row[nodes[i].feature_index() + i * num_cols];
-        auto condition = nodes[i].default_distant();
-        if (!isnan(input_val)) {
-          if constexpr (has_categorical_nodes) {
-            if (nodes[i].is_categorical()) {
-              auto valid_categories = categorical_set_type{
-                &(nodes[i].index()),
-                uint32_t(sizeof(typename node_t::index_type) * 8)
-              };
-              condition = valid_categories.test(input_val);
-            } else {
-              condition = (input_val < nodes[i].threshold());
-            }
-          } else {
-            condition = (input_val < nodes[i].threshold());
-          }
-        }
-        node_data[i] += nodes[i].child_offset(condition);
-        nodes[i] = *(node_data[i]);
-      }
-    }
-  } while (active_rows_mask != uint8_t{});
-  for (auto i=uint8_t{}; i < simultaneous_rows; ++i) {
-    out[i] = nodes[i].template output<has_vector_leaves>();
-  }
 }
 
 template<

@@ -7,14 +7,12 @@
 #include <herring3/detail/infer_kernel/shared_memory_buffer.cuh>
 #include <kayak/ceildiv.hpp>
 #include <kayak/padding.hpp>
-#include <kayak/raw_array.hpp>
 
 namespace herring {
 namespace detail {
 
 template<
   bool has_categorical_nodes,
-  uint8_t simultaneous_rows,
   typename forest_t,
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t
@@ -48,14 +46,11 @@ __global__ void infer_kernel(
   >;
 
   using io_t = typename forest_t::io_type;
-  auto portion_count = kayak::ceildiv(row_count, simultaneous_rows);
-  // TODO: Guarantee that chunk_size is always a multiple of simultaneous_rows
-  auto portions_per_block_iteration = chunk_size / simultaneous_rows;
 
   for (
-    auto i=blockIdx.x * portions_per_block_iteration;
-    i < portion_count;
-    i += portions_per_block_iteration * gridDim.x
+    auto i=blockIdx.x * chunk_size;
+    i < row_count;
+    i += chunk_size * gridDim.x
   ) {
 
     shared_mem.clear();
@@ -63,11 +58,7 @@ __global__ void infer_kernel(
 
     // Handle as many rows as requested per loop or as many rows as are left to
     // process
-    auto portions_in_this_iteration = min(portions_per_block_iteration, portion_count - i);
-    auto rows_in_this_iteration = min(
-      chunk_size,
-      row_count - i * chunk_size
-    );
+    auto rows_in_this_iteration = min(chunk_size, row_count - i);
 
     auto* input_data = shared_mem.copy(
       input + i * col_count,
@@ -75,12 +66,11 @@ __global__ void infer_kernel(
       col_count
     );
 
-    auto task_count = portions_in_this_iteration * forest.tree_count();
+    auto task_count = rows_in_this_iteration * forest.tree_count();
 
-    // TODO(wphicks): Correct this
     auto num_grove = kayak::ceildiv(
       min(size_t{blockDim.x}, task_count),
-      portions_in_this_iteration
+      rows_in_this_iteration
     );
 
     // Note that this sync is safe because every thread in the block will agree
@@ -93,40 +83,30 @@ __global__ void infer_kernel(
     // work within the loop if the task_index is below the actual task_count.
     auto const task_count_rounded_up = blockDim.x * kayak::ceildiv(task_count, blockDim.x);
 
-    // Infer on each tree and portion
+    // Infer on each tree and row
     for (
       auto task_index = threadIdx.x;
       task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
       auto real_task = task_index < task_count;
-      auto portion_index = task_index * real_task % portions_in_this_iteration;
-      auto tree_index = task_index * real_task / portions_in_this_iteration;
-      auto grove_index = threadIdx.x / portions_in_this_iteration;
+      auto row_index = task_index * real_task % rows_in_this_iteration;
+      auto tree_index = task_index * real_task / rows_in_this_iteration;
+      auto grove_index = threadIdx.x / rows_in_this_iteration;
 
-      auto rows_in_this_portion = uint8_t(min(
-        size_t{simultaneous_rows},
-        rows_in_this_iteration - portion_index * simultaneous_rows
-      ));
-
-      auto tree_output = kayak::raw_array<std::conditional_t<
+      auto tree_output = std::conditional_t<
         has_vector_leaves, typename node_t::index_type, typename node_t::threshold_type
-      >, simultaneous_rows>{};
+      >{};
       if constexpr (has_nonlocal_categories) {
-        /* tree_output = evaluate_tree<has_vector_leaves>(
+        tree_output = evaluate_tree<has_vector_leaves>(
           forest.get_tree_root(tree_index),
-          input_data + portion_index * simultaneous_rows * col_count,
+          input_data + row_index * col_count,
           categorical_data
-        ); */
+        );
       } else {
-        evaluate_tree<
-          has_vector_leaves, has_categorical_nodes, simultaneous_rows
-        >(
+        tree_output = evaluate_tree<has_vector_leaves, has_categorical_nodes>(
           forest.get_tree_root(tree_index),
-          input_data + portion_index * simultaneous_rows * col_count,
-          tree_output,
-          rows_in_this_portion,
-          col_count
+          input_data + row_index * col_count
         );
       }
 
@@ -137,34 +117,22 @@ __global__ void infer_kernel(
           ++class_index
         ) {
           if (real_task) {
-            for (
-              auto row_index = uint8_t{};
-              row_index < rows_in_this_portion;
-              ++row_index
-            ) {
-              output_workspace[
-                (portion_index * simultaneous_rows + row_index) * num_outputs * num_grove
-                + class_index * num_grove
-                + grove_index
-              ] += vector_output_p[
-                tree_output[row_index] * num_outputs + class_index
-              ];
-            }
+            output_workspace[
+              row_index * num_outputs * num_grove
+              + class_index * num_grove
+              + grove_index
+            ] += vector_output_p[
+              tree_output * num_outputs + class_index
+            ];
           }
         }
       } else {
         if (real_task) {
-          for (
-            auto row_index = uint8_t{};
-            row_index < rows_in_this_portion;
-            ++row_index
-          ) {
-            output_workspace[
-              (portion_index * simultaneous_rows + row_index) * num_outputs * num_grove
-              + (tree_index % num_outputs) * num_grove
-              + grove_index
-            ] += tree_output[row_index];
-          }
+          output_workspace[
+            row_index * num_outputs * num_grove
+            + (tree_index % num_outputs) * num_grove
+            + grove_index
+          ] += tree_output;
         }
       }
 
