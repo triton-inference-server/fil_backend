@@ -6,6 +6,7 @@
 #include <vector>
 #include <herring3/detail/cpu_introspection.hpp>
 #include <herring3/detail/evaluate_tree.hpp>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <kayak/ceildiv.hpp>
 
@@ -23,11 +24,11 @@ void infer_kernel_cpu(
     postprocessor<typename forest_t::io_type> const& postproc,
     typename forest_t::io_type* output,
     typename forest_t::io_type const* input,
-    std::size_t row_count,
-    std::size_t col_count,
-    std::size_t num_outputs,
-    std::size_t chunk_size=hardware_constructive_interference_size,
-    std::size_t grove_size=hardware_constructive_interference_size,
+    index_type row_count,
+    index_type col_count,
+    index_type num_outputs,
+    index_type chunk_size=hardware_constructive_interference_size,
+    index_type grove_size=hardware_constructive_interference_size,
     vector_output_t vector_output_p=nullptr,
     categorical_data_t categorical_data=nullptr
 ) {
@@ -54,7 +55,7 @@ void infer_kernel_cpu(
 
   // Infer on each grove and chunk
 #pragma omp parallel for
-  for(auto task_index = std::size_t{}; task_index < task_count; ++task_index) {
+  for(auto task_index = index_type{}; task_index < task_count; ++task_index) {
     auto const grove_index = task_index / num_chunk;
     auto const chunk_index = task_index % num_chunk;
     auto const start_row = chunk_index * chunk_size;
@@ -81,7 +82,7 @@ void infer_kernel_cpu(
         }
         if constexpr (has_vector_leaves) {
           for (
-            auto class_index=std::size_t{};
+            auto class_index=index_type{};
             class_index < num_outputs;
             ++class_index
           ) {
@@ -106,9 +107,9 @@ void infer_kernel_cpu(
 
   // Sum over grove and postprocess
 #pragma omp parallel for
-  for (auto row_index=std::size_t{}; row_index < row_count; ++row_index) {
+  for (auto row_index=index_type{}; row_index < row_count; ++row_index) {
     for (
-      auto class_index = std::size_t{};
+      auto class_index = index_type{};
       class_index < num_outputs;
       ++class_index
     ) {

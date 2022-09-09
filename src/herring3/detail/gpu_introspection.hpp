@@ -1,6 +1,6 @@
 #pragma once
-#include <stddef.h>
 #include <cuda_runtime_api.h>
+#include <herring3/detail/index_type.hpp>
 #include <kayak/cuda_check.hpp>
 #include <kayak/device_id.hpp>
 #include <kayak/device_type.hpp>
@@ -16,7 +16,7 @@ inline auto get_max_shared_mem_per_block(kayak::device_id<kayak::device_type::gp
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_sm_count(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -28,7 +28,7 @@ inline auto get_sm_count(kayak::device_id<kayak::device_type::gpu> device_id) {
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_max_threads_per_block(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -40,7 +40,7 @@ inline auto get_max_threads_per_block(kayak::device_id<kayak::device_type::gpu> 
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_max_threads_per_sm(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -52,7 +52,7 @@ inline auto get_max_threads_per_sm(kayak::device_id<kayak::device_type::gpu> dev
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_max_shared_mem_per_sm(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -64,7 +64,7 @@ inline auto get_max_shared_mem_per_sm(kayak::device_id<kayak::device_type::gpu> 
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_mem_clock_rate(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -76,7 +76,7 @@ inline auto get_mem_clock_rate(kayak::device_id<kayak::device_type::gpu> device_
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 inline auto get_core_clock_rate(kayak::device_id<kayak::device_type::gpu> device_id) {
@@ -88,12 +88,12 @@ inline auto get_core_clock_rate(kayak::device_id<kayak::device_type::gpu> device
       device_id.value()
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
 template <typename T>
 auto get_max_active_blocks_per_sm(
-  T kernel, std::size_t block_size, std::size_t dynamic_smem_size=std::size_t{}
+  T kernel, index_type block_size, index_type dynamic_smem_size=index_type{}
 ) {
   auto result = int{};
   kayak::cuda_check(
@@ -101,12 +101,12 @@ auto get_max_active_blocks_per_sm(
       &result, kernel, block_size, dynamic_smem_size
     )
   );
-  return size_t(result);
+  return index_type(result);
 }
 
-auto constexpr static const MAX_READ_CHUNK = size_t{128};
-auto constexpr static const MAX_BLOCKS = size_t{65536};
-auto constexpr static const WARP_SIZE = size_t{32};
+auto constexpr static const MAX_READ_CHUNK = index_type{128};
+auto constexpr static const MAX_BLOCKS = index_type{65536};
+auto constexpr static const WARP_SIZE = index_type{32};
 
 }
 }

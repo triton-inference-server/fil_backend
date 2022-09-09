@@ -5,6 +5,7 @@
 #include <herring3/detail/forest.hpp>
 #include <herring3/detail/gpu_introspection.hpp>
 #include <herring3/detail/infer_kernel/gpu.cuh>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/specializations/infer_macros.hpp>
 #include <herring3/exceptions.hpp>
@@ -20,9 +21,9 @@ namespace detail {
 namespace inference {
 
 inline auto compute_output_size(
-  size_t row_output_size,
-  size_t threads_per_block,
-  size_t rows_per_block_iteration
+  index_type row_output_size,
+  index_type threads_per_block,
+  index_type rows_per_block_iteration
 ) {
   return row_output_size * kayak::ceildiv(
     threads_per_block,
@@ -42,12 +43,12 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   postprocessor<typename forest_t::io_type> const& postproc,
   typename forest_t::io_type* output,
   typename forest_t::io_type* input,
-  std::size_t row_count,
-  std::size_t col_count,
-  std::size_t class_count,
+  index_type row_count,
+  index_type col_count,
+  index_type class_count,
   vector_output_t vector_output=nullptr,
   categorical_data_t categorical_data=nullptr,
-  std::optional<std::size_t> specified_chunk_size=std::nullopt,
+  std::optional<index_type> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {
@@ -57,17 +58,19 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   auto max_shared_mem_per_block = get_max_shared_mem_per_block(device);
   auto max_shared_mem_per_sm = get_max_shared_mem_per_sm(device);
 
-  auto row_size_bytes = sizeof(typename forest_t::io_type) * col_count;
+  auto row_size_bytes = index_type(
+    index_type(sizeof(typename forest_t::io_type) * col_count)
+  );
   auto row_output_size = class_count;
-  auto row_output_size_bytes = sizeof(
+  auto row_output_size_bytes = index_type(sizeof(
     typename forest_t::io_type
-  ) * row_output_size;
+  ) * row_output_size);
 
   // First determine the number of threads per block. This is the indicated
   // preferred value unless we cannot handle at least 1 row per block iteration
   // with available shared memory, in which case we must reduce the threads per
   // block.
-  auto constexpr const preferred_tpb = size_t{512};
+  auto constexpr const preferred_tpb = index_type{256};
   auto threads_per_block = min(
     preferred_tpb,
     kayak::downpadded_size(
@@ -79,7 +82,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   // If we cannot do at least a warp per block when storing input rows in
   // shared mem, recalculate our threads per block without input storage
   if (threads_per_block < WARP_SIZE) {
-    row_size_bytes = size_t{};  // Do not store input rows in shared mem
+    row_size_bytes = index_type{};  // Do not store input rows in shared mem
     threads_per_block = min(
       preferred_tpb,
       kayak::downpadded_size(
@@ -103,11 +106,11 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
   // Compute shared memory usage based on minimum or specified
   // rows_per_block_iteration
   auto rows_per_block_iteration = specified_chunk_size.value_or(
-    size_t{1}
+    index_type{1}
   );
-  auto constexpr const output_item_bytes = sizeof(
+  auto constexpr const output_item_bytes = index_type(sizeof(
     typename forest_t::io_type
-  );
+  ));
   auto output_workspace_size = compute_output_size(
     row_output_size, threads_per_block, rows_per_block_iteration
   );
@@ -133,7 +136,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     !specified_chunk_size.has_value()
     && resident_blocks_per_sm >= 2
   ) {
-    rows_per_block_iteration = size_t{32};
+    rows_per_block_iteration = index_type{32};
   }
 
   do {
@@ -146,7 +149,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
       rows_per_block_iteration * row_size_bytes + output_workspace_size_bytes
     );
     if (shared_mem_per_block > max_shared_mem_per_sm) {
-      rows_per_block_iteration >>= size_t{1};
+      rows_per_block_iteration >>= index_type{1};
     }
   } while (shared_mem_per_block > max_shared_mem_per_sm);
 

@@ -20,28 +20,29 @@ HOST DEVICE auto evaluate_tree(
 ) {
   using categorical_set_type = kayak::bitset<uint32_t, typename node_t::index_type const>;
 #ifndef __CUDACC__
-  using float2 = float;
+  using float2 = node_t;
 #endif
   auto* node = reinterpret_cast<float2 const*>(root);
   auto alias = *node;
   auto cur_node = *reinterpret_cast<node_t*>(&alias);
   do {
     auto input_val = row[cur_node.feature_index()];
-    auto condition = cur_node.default_distant();
-    if (!isnan(input_val)) {
-      if constexpr (has_categorical_nodes) {
-        if (cur_node.is_categorical()) {
-          auto valid_categories = categorical_set_type{
-            &cur_node.index(),
-            uint32_t(sizeof(typename node_t::index_type) * 8)
-          };
-          condition = valid_categories.test(input_val);
-        } else {
-          condition = (input_val < cur_node.threshold());
-        }
+    auto condition = true;
+    if constexpr (has_categorical_nodes) {
+      if (cur_node.is_categorical()) {
+        auto valid_categories = categorical_set_type{
+          &cur_node.index(),
+          uint32_t(sizeof(typename node_t::index_type) * 8)
+        };
+        condition = valid_categories.test(input_val);
       } else {
         condition = (input_val < cur_node.threshold());
       }
+    } else {
+      condition = (input_val < cur_node.threshold());
+    }
+    if (!condition && cur_node.default_distant()) {
+      condition = isnan(input_val);
     }
     node += cur_node.child_offset(condition);
     alias = *node;

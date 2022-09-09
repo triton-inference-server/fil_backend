@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <type_traits>
+#include <herring3/detail/index_type.hpp>
 #include <kayak/gpu_support.hpp>
 #include <kayak/tree_layout.hpp>
 
@@ -15,21 +16,21 @@ auto constexpr get_node_alignment() {
     + sizeof(metadata_storage_t)
     + sizeof(offset_t)
   );
-  auto result = std::size_t{8};
+  auto result = index_type{8};
   if (total > result) {
-    result = std::size_t{16};
+    result = index_type{16};
   }
   if (total > result) {
-    result = std::size_t{32};
+    result = index_type{32};
   }
   if (total > result) {
-    result = std::size_t{64};
+    result = index_type{64};
   }
   if (total > result) {
-    result = std::size_t{128};
+    result = index_type{128};
   }
   if (total > result) {
-    result = std::size_t{256};
+    result = index_type{256};
   }
   if (total > result) {
     result = total;
@@ -187,7 +188,7 @@ struct alignas(8) node {
    * a categorical node. The remaining bits indicate the index of the feature
    * for this node */
   auto constexpr static const LEAF_BIT = metadata_storage_type(
-    sizeof(metadata_storage_type) * 8 - 1
+    index_type(sizeof(metadata_storage_type) * 8 - 1)
   );
   auto constexpr static const LEAF_MASK = metadata_storage_type(1 << LEAF_BIT);
   auto constexpr static const DEFAULT_DISTANT_BIT = metadata_storage_type(LEAF_BIT - 1);

@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <herring3/detail/evaluate_tree.hpp>
 #include <herring3/detail/gpu_introspection.hpp>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/infer_kernel/shared_memory_buffer.cuh>
 #include <kayak/ceildiv.hpp>
@@ -22,12 +23,12 @@ __global__ void infer_kernel(
     postprocessor<typename forest_t::io_type> postproc,
     typename forest_t::io_type* output,
     typename forest_t::io_type const* input,
-    size_t row_count,
-    size_t col_count,
-    size_t num_outputs,
-    size_t shared_mem_byte_size,
-    size_t output_workspace_size,
-    size_t chunk_size,
+    index_type row_count,
+    index_type col_count,
+    index_type num_outputs,
+    index_type shared_mem_byte_size,
+    index_type output_workspace_size,
+    index_type chunk_size,
     vector_output_t vector_output_p=nullptr,
     categorical_data_t categorical_data=nullptr
 ) {
@@ -69,7 +70,7 @@ __global__ void infer_kernel(
     auto task_count = rows_in_this_iteration * forest.tree_count();
 
     auto num_grove = kayak::ceildiv(
-      min(size_t{blockDim.x}, task_count),
+      min(index_type{blockDim.x}, task_count),
       rows_in_this_iteration
     );
 
@@ -112,7 +113,7 @@ __global__ void infer_kernel(
 
       if constexpr (has_vector_leaves) {
         for (
-          auto class_index=size_t{};
+          auto class_index=index_type{};
           class_index < num_outputs;
           ++class_index
         ) {
@@ -146,7 +147,7 @@ __global__ void infer_kernel(
       row_index += blockDim.x / WARP_SIZE
     ) {
       for (
-        auto class_index = size_t{};
+        auto class_index = index_type{};
         class_index < num_outputs;
         ++class_index
       ) {

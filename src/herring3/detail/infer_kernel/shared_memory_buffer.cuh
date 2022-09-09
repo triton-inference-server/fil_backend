@@ -2,16 +2,17 @@
 #include <cstddef>
 #include <stddef.h>
 #include <type_traits>
+#include <herring3/detail/index_type.hpp>
 
 namespace herring {
 
 struct shared_memory_buffer {
-  __device__ shared_memory_buffer(std::byte* buffer=nullptr, size_t size=size_t{}) :
+  __device__ shared_memory_buffer(std::byte* buffer=nullptr, index_type size=index_type{}) :
     data{buffer}, total_size{size}, remaining_data{buffer}, remaining_size{size} {}
 
   template <typename T>
   __device__ auto* copy(
-    T* source, size_t row_count, size_t col_count, size_t row_pad=size_t{}
+    T* source, index_type row_count, index_type col_count, index_type row_pad=index_type{}
   ) {
     auto* dest = reinterpret_cast<std::remove_const_t<T>*>(remaining_data);
     auto source_count = row_count * col_count;
@@ -27,7 +28,7 @@ struct shared_memory_buffer {
     auto* result = copy_data ? static_cast<T*>(dest) : source;
     requires_sync = requires_sync || copy_data;
 
-    auto offset = dest_count * sizeof(T);
+    auto offset = dest_count * index_type(sizeof(T));
     remaining_data += offset;
     remaining_size -= offset;
 
@@ -35,10 +36,10 @@ struct shared_memory_buffer {
   }
 
   template <typename T>
-  __device__ auto* copy(T* source, size_t element_count) {
+  __device__ auto* copy(T* source, index_type element_count) {
     auto* dest = reinterpret_cast<std::remove_const_t<T>*>(remaining_data);
 
-    auto copy_data = (element_count * sizeof(T) <= remaining_size);
+    auto copy_data = (element_count * index_type(sizeof(T)) <= remaining_size);
 
     element_count *= copy_data;
     for (auto i = threadIdx.x; i < element_count; i += blockDim.x) {
@@ -47,7 +48,7 @@ struct shared_memory_buffer {
     auto* result = copy_data ? static_cast<T*>(dest) : source;
     requires_sync = requires_sync || copy_data;
 
-    auto offset = element_count * sizeof(T);
+    auto offset = element_count * index_type(sizeof(T));
     remaining_data += offset;
     remaining_size -= offset;
 
@@ -55,10 +56,10 @@ struct shared_memory_buffer {
   }
 
   template <typename T>
-  __device__ auto* fill(size_t element_count, T value=T{}) {
+  __device__ auto* fill(index_type element_count, T value=T{}) {
     auto* dest = reinterpret_cast<std::remove_const_t<T>*>(remaining_data);
 
-    auto copy_data = (element_count * sizeof(T) <= remaining_size);
+    auto copy_data = (element_count * index_type(sizeof(T)) <= remaining_size);
 
     element_count *= copy_data;
     for (auto i = threadIdx.x; i < element_count; i += blockDim.x) {
@@ -68,7 +69,7 @@ struct shared_memory_buffer {
     auto* result = copy_data ? static_cast<T*>(dest) : static_cast<T*>(nullptr);
     requires_sync = requires_sync || copy_data;
 
-    auto offset = element_count * sizeof(T);
+    auto offset = element_count * index_type(sizeof(T));
     remaining_data += offset;
     remaining_size -= offset;
 
@@ -83,7 +84,7 @@ struct shared_memory_buffer {
 
   template <typename T>
   __device__ void align() {
-    auto pad_required = (total_size - remaining_size) % sizeof(T);
+    auto pad_required = (total_size - remaining_size) % index_type(sizeof(T));
     remaining_data += pad_required;
     remaining_size -= pad_required;
   }
@@ -101,9 +102,9 @@ struct shared_memory_buffer {
 
  private:
   std::byte* data;
-  size_t total_size;
+  index_type total_size;
   std::byte* remaining_data;
-  size_t remaining_size;
+  index_type remaining_size;
   bool requires_sync;
 };
 

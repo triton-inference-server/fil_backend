@@ -3,6 +3,7 @@
 #include <iostream>
 #include <optional>
 #include <type_traits>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/infer/cpu.hpp>
 #ifdef ENABLE_GPU
 #include <herring3/detail/infer/gpu.hpp>
@@ -21,13 +22,13 @@ void infer(
   postprocessor<typename forest_t::io_type> const& postproc,
   typename forest_t::io_type* output,
   typename forest_t::io_type* input,
-  std::size_t row_count,
-  std::size_t col_count,
-  std::size_t class_count,
+  index_type row_count,
+  index_type col_count,
+  index_type class_count,
   bool has_categorical_nodes,
   typename forest_t::io_type* vector_output=nullptr,
   typename forest_t::node_type::index_type* categorical_data=nullptr,
-  std::optional<std::size_t> specified_chunk_size=std::nullopt,
+  std::optional<index_type> specified_chunk_size=std::nullopt,
   kayak::device_id<D> device=kayak::device_id<D>{},
   kayak::cuda_stream stream=kayak::cuda_stream{}
 ) {

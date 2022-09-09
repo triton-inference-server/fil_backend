@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <variant>
 #include <herring3/decision_forest.hpp>
+#include <herring3/detail/index_type.hpp>
 
 namespace herring {
 
@@ -39,7 +40,7 @@ struct forest_model {
     kayak::buffer<io_t>& output,
     kayak::buffer<io_t> const& input,
     kayak::cuda_stream stream = kayak::cuda_stream{},
-    std::optional<std::size_t> specified_chunk_size=std::nullopt
+    std::optional<index_type> specified_chunk_size=std::nullopt
   ) {
     std::visit([this, &output, &input, &stream, &specified_chunk_size](auto&& concrete_forest) {
       if constexpr(std::is_same_v<typename std::remove_reference_t<decltype(concrete_forest)>::io_type, io_t>) {

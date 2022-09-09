@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <limits>
 #include <type_traits>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/postproc_ops.hpp>
 #include <kayak/gpu_support.hpp>
 
@@ -24,15 +25,15 @@ namespace herring {
   >
   HOST DEVICE void postprocess(
     io_t* val,
-    size_t class_count,
+    index_type class_count,
     io_t* out,
     io_t average_factor=io_t{1},
     io_t bias=io_t{0},
     io_t constant=io_t{1}
   ) {
-    auto max_index = size_t{};
+    auto max_index = index_type{};
     auto max_value = std::numeric_limits<io_t>::lowest();
-    for (auto i=size_t{}; i < class_count; ++i) {
+    for (auto i=index_type{}; i < class_count; ++i) {
       val[i] = val[i] / average_factor + bias;
       if constexpr (elem_wise_v == element_op::signed_square) {
         val[i] = copysign(val[i] * val[i], val[i]);
@@ -55,7 +56,7 @@ namespace herring {
     if constexpr (row_wise_v == row_op::max_index) {
       *out = max_index;
     } else {
-      for (auto i=size_t{}; i < class_count; ++i) {
+      for (auto i=index_type{}; i < class_count; ++i) {
         if constexpr (row_wise_v == row_op::softmax) {
           out[i] = exp(val[i] - max_value);
         } else {
@@ -81,7 +82,7 @@ namespace herring {
       elem_wise_{elem_wise} {
     }
 
-    HOST DEVICE void operator()(io_t* val, size_t class_count, io_t* out) const {
+    HOST DEVICE void operator()(io_t* val, index_type class_count, io_t* out) const {
       switch(ops_to_val(row_wise_, elem_wise_)) {
         case ops_to_val(row_op::disable, element_op::signed_square):
           postprocess<row_op::disable, element_op::signed_square>(

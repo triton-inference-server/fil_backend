@@ -7,6 +7,7 @@
 #include <treelite/typeinfo.h>
 #include <herring3/decision_forest.hpp>
 #include <herring3/detail/decision_forest_builder.hpp>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/exceptions.hpp>
 #include <herring3/forest_model.hpp>
 #include <herring3/postproc_ops.hpp>
@@ -75,8 +76,8 @@ struct treelite_importer {
   struct treelite_node {
     treelite::Tree<tl_threshold_t, tl_output_t> const& tree;
     int node_id;
-    std::size_t parent_index;
-    std::size_t own_index;
+    index_type parent_index;
+    index_type own_index;
 
     auto is_leaf() {
       return tree.IsLeaf(node_id);
@@ -148,8 +149,8 @@ struct treelite_importer {
     auto to_be_visited = traversal_container<layout, node_index_t>{};
     to_be_visited.add(node_index_t{});
 
-    auto parent_indices = traversal_container<layout, std::size_t>{};
-    auto cur_index = std::size_t{};
+    auto parent_indices = traversal_container<layout, index_type>{};
+    auto cur_index = index_type{};
     parent_indices.add(cur_index);
 
     while (!to_be_visited.empty()) {
@@ -219,13 +220,13 @@ struct treelite_importer {
 
   template<typename tl_threshold_t, typename tl_output_t>
   auto get_offsets(treelite::Tree<tl_threshold_t, tl_output_t> const& tl_tree) {
-    auto result = std::vector<std::size_t>(tl_tree.num_nodes);
+    auto result = std::vector<index_type>(tl_tree.num_nodes);
     auto nodes = get_nodes(tl_tree);
-    for (auto i = std::size_t{}; i < nodes.size(); ++i) {
+    for (auto i = index_type{}; i < nodes.size(); ++i) {
       // Current index should always be greater than or equal to parent index.
       // Later children will overwrite values set by earlier children, ensuring
       // that most distant offset is used.
-      result[nodes[i].parent_index] = std::size_t{i - nodes[i].parent_index};
+      result[nodes[i].parent_index] = index_type{i - nodes[i].parent_index};
     }
 
     return result;
@@ -267,7 +268,7 @@ struct treelite_importer {
   }
 
   auto num_trees(treelite::Model const& tl_model) {
-    auto result = std::size_t{};
+    auto result = index_type{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       result = concrete_tl_model.trees.size();
     });
@@ -275,7 +276,7 @@ struct treelite_importer {
   }
 
   auto get_offsets(treelite::Model const& tl_model) {
-    auto result = std::vector<std::vector<std::size_t>>{};
+    auto result = std::vector<std::vector<index_type>>{};
     result.reserve(num_trees(tl_model));
     tree_transform(tl_model, std::back_inserter(result), [this](auto&&tree) {
       return get_offsets(tree);
@@ -284,7 +285,7 @@ struct treelite_importer {
   }
 
   auto get_tree_sizes(treelite::Model const& tl_model) {
-    auto result = std::vector<std::size_t>{};
+    auto result = std::vector<index_type>{};
     tree_transform(
       tl_model,
       std::back_inserter(result),
@@ -294,7 +295,7 @@ struct treelite_importer {
   }
 
   auto get_num_class(treelite::Model const& tl_model) {
-    auto result = std::size_t{};
+    auto result = index_type{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       result = concrete_tl_model.task_param.num_class;
     });
@@ -302,7 +303,7 @@ struct treelite_importer {
   }
 
   auto get_num_feature(treelite::Model const& tl_model) {
-    auto result = std::size_t{};
+    auto result = index_type{};
     tl_model.Dispatch([&result](auto&& concrete_tl_model) {
       result = concrete_tl_model.num_feature;
     });
@@ -310,7 +311,7 @@ struct treelite_importer {
   }
 
   auto get_max_num_categories(treelite::Model const& tl_model) {
-    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
+    return tree_accumulate(tl_model, index_type{}, [this](auto&& accum, auto&& tree) {
       return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
         auto result = cur_accum;
         for (auto&& cat : tl_node.categories()) {
@@ -322,7 +323,7 @@ struct treelite_importer {
   }
 
   auto get_num_categorical_nodes(treelite::Model const& tl_model) {
-    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
+    return tree_accumulate(tl_model, index_type{}, [this](auto&& accum, auto&& tree) {
       return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
         return cur_accum + tl_node.is_categorical();
       });
@@ -330,7 +331,7 @@ struct treelite_importer {
   }
 
   auto get_num_leaf_vector_nodes(treelite::Model const& tl_model) {
-    return tree_accumulate(tl_model, std::size_t{}, [this](auto&& accum, auto&& tree) {
+    return tree_accumulate(tl_model, index_type{}, [this](auto&& accum, auto&& tree) {
       return node_accumulate(tree, accum, [](auto&& cur_accum, auto&& tl_node) {
         return cur_accum + (tl_node.is_leaf() && tl_node.get_output().size() > 1);
       });
@@ -449,15 +450,15 @@ struct treelite_importer {
     return result;
   }
 
-  template<std::size_t variant_index>
+  template<index_type variant_index>
   auto import_to_specific_variant(
-    std::size_t target_variant_index,
+    index_type target_variant_index,
     treelite::Model const& tl_model,
-    std::size_t num_class,
-    std::size_t num_feature,
-    std::size_t max_num_categories,
-    std::vector<std::vector<std::size_t>> const& offsets,
-    std::size_t align_bytes = std::size_t{},
+    index_type num_class,
+    index_type num_feature,
+    index_type max_num_categories,
+    std::vector<std::vector<index_type>> const& offsets,
+    index_type align_bytes = index_type{},
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
     kayak::cuda_stream stream=kayak::cuda_stream{}
@@ -468,15 +469,15 @@ struct treelite_importer {
         using forest_model_t = std::variant_alternative_t<variant_index, decision_forest_variant>;
         auto builder = detail::decision_forest_builder<forest_model_t>(max_num_categories, align_bytes);
         auto tree_count = num_trees(tl_model);
-        auto tree_index = std::size_t{};
+        auto tree_index = index_type{};
         tree_for_each(tl_model, [this, &builder, &tree_index, &offsets](auto&& tree) {
           builder.start_new_tree();
-          auto node_index = std::size_t{};
+          auto node_index = index_type{};
           node_for_each(tree, [&builder, &tree_index, &node_index, &offsets](auto&& node) {
             if (node.is_leaf()) {
               auto output = node.get_output();
               builder.set_output_size(output.size());
-              if (output.size() > std::size_t{1}) {
+              if (output.size() > index_type{1}) {
                 builder.add_leaf_vector_node(
                   std::begin(output),
                   std::end(output)
@@ -542,7 +543,7 @@ struct treelite_importer {
 
   auto import(
     treelite::Model const& tl_model,
-    std::size_t align_bytes = std::size_t{},
+    index_type align_bytes = index_type{},
     std::optional<bool> use_double_precision = std::nullopt,
     kayak::device_type mem_type=kayak::device_type::cpu,
     int device=0,
@@ -559,12 +560,12 @@ struct treelite_importer {
     auto max_offset = std::accumulate(
       std::begin(offsets),
       std::end(offsets),
-      std::size_t{},
+      index_type{},
       [&offsets](auto&& cur_max, auto&& tree_offsets) {
         return std::max(cur_max, *std::max_element(std::begin(tree_offsets), std::end(tree_offsets)));
       }
     );
-    auto tree_sizes = std::vector<std::size_t>{};
+    auto tree_sizes = std::vector<index_type>{};
     std::transform(
       std::begin(offsets),
       std::end(offsets),
@@ -584,7 +585,7 @@ struct treelite_importer {
     );
     std::cout << "VARIANT " << variant_index << "\n";
     auto num_class = get_num_class(tl_model);
-    return forest_model{import_to_specific_variant<std::size_t{}>(
+    return forest_model{import_to_specific_variant<index_type{}>(
       variant_index,
       tl_model,
       num_class,

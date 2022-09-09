@@ -6,6 +6,7 @@
 #include <herring3/constants.hpp>
 #include <herring3/postproc_ops.hpp>
 #include <herring3/detail/device_initialization.hpp>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/infer.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/specialization_types.hpp>
@@ -55,13 +56,13 @@ struct decision_forest {
 
   decision_forest(
     kayak::buffer<node_type>&& nodes,
-    kayak::buffer<size_t>&& root_node_indexes,
-    size_t num_feature,
-    size_t num_class=size_t{2},
+    kayak::buffer<index_type>&& root_node_indexes,
+    index_type num_feature,
+    index_type num_class=index_type{2},
     bool has_categorical_nodes = false,
     std::optional<kayak::buffer<io_type>>&& vector_output=std::nullopt,
     std::optional<kayak::buffer<typename node_type::index_type>>&& categorical_storage=std::nullopt,
-    size_t leaf_size=size_t{1},
+    index_type leaf_size=index_type{1},
     row_op row_postproc=row_op::disable,
     element_op elem_postproc=element_op::disable,
     io_type average_factor=io_type{1},
@@ -109,7 +110,7 @@ struct decision_forest {
     kayak::buffer<typename forest_type::io_type>& output,
     kayak::buffer<typename forest_type::io_type> const& input,
     kayak::cuda_stream stream = kayak::cuda_stream{},
-    std::optional<std::size_t> specified_rows_per_block_iter=std::nullopt
+    std::optional<index_type> specified_rows_per_block_iter=std::nullopt
   ) {
     if (output.memory_type() != memory_type() || input.memory_type() != memory_type()) {
       throw kayak::wrong_device_type{
@@ -134,7 +135,7 @@ struct decision_forest {
           get_postprocessor(),
           output.data(),
           input.data(),
-          input.size() / num_feature_,
+          index_type(input.size() / num_feature_),
           num_feature_,
           num_class_,
           has_categorical_nodes_,
@@ -151,7 +152,7 @@ struct decision_forest {
           get_postprocessor(),
           output.data(),
           input.data(),
-          input.size() / num_feature_,
+          index_type(input.size() / num_feature_),
           num_feature_,
           num_class_,
           has_categorical_nodes_,
@@ -169,16 +170,16 @@ struct decision_forest {
   /** The nodes for all trees in the forest */
   kayak::buffer<node_type> nodes_;
   /** The index of the root node for each tree in the forest */
-  kayak::buffer<size_t> root_node_indexes_;
+  kayak::buffer<index_type> root_node_indexes_;
   /** Buffer of outputs for all leaves in vector-leaf models */
   std::optional<kayak::buffer<io_type>> vector_output_;
   /** Buffer of outputs for all leaves in vector-leaf models */
   std::optional<kayak::buffer<categorical_storage_type>> categorical_storage_;
 
   // Metadata
-  size_t num_feature_;
-  size_t num_class_;
-  size_t leaf_size_;
+  index_type num_feature_;
+  index_type num_class_;
+  index_type leaf_size_;
   bool has_categorical_nodes_ = false;
   // Postprocessing constants
   row_op row_postproc_;
@@ -233,14 +234,14 @@ using decision_forest_variant = std::variant<
 
 inline auto get_forest_variant_index(
   bool use_double_thresholds,
-  std::size_t max_node_offset,
-  std::size_t num_features,
-  std::size_t num_categorical_nodes = std::size_t{},
-  std::size_t max_num_categories = std::size_t{},
-  std::size_t num_vector_leaves = std::size_t{}
+  index_type max_node_offset,
+  index_type num_features,
+  index_type num_categorical_nodes = index_type{},
+  index_type max_num_categories = index_type{},
+  index_type num_vector_leaves = index_type{}
 ) {
   using small_index_t = typename detail::specialization_types<false, false>::index_type;
-  auto max_local_categories = sizeof(small_index_t) * 8;
+  auto max_local_categories = index_type(sizeof(small_index_t) * 8);
   // If the index required for pointing to categorical storage bins or vector
   // leaf output exceeds what we can store in a uint32_t, uint64_t will be used
   //
@@ -267,8 +268,8 @@ inline auto get_forest_variant_index(
   );
 
   return (
-    (std::size_t{double_precision} << std::size_t{1})
-    + std::size_t{large_trees}
+    (index_type{double_precision} << index_type{1})
+    + index_type{large_trees}
   );
 }
 }

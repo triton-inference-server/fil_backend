@@ -3,6 +3,7 @@
 #include <variant>
 #include <herring3/constants.hpp>
 #include <herring3/detail/forest.hpp>
+#include <herring3/detail/index_type.hpp>
 #include <herring3/detail/postprocessor.hpp>
 #include <herring3/detail/specialization_types.hpp>
 #include <herring3/specializations/forest_macros.hpp>
@@ -15,12 +16,12 @@
   postprocessor<HERRING_SPEC(variant_index)::threshold_type> const&,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   HERRING_SPEC(variant_index)::threshold_type*,\
-  std::size_t,\
-  std::size_t,\
-  std::size_t,\
+  index_type,\
+  index_type,\
+  index_type,\
   std::nullptr_t,\
   std::nullptr_t,\
-  std::optional<std::size_t>,\
+  std::optional<index_type>,\
   kayak::device_id<dev>,\
   kayak::cuda_stream stream\
 )
@@ -30,12 +31,12 @@
   postprocessor<HERRING_SPEC(variant_index)::threshold_type> const&,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   HERRING_SPEC(variant_index)::threshold_type*,\
-  std::size_t,\
-  std::size_t,\
-  std::size_t,\
+  index_type,\
+  index_type,\
+  index_type,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   std::nullptr_t,\
-  std::optional<std::size_t>,\
+  std::optional<index_type>,\
   kayak::device_id<dev>,\
   kayak::cuda_stream stream\
 )
@@ -45,12 +46,12 @@
   postprocessor<HERRING_SPEC(variant_index)::threshold_type> const&,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   HERRING_SPEC(variant_index)::threshold_type*,\
-  std::size_t,\
-  std::size_t,\
-  std::size_t,\
+  index_type,\
+  index_type,\
+  index_type,\
   std::nullptr_t,\
   HERRING_SPEC(variant_index)::index_type*,\
-  std::optional<std::size_t>,\
+  std::optional<index_type>,\
   kayak::device_id<dev>,\
   kayak::cuda_stream stream\
 )
@@ -60,12 +61,12 @@
   postprocessor<HERRING_SPEC(variant_index)::threshold_type> const&,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   HERRING_SPEC(variant_index)::threshold_type*,\
-  std::size_t,\
-  std::size_t,\
-  std::size_t,\
+  index_type,\
+  index_type,\
+  index_type,\
   HERRING_SPEC(variant_index)::threshold_type*,\
   HERRING_SPEC(variant_index)::index_type*,\
-  std::optional<std::size_t>,\
+  std::optional<index_type>,\
   kayak::device_id<dev>,\
   kayak::cuda_stream stream\
 )
