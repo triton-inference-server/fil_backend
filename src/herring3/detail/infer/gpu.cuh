@@ -163,20 +163,121 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
     kayak::ceildiv(row_count, rows_per_block_iteration),
     MAX_BLOCKS
   );
-  infer_kernel<has_categorical_nodes><<<num_blocks, threads_per_block, shared_mem_per_block, stream>>>(
-    forest,
-    postproc,
-    output,
-    input,
-    row_count,
-    col_count,
-    class_count,
-    shared_mem_per_block,
-    output_workspace_size,
-    rows_per_block_iteration,
-    vector_output,
-    categorical_data
-  );
+  if (rows_per_block_iteration <= 1) {
+    infer_kernel<has_categorical_nodes, 1><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  } else if (rows_per_block_iteration <= 2) {
+    infer_kernel<has_categorical_nodes, 2><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  } else if (rows_per_block_iteration <= 4) {
+    infer_kernel<has_categorical_nodes, 4><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  } else if (rows_per_block_iteration <= 8) {
+    infer_kernel<has_categorical_nodes, 8><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  } else if (rows_per_block_iteration <= 16) {
+    infer_kernel<has_categorical_nodes, 16><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  } else {
+    infer_kernel<has_categorical_nodes, 32><<<
+      num_blocks,
+      threads_per_block,
+      shared_mem_per_block,
+      stream
+    >>>(
+      forest,
+      postproc,
+      output,
+      input,
+      row_count,
+      col_count,
+      class_count,
+      shared_mem_per_block,
+      output_workspace_size,
+      vector_output,
+      categorical_data
+    );
+  }
 }
 
 HERRING_INFER_ALL(extern template, kayak::device_type::gpu, 0)

@@ -29,7 +29,7 @@ auto run_herring(
   };
   auto chunk_sizes = std::vector<std::size_t>{2, 4, 8, 16, 32};
   if constexpr (D == kayak::device_type::gpu) {
-    chunk_sizes = std::vector<std::size_t>{8};
+    chunk_sizes = std::vector<std::size_t>{1, 2, 4, 8, 16, 32};
   } else {
     chunk_sizes = std::vector<std::size_t>{64};
   }

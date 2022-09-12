@@ -4,9 +4,7 @@
 namespace herring {
 namespace detail {
 namespace device_initialization {
-
 HERRING_INITIALIZE_DEVICE(template, 0)
-
 }
 }
 }

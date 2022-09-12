@@ -14,6 +14,7 @@ namespace detail {
 
 template<
   bool has_categorical_nodes,
+  index_type chunk_size,
   typename forest_t,
   typename vector_output_t=std::nullptr_t,
   typename categorical_data_t=std::nullptr_t
@@ -28,7 +29,6 @@ __global__ void infer_kernel(
     index_type num_outputs,
     index_type shared_mem_byte_size,
     index_type output_workspace_size,
-    index_type chunk_size,
     vector_output_t vector_output_p=nullptr,
     categorical_data_t categorical_data=nullptr
 ) {
@@ -67,11 +67,11 @@ __global__ void infer_kernel(
       col_count
     );
 
-    auto task_count = rows_in_this_iteration * forest.tree_count();
+    auto task_count = chunk_size * forest.tree_count();
 
     auto num_grove = kayak::ceildiv(
       min(index_type{blockDim.x}, task_count),
-      rows_in_this_iteration
+      chunk_size
     );
 
     // Note that this sync is safe because every thread in the block will agree
@@ -90,10 +90,11 @@ __global__ void infer_kernel(
       task_index < task_count_rounded_up;
       task_index += blockDim.x
     ) {
-      auto real_task = task_index < task_count;
-      auto row_index = task_index * real_task % rows_in_this_iteration;
-      auto tree_index = task_index * real_task / rows_in_this_iteration;
-      auto grove_index = threadIdx.x / rows_in_this_iteration;
+      auto row_index = task_index % chunk_size;
+      auto real_task = task_index < task_count && row_index < rows_in_this_iteration;
+      row_index *= real_task;
+      auto tree_index = task_index * real_task / chunk_size;
+      auto grove_index = threadIdx.x / chunk_size;
 
       auto tree_output = std::conditional_t<
         has_vector_leaves, typename node_t::index_type, typename node_t::threshold_type

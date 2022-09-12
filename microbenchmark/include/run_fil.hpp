@@ -52,7 +52,7 @@ auto run_fil(
     0,
     handle.get_stream().value()
   };
-  auto threads_per_tree_vals = std::vector<int>{8};
+  auto threads_per_tree_vals = std::vector<int>{1, 2, 4, 8, 16, 32};
 
   auto result = std::vector<benchmark_results>{};
 

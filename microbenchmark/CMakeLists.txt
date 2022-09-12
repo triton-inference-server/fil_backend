@@ -1,9 +1,5 @@
 add_executable(forest_bench
   microbenchmark/src/forest_bench.cpp
-  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/device_initialization0.cu>
-  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/device_initialization1.cu>
-  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/device_initialization2.cu>
-  $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/device_initialization3.cu>
   $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/infer0.cu>
   src/herring3/specializations/infer0.cpp
   $<$<BOOL:${TRITON_ENABLE_GPU}>:src/herring3/specializations/infer1.cu>
