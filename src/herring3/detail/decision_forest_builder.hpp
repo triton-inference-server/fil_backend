@@ -60,7 +60,7 @@ struct decision_forest_builder {
     iter_t vec_end,
     bool default_to_distant_child=false,
     typename node_type::metadata_storage_type feature = typename node_type::metadata_storage_type{},
-    typename node_type::offset_type offset = typename node_type::offset_type{1}
+    typename node_type::offset_type offset = typename node_type::offset_type{}
   ) {
     auto constexpr const bin_width = index_type(sizeof(typename node_type::index_type) * 8);
     auto node_value = typename node_type::index_type{};
@@ -107,7 +107,7 @@ struct decision_forest_builder {
       false,
       false,
       typename node_type::metadata_storage_type{},
-      typename node_type::offset_type{1}
+      typename node_type::offset_type{}
     );
     ++cur_tree_size_;
   }
@@ -119,7 +119,7 @@ struct decision_forest_builder {
     bool default_to_distant_child=false,
     bool is_categorical_node=false,
     typename node_type::metadata_storage_type feature = typename node_type::metadata_storage_type{},
-    typename node_type::offset_type offset = typename node_type::offset_type{1},
+    typename node_type::offset_type offset = typename node_type::offset_type{},
     bool is_inclusive=false
   ) {
     // TODO(wphicks): Construct categorical set and add node appropriately

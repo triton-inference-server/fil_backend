@@ -111,9 +111,9 @@ struct alignas(8) node {
     bool default_to_distant_child = false,
     bool is_categorical_node = false,
     metadata_storage_type feature = metadata_storage_type{},
-    offset_type distant_child_offset = offset_type{1}
+    offset_type distant_child_offset = offset_type{}
   ) : stored_value{.value=value},
-    distant_offset_minus_one{distant_child_offset - offset_type{1}},
+    distant_offset{distant_child_offset},
     metadata{construct_metadata(
       is_leaf_node, default_to_distant_child, is_categorical_node, feature
     )} {}
@@ -124,9 +124,9 @@ struct alignas(8) node {
     bool default_to_distant_child = false,
     bool is_categorical_node = false,
     metadata_storage_type feature = metadata_storage_type{},
-    offset_type distant_child_offset = offset_type{1}
+    offset_type distant_child_offset = offset_type{}
   ) : stored_value{.index=index},
-    distant_offset_minus_one{distant_child_offset - offset_type{1}},
+    distant_offset{distant_child_offset},
     metadata{construct_metadata(
       is_leaf_node, default_to_distant_child, is_categorical_node, feature
     )} {}
@@ -138,7 +138,7 @@ struct alignas(8) node {
   }
   /** Whether or not this node is a leaf node */
   HOST DEVICE auto constexpr is_leaf() const {
-    return bool(metadata & LEAF_MASK);
+    return !bool(distant_offset);
   }
   /** Whether or not to default to distant child in case of missing values */
   HOST DEVICE auto constexpr default_distant() const {
@@ -151,9 +151,9 @@ struct alignas(8) node {
   /** The offset to the child of this node if it evaluates to given condition */
   HOST DEVICE auto constexpr child_offset(bool condition) const {
     if constexpr (layout == kayak::tree_layout::depth_first) {
-      return offset_type{1} + condition * distant_offset_minus_one;
+      return offset_type{1} + condition * (distant_offset - offset_type{1});
     } else if constexpr (layout == kayak::tree_layout::breadth_first) {
-      return condition * offset_type{1} + distant_offset_minus_one;
+      return condition * offset_type{1} + (distant_offset - offset_type{1});
     } else {
       static_assert(layout == kayak::tree_layout::depth_first);
     }
@@ -217,7 +217,7 @@ struct alignas(8) node {
   value_type stored_value;
   // TODO (wphicks): It may be possible to store both of the following together
   // to save bytes
-  offset_type distant_offset_minus_one;
+  offset_type distant_offset;
   metadata_storage_type metadata;
 };
 
