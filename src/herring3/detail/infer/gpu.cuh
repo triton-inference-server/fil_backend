@@ -278,6 +278,7 @@ std::enable_if_t<D==kayak::device_type::gpu, void> infer(
       categorical_data
     );
   }
+  kayak::cuda_check(cudaPeekAtLastError());
 }
 
 HERRING_INFER_ALL(extern template, kayak::device_type::gpu, 0)
