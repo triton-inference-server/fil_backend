@@ -19,13 +19,15 @@ REPODIR=$(cd $(dirname $0); pwd)
 
 NUMARGS=$#
 ARGS=$*
-VALIDTARGETS="server tests"
+VALIDTARGETS="server tests conda-dev conda-test"
 VALIDFLAGS="--cpu-only -g -h --help"
 VALIDARGS="${VALIDTARGETS} ${VALIDFLAGS}"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    server           - build a Triton server container with FIL backend
    tests            - build container(s) with unit tests
+   conda-dev        - build container with dev Conda env
+   conda-test       - build container with test Conda env
  and <flag> is:
    -g               - build for debug
    -h               - print this text
@@ -42,6 +44,8 @@ HELP="$0 [<target> ...] [<flag> ...]
    TRITON_VERSION   - Triton version to use for build
    SERVER_TAG       - The tag to use for the server image
    TEST_TAG         - The tag to use for the test image
+   CONDA_DEV_TAG    - The tag to use for the image containing dev Conda env
+   CONDA_TEST_TAG   - The tag to use for the image containing test Conda env
    PREBUILT_IMAGE   - A server image to be tested (used as base of test image)
    TRITON_REF       - Commit ref for Triton when using build.py
    COMMON_REF       - Commit ref for Triton common repo when using build.py
@@ -163,6 +167,14 @@ if [ -z $TEST_TAG ]
 then
   TEST_TAG='triton_fil_test'
 fi
+if [ -z $CONDA_DEV_TAG ]
+then
+  CONDA_DEV_TAG='triton_fil_dev_conda'
+fi
+if [ -z $CONDA_TEST_TAG ]
+then
+  CONDA_TEST_TAG='triton_fil_test_conda'
+fi
 
 DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
@@ -237,6 +249,8 @@ fi
 
 TESTS=0
 BACKEND=0
+CONDA_DEV=0
+CONDA_TEST=0
 if completeBuild
 then
   TESTS=1
@@ -248,6 +262,12 @@ elif hasArg tests
 then
   TESTS=1
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
+elif hasArg conda-dev
+then
+  CONDA_DEV=1
+elif hasArg conda-test
+then
+  CONDA_TEST=1
 fi
 
 buildpy () {
@@ -365,6 +385,26 @@ then
     $DOCKER_ARGS \
     --target test-stage \
     -t "$TEST_TAG" \
+    -f ops/Dockerfile \
+    $REPODIR
+fi
+
+if [ $CONDA_DEV -eq 1 ]
+then
+  docker build \
+    $DOCKER_ARGS \
+    --target conda-dev \
+    -t "$CONDA_DEV_TAG" \
+    -f ops/Dockerfile \
+    $REPODIR
+fi
+
+if [ $CONDA_TEST -eq 1 ]
+then
+  docker build \
+    $DOCKER_ARGS \
+    --target conda-test \
+    -t "$CONDA_TEST_TAG" \
     -f ops/Dockerfile \
     $REPODIR
 fi
