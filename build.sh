@@ -403,7 +403,7 @@ if [ $CONDA_TEST -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
-    --target conda-test \
+    --target base-test-install \
     -t "$CONDA_TEST_TAG" \
     -f ops/Dockerfile \
     $REPODIR
