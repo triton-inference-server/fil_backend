@@ -2,22 +2,31 @@
 
 namespace kayak {
 namespace detail {
+  auto static constexpr const MDSPAN_COPY_TILE_DIM = 32;
+  auto static constexpr const MDSPAN_COPY_TILE_SIZE = (
+    MDSPAN_COPY_TILE_DIM * MDSPAN_COPY_TILE_DIM
+  );
+
   template <typename to_mdspan_t, typename from_mdspan_t>
   __global__ void mdspan_copy(
     to_mdspan_t& to_mdspan, from_mdspan_t const& from_mdspan
   ) {
+    // NOTE: This kernel should always be launched with MDSPAN_COPY_TILE_SIZE
+    // threads per block
     using from_layout = typename from_mdspan_t::layout_type;
     using to_layout = typename to_mdspan_t::layout_type;
 
-    auto static constexpr const TILE_DIM = 32;
-    auto static constexpr const TILE_SIZE = TILE_DIM * TILE_DIM;
     __shared__ typename from_mdspan_t::value_type tile[
-      TILE_DIM * (TILE_DIM + 1)
+      MDSPAN_COPY_TILE_DIM * (MDSPAN_COPY_TILE_DIM + 1)
     ];
 
-    for (auto tile_start=0; tile_start < from_mdspan.size(); tile_start += TILE_SIZE) {
-      // TODO: Handle a full tile in here
-      auto i = blockIdx.x + tile_start;
+    for (
+        auto tile_start=blockIdx.x;
+        tile_start < from_mdspan.size();
+        tile_start += MDSPAN_COPY_TILE_SIZE * blockDim.x
+    ) {
+      auto i = threadIdx.x + tile_start;
+
       typename from_mdspan_t::size_type indices[2];
       if constexpr (std::is_same_v<from_layout, raft::layout_left>) {
         auto minor_dim = from_mdspan.extents()[0];
@@ -28,11 +37,20 @@ namespace detail {
         indices[0] = i / minor_dim;
         indices[1] = i % minor_dim;
       }
-      // TODO: Check if valid indices
-      tile[compute_offset_index] = from_mdspan(indices[0], indices[1]);
+      auto real_thread = (
+        indices[0] < from_mdspan.extents()[0]
+        && indices[1] < from_mdspan.extents()[1]
+      );
+      // TODO(wphicks): More than one element per thread to amortize indexing
+      // cost
+      if (real_thread) {
+        tile[threadIdx.x] = from_mdspan(indices[0], indices[1]);
+      }
       __syncthreads();
-      // TODO: Copy back to output
-
+      if (real_thread) {
+        to_mdspan(indices[0], indices[1]) = tile[threadIdx.x];
+      }
+      __syncthreads();
     }
   }
 }

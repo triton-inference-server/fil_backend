@@ -8,6 +8,18 @@
 
 namespace kayak {
 
+namespace detail {
+  template <typename mdspan_t>
+  auto get_mdspan_buffer_size(mdspan_t const& from_mdspan) {
+    static_assert(
+    auto result = std::size_t{1};
+    for (auto i = std::size_t{}; i < from_mdspan.rank()) {
+      result *= from_mdspan.extents(i) * from_mdspan.stride(i)
+    }
+    return result;
+  }
+}
+
   template <typename mdspan_t>
   struct mdspan_buffer {
 
