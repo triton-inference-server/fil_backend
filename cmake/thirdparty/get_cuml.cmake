@@ -60,6 +60,6 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       rapidsai
-                        PINNED_TAG 80621f0b3718f565ece410ee3f71f36a8f44f5aa
+                        PINNED_TAG branch-22.10
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
