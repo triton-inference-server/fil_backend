@@ -249,31 +249,25 @@ fi
 
 TESTS=0
 BACKEND=0
-BUILD_CONDA_DEV=0
-BUILD_CONDA_TEST=0
-USE_CONDA_DEV=0
-USE_CONDA_TEST=0
+CONDA_DEV=0
+CONDA_TEST=0
 if completeBuild
 then
   TESTS=1
   BACKEND=1
-  USE_CONDA_DEV=1
-  USE_CONDA_TEST=1
 elif hasArg server
 then
   BACKEND=1
-  USE_CONDA_DEV=1
 elif hasArg tests
 then
   TESTS=1
   DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TESTS=ON"
-  USE_CONDA_TEST=1
 elif hasArg conda-dev
 then
-  BUILD_CONDA_DEV=1
+  CONDA_DEV=1
 elif hasArg conda-test
 then
-  BUILD_CONDA_TEST=1
+  CONDA_TEST=1
 fi
 
 buildpy () {
@@ -364,14 +358,8 @@ then
     hostbuild
   elif [ -z $PREBUILT_IMAGE ]
   then
-    EXTRA_DOCKER_ARG=""
-    if [ $USE_CONDA_DEV -eq 1 ]
-    then
-      EXTRA_DOCKER_ARG="--cache-from $CONDA_DEV_TAG"
-    fi
     docker build \
       $DOCKER_ARGS \
-      $EXTRA_DOCKER_ARG \
       -t "$SERVER_TAG" \
       -f ops/Dockerfile \
       $REPODIR
@@ -393,21 +381,15 @@ fi
 
 if [ $TESTS -eq 1 ]
 then
-  EXTRA_DOCKER_ARG=""
-  if [ $USE_CONDA_TEST -eq 1 ]
-  then
-    EXTRA_DOCKER_ARG="--cache-from $CONDA_TEST_TAG"
-  fi
   docker build \
     $DOCKER_ARGS \
-    $EXTRA_DOCKER_ARG \
     --target test-stage \
     -t "$TEST_TAG" \
     -f ops/Dockerfile \
     $REPODIR
 fi
 
-if [ $BUILD_CONDA_DEV -eq 1 ]
+if [ $CONDA_DEV -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
@@ -417,7 +399,7 @@ then
     $REPODIR
 fi
 
-if [ $BUILD_CONDA_TEST -eq 1 ]
+if [ $CONDA_TEST -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
