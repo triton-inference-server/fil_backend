@@ -36,8 +36,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
    --no-cache       - disable Docker cache for build
-   --prebuilt-conda - attempt to leverage Docker cache to speed up setting up Conda envs
-                      Make sure to set CONDA_DEV_TAG and CONDA_TEST_TAG env vars
    --host           - build backend library on host, NOT in Docker
 
  default action (no args) is to build all targets
@@ -74,8 +72,6 @@ TRITON_FIL_ENABLE_TREESHAP=ON
 DOCKER_ARGS=""
 BUILDPY=0
 HOST_BUILD=0
-NOCACHE=0
-USE_PREBUILT_CONDA=0
 
 export DOCKER_BUILDKIT=1
 
@@ -150,11 +146,7 @@ do
       BUILDPY=1
       ;;
     --no-cache )
-      NOCACHE=1
       DOCKER_ARGS="$DOCKER_ARGS --no-cache"
-      ;;
-    --prebuilt-conda )
-      USE_PREBUILT_CONDA=1
       ;;
     --host )
       HOST_BUILD=1
@@ -167,12 +159,6 @@ do
   shift
 done
 
-if [ $NOCACHE -eq 1 ] && [ $USE_PREBUILT_CONDA -eq 1 ]
-then
-  echo "Error: cannot set --no-cache and --prebuilt-conda flags simultaneously"
-  exit 1
-fi
-
 if [ -z $SERVER_TAG ]
 then
   SERVER_TAG='triton_fil'
@@ -183,20 +169,10 @@ then
 fi
 if [ -z $CONDA_DEV_TAG ]
 then
-  if [ $USE_PREBUILT_CONDA -eq 1 ]
-  then
-    echo "Error: Must set enviornment variable CONDA_DEV_TAG when --prebuilt-conda is set"
-    exit 2
-  fi
   CONDA_DEV_TAG='triton_fil_dev_conda'
 fi
 if [ -z $CONDA_TEST_TAG ]
 then
-  if [ $USE_PREBUILT_CONDA -eq 1 ]
-  then
-    echo "Error: Must set enviornment variable CONDA_TEST_TAG when --prebuilt-conda is set"
-    exit 2
-  fi
   CONDA_TEST_TAG='triton_fil_test_conda'
 fi
 
@@ -279,8 +255,6 @@ if completeBuild
 then
   TESTS=1
   BACKEND=1
-  CONDA_DEV=1
-  CONDA_TEST=1
 elif hasArg server
 then
   BACKEND=1
@@ -384,14 +358,8 @@ then
     hostbuild
   elif [ -z $PREBUILT_IMAGE ]
   then
-    EXTRA_DOCKER_ARG=""
-    if [ $USE_PREBUILT_CONDA -eq 1 ]
-    then
-      EXTRA_DOCKER_ARG="--cache-from $CONDA_DEV_TAG"
-    fi
     docker build \
       $DOCKER_ARGS \
-      $EXTRA_DOCKER_ARG \
       -t "$SERVER_TAG" \
       -f ops/Dockerfile \
       $REPODIR
@@ -413,14 +381,8 @@ fi
 
 if [ $TESTS -eq 1 ]
 then
-  EXTRA_DOCKER_ARG=""
-  if [ $USE_PREBUILT_CONDA -eq 1 ]
-  then
-    EXTRA_DOCKER_ARG="--cache-from $CONDA_TEST_TAG"
-  fi
   docker build \
     $DOCKER_ARGS \
-    $EXTRA_DOCKER_ARG \
     --target test-stage \
     -t "$TEST_TAG" \
     -f ops/Dockerfile \
