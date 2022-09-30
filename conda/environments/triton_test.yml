@@ -13,6 +13,7 @@ dependencies:
   - hypothesis<6.46.8
   - lightgbm
   - matplotlib
+  - numpy<1.23
   - pip
   - pytest
   - python=3.8

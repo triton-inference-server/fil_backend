@@ -12,6 +12,7 @@ dependencies:
   - flake8
   - hypothesis<6.46.8
   - lightgbm
+  - numpy<1.23
   - pip
   - pytest
   - python=3.8
