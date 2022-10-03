@@ -59,6 +59,6 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       wphicks
-                        PINNED_TAG 37cbb48f51f1839bf04affd36dc0f4a441e6390f
+                        PINNED_TAG pin-fil_backend_2209
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
