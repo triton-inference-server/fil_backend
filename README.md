@@ -30,6 +30,135 @@
 
 # Triton Inference Server FIL Backend
 
+Triton is a machine learning inference server for easy and highly optimized
+deployment of models trained in almost any major framework. This backend
+specifically facilitates use of tree models (including models trained with
+[XGBoost](https://xgboost.readthedocs.io/en/stable/),
+[LightGBM](https://lightgbm.readthedocs.io/en/v3.3.2/),
+[Scikit-Learn](https://scikit-learn.org/stable/), and
+[cuML](https://docs.rapids.ai/api/cuml/stable/)).
+
+**If you want to deploy a tree-based model for real-time or
+batched inference in production, the FIL backend for Triton will allow you to
+do exactly that.**
+
+## Table of Contents
+### Usage Information
+- Installation
+- Introductory end-to-end example
+- FAQ notebook with code snippets for many common scenarios
+- Configuration options
+- Shapley value support
+- Scikit-Learn and cuML model support
+- Model support limitations
+
+### Contributor Docs
+- Overview of the repo
+- Build instructions
+- Running tests
+- Making a contribution
+
+## Not sure where to start?
+If you aren't sure where to start with this documentation, consider one of the
+following paths:
+
+1. **I currently use XGBoost/LightGBM or other tree models and am trying to
+   assess if Triton is the right solution for production deployment of my
+   models**
+   1. Check out the FIL backend's [blog post announcement](https://developer.nvidia.com/blog/real-time-serving-for-xgboost-scikit-learn-randomforest-lightgbm-and-more/)
+   2. Make sure your model is supported by looking at the model support section
+      TODO(wphicks): link
+   2. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
+   3. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb).
+   4. Check out the main [Triton documentation](https://github.com/triton-inference-server/server#triton-inference-server) for additional features and helpful tips on deployment (including example [Helm charts](https://github.com/triton-inference-server/server/blob/main/deploy/gcp/README.md#kubernetes-deploy-triton-inference-server-cluster)).
+2. **I am familiar with Triton, but I am using it to deploy an XGBoost/LightGBM
+model for the first time.**
+   1. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
+   2. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb). Note that it includes specific example code for serialization of [XGBoost](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.1:-Serializing-an-XGBoost-model) and [LightGBM](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.2-Serializing-a-LightGBM-model) models.
+   3. Review the FAQ notebook's [tips](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-9:-Optimizing-model-performance) for optimizing model performance.
+2. **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn/cuML tree model for the first time**
+    1. Look at the section on preparing Scikit-Learn/cuML models for Triton.
+       TODO(wphicks): link
+    2. Try deploying your model by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb), especially the sections on [Scikit-Learn and cuML](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1.3-Can-I-deploy-Scikit-Learn/cuML-models-serialized-with-Pickle?).
+3. **I am a data scientist familiar with tree model training, and I am trying
+   to understand how Triton might be used with my models.**
+   1. Take a glance at the [Triton product page](https://developer.nvidia.com/nvidia-triton-inference-server) to get a sense of what Triton is used for.
+   2. Download and run the [introductory example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection) for yourself. If you do not have access to a GPU locally, you can just look over this notebook and then jump to the [FAQ notebook](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/faq) which has specific information on CPU-only training and deployment.
+4. **I have never worked with tree models before.**
+   1. TODO(wphicks): XGBoost tutorial
+   2. Download and run the [introductory example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection) for yourself.
+   3. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb).
+5. **I don't like reading docs.**
+    1. Look at the Quickstart below TODO(wphicks): link
+    2. Open the [FAQs notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb) in a browser.
+    3. Try deploying your model. If you get stuck, `Ctrl-F` for keywords on the
+       FAQ page.
+
+
+## Quickstart: Deploying a tree model in 3 steps
+1. Copy your model into the following directory structure. In this
+   example, we show an XGBoost json file, but XGBoost binary files,
+   LightGBM text files, and Treelite checkpoint files are also supported.
+```
+model_repository/
+├─ example/
+│  ├─ 1/
+│  │  ├─ model.json
+│  ├─ config.pbtxt
+```
+2. Fill out config.pbtxt as follows, replacing `$NUM_FEATURES` with the number
+   of input features, `$MODEL_TYPE` with `xgboost`, `xgboost_json`,
+   `lightgbm` or `treelite_checkpoint`, and `$IS_A_CLASSIFIER` with `true`
+   or `false` depending on whether this is a classifier or regressor.
+```
+backend: "fil"
+max_batch_size: 32768
+input [                                 
+ {  
+    name: "input__0"
+    data_type: TYPE_FP32
+    dims: [ $NUM_FEATURES ]                    
+  } 
+]
+output [
+ {
+    name: "output__0"
+    data_type: TYPE_FP32
+    dims: [ 1 ]
+  }
+]
+instance_group [{ kind: KIND_AUTO }]
+parameters [
+  {
+    key: "model_type"
+    value: { string_value: "$MODEL_TYPE" }
+  },
+  {
+    key: "output_class"
+    value: { string_value: "$IS_A_CLASSIFIER" }
+  }
+]
+
+dynamic_batching {}
+```
+3. Start the server:
+```
+docker run -p 8000:8000 -p 8001:8001 --gpus all \
+  -v ${PWD}/model_repository:/models \
+  nvcr.io/nvidia/tritonserver:22.08-py3 \
+  tritonserver --model-repository=/models
+```
+
+The Triton server will now be serving your model over both HTTP (port 8000)
+and GRPC (port 8001) using NVIDIA GPUs if they are available or the CPU if
+they are not. For information on how to submit inference requests, how to
+deploy other model types, or advanced configuration options, check out the FAQ
+notebook. TODO(wphicks): links
+
+## Model/Framework Support
+TODO(wphicks)
+
+
 This backend allows forest models trained by several popular machine learning
 frameworks (including XGBoost, LightGBM, Scikit-Learn, and cuML) to be deployed
 in a [Triton inference
