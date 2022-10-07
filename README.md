@@ -246,12 +246,12 @@ output [
 
 **NOTE:** The dimensions of Shapley value outputs for a multi-class problem
 are of the form `[ n_classes, (n_features + 1) ]`, while for a binary-class problem
-they are of the form `[ n_features + 1 ]`. The additional column in the output stores 
+they are of the form `[ n_features + 1 ]`. The additional column in the output stores
 the bias term. At this moment, Shapley value support is only available when this
 backend is GPU enabled.
 
 For a full description of the configuration schema, see the Triton [server
-docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).
+docs](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/model_configuration.md).
 Here, we will simply summarize the most commonly-used options and those
 specific to FIL:
 
@@ -330,7 +330,7 @@ specific to FIL:
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
-  documentation](https://github.com/triton-inference-server/server/blob/master/docs/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/perf_analyzer.md) in order to optimize performance.
+  documentation](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/perf_analyzer.md) in order to optimize performance.
   * `max_queue_delay_microseconds`: How long of a window in which requests can
     be accumulated to form a batch.
 
