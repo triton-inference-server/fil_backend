@@ -8,8 +8,8 @@ dependencies:
   - clang-tools=11.1.0
   - cudatoolkit=11.5
   - cuda-python<11.7.0
-  - cudf>=22.08.01
-  - cuml=22.08
+  - cudf=22.10
+  - cuml=22.10
   - flake8
   - hypothesis<6.46.8
   - lightgbm
