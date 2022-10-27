@@ -158,7 +158,7 @@ script, which is used for building and testing individual configurations in CI.
 To run tests on a pre-built image, use the environment variable
 `PREBUILT_SERVER_TAG`:
 ```bash
-PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.08-py3 ./ci/gitlab/build.sh
+PREBUILT_SERVER_TAG=nvcr.io/nvidia/tritonserver:22.09-py3 ./ci/gitlab/build.sh
 ```
 This will build a test image based on this pre-built server image and run it.
 For CPU-only builds, the environment variable `CPU_ONLY` should be set to 1.
@@ -177,7 +177,7 @@ libraries, and then invoke the test image.
 
 ### Benchmarks
 To analyze the impact of a change on performance, you may wish to run the
-basic benchmarking script described in the [benchmarking docs](https://github.com/wphicks/triton_fil_backend/blob/main/qa/BENCHMARKS.md).
+basic benchmarking script described in the [benchmarking docs](https://github.com/triton-inference-server/fil_backend/blob/main/qa/BENCHMARKS.md).
 
 ## Style
 Contributions to the FIL backend should:

@@ -24,8 +24,8 @@ set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/co
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:22.08-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "22.08" CACHE STRING "Triton version for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:22.09-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "22.09" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
@@ -68,7 +68,8 @@ else()
 
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
-  file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.08/RAPIDS.cmake
+  file(DOWNLOAD
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.10/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -87,7 +88,7 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  set(RAPIDS_DEPENDENCIES_VERSION "22.08" CACHE STRING "RAPIDS projects dependencies version")
+  set(RAPIDS_DEPENDENCIES_VERSION "22.10" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
   option(TRITON_FIL_ENABLE_TREESHAP "Compile GPU Treeshap when building cuml++.so" ON)
 
@@ -111,9 +112,9 @@ else()
 
   if(TRITON_ENABLE_GPU)
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-    project(RAPIDS_TRITON_BACKEND VERSION 22.08.00 LANGUAGES CXX CUDA)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX CUDA)
   else()
-    project(RAPIDS_TRITON_BACKEND VERSION 22.08.00 LANGUAGES CXX)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX)
   endif()
 
   ##############################################################################
