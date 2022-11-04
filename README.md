@@ -190,7 +190,7 @@ the section on [Configuration](#configuration) for instructions.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:22.08-py3
+docker pull nvcr.io/nvidia/tritonserver:22.09-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
@@ -251,7 +251,7 @@ models](https://github.com/triton-inference-server/fil_backend/blob/main/SKLearn
 for use in Triton.
 
 **NOTE: XGBoost 1.6 introduced a change in the XGBoost JSON serialization
-format. This change will be supported in Triton 22.08. Earlier versions of
+format. This change is supported in Triton 22.08 and later. Earlier versions of
 Triton will NOT support JSON-serialized models from XGBoost>=1.6.**
 
 Once you have a serialized model, you will need to prepare a
@@ -375,12 +375,12 @@ output [
 
 **NOTE:** The dimensions of Shapley value outputs for a multi-class problem
 are of the form `[ n_classes, (n_features + 1) ]`, while for a binary-class problem
-they are of the form `[ n_features + 1 ]`. The additional column in the output stores 
+they are of the form `[ n_features + 1 ]`. The additional column in the output stores
 the bias term. At this moment, Shapley value support is only available when this
 backend is GPU enabled.
 
 For a full description of the configuration schema, see the Triton [server
-docs](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md).
+docs](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/model_configuration.md).
 Here, we will simply summarize the most commonly-used options and those
 specific to FIL:
 
@@ -459,7 +459,7 @@ specific to FIL:
 - `dynamic_batching`: This configuration block specifies how Triton should
   perform dynamic batching for your model. Full details about these options can
   be found in the main [Triton
-  documentation](https://github.com/triton-inference-server/server/blob/master/docs/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/perf_analyzer.md) in order to optimize performance.
+  documentation](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/architecture.md#models-and-schedulers). You may find it useful to test your configuration using the [Triton `perf_analyzer` tool](https://github.com/triton-inference-server/server/blob/master/docs/user_guide/perf_analyzer.md) in order to optimize performance.
   * `max_queue_delay_microseconds`: How long of a window in which requests can
     be accumulated to form a batch.
 
