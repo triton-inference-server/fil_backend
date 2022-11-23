@@ -19,3 +19,4 @@ dependencies:
   - rapidsai::xgboost
   - scikit-learn
   - treelite
+  - gperftools

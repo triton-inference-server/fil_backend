@@ -5,3 +5,4 @@ channels:
 dependencies:
   - docker-py
   - python
+  - gperftools

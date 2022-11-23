@@ -9,3 +9,4 @@ dependencies:
   - libgcc-ng<=11.2.0
   - ninja
   - rapidjson
+  - gperftools

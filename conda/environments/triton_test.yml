@@ -20,6 +20,7 @@ dependencies:
   - rapidsai::xgboost
   - scikit-learn
   - treelite
+  - gperftools
   - pip:
       - tritonclient[all]
       - git+https://github.com/rapidsai/rapids-triton.git@branch-22.10#subdirectory=python
