@@ -61,7 +61,7 @@ the section on [Configuration](#configuration) for instructions.
 Pre-built Triton containers are available from NGC and may be pulled down via
 
 ```bash
-docker pull nvcr.io/nvidia/tritonserver:22.09-py3
+docker pull nvcr.io/nvidia/tritonserver:22.11-py3
 ```
 
 Note that the FIL backend cannot be used in the `21.06` version of this
