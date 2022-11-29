@@ -78,9 +78,8 @@ model for the first time.**
    1. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
    2. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb). Note that it includes specific example code for serialization of [XGBoost](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.1:-Serializing-an-XGBoost-model) and [LightGBM](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.2-Serializing-a-LightGBM-model) models.
    3. Review the FAQ notebook's [tips](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-9:-Optimizing-model-performance) for optimizing model performance.
-2. **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn/cuML tree model for the first time**
-    1. Look at the section on preparing Scikit-Learn/cuML models for Triton.
-       TODO(wphicks): link
+2. **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn or cuML tree model for the first time**
+    1. Look at the section on preparing [Scikit-Learn/cuML models](https://github.com/triton-inference-server/fil_backend/blob/main/docs/sklearn_and_cuml.md) for Triton.
     2. Try deploying your model by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb), especially the sections on [Scikit-Learn and cuML](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1.3-Can-I-deploy-Scikit-Learn/cuML-models-serialized-with-Pickle?).
 3. **I am a data scientist familiar with tree model training, and I am trying
    to understand how Triton might be used with my models.**
