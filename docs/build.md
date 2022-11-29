@@ -40,8 +40,8 @@ guide](https://github.com/triton-inference-server/fil_backend/blob/main/docs/ins
 
 ## Prerequisites
 The FIL backend may be built either using Docker or on the host. We
-recommend using the Dockerized build unless you have a specific need to build
-on the host in order to simplify dependency management.
+recommend using the Dockerized build in order to simplify dependency management
+unless you have a specific need to build on the host.
 
 ### Dockerized Build
 - [Docker](https://docs.docker.com/get-docker/)

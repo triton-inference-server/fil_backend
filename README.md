@@ -40,7 +40,7 @@ with [XGBoost](https://xgboost.readthedocs.io/en/stable/),
 
 **If you want to deploy a tree-based model for optimized real-time or
 batched inference in production, the FIL backend for Triton will allow you to
-do exactly that.**
+do just that.**
 
 ## Table of Contents
 ### Usage Information
@@ -148,7 +148,7 @@ dynamic_batching {}
 ```
 docker run -p 8000:8000 -p 8001:8001 --gpus all \
   -v ${PWD}/model_repository:/models \
-  nvcr.io/nvidia/tritonserver:22.10-py3 \
+  nvcr.io/nvidia/tritonserver:22.11-py3 \
   tritonserver --model-repository=/models
 ```
 

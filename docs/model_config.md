@@ -51,8 +51,7 @@ parameters [
 
 dynamic_batching {}
 ```
-Note that (as suggested by the extension), this is a [Protobuf text
-file](https://developers.google.com/protocol-buffers/docs/text-format-spec)
+Note that (as suggested by the file extension), this is a [Protobuf text file](https://developers.google.com/protocol-buffers/docs/text-format-spec)
 and should be formatted accordingly.
 
 ## Specifying the backend
@@ -191,4 +190,148 @@ parameters [
 ```
 
 ### Classification confidence scores (`predict_proba`)
+For classifiers, if you wish to return a confidence score for each class
+rather than simply a class ID, set `predict_proba` to `true`
+```
+parameters [
+  {
+    key: "predict_proba"
+    value: { string_value: "true" }
+  }
+]
+```
 
+### Decision Threshold
+For binary classifiers, it is sometimes helpful to set a specific
+confidence threshold for positive decisions. This can be set via the
+`threshold` parameter. If unset, an implicit threshold of 0.5 is used for
+binary classifiers.
+```
+parameters [
+  {
+    key: "threshold"
+    value: { string_value: "0.3" }
+  }
+]
+```
+
+### Performance parameters
+The FIL backend includes several parameters that can be tuned to optimize
+latency and throughput for your model. These parameters will not affect model
+output, but experimenting with them can significantly improve model
+performance for your specific use case.
+
+#### `use_experimental_optimizations`
+As of release 22.11, this parameter only affects CPU deployments. Setting it to
+true can significantly improve both latency and throughput. In the future,
+the current experimental optimizations will become default, and new
+performance optimizations will be trialed using this flag. Even these
+experimental optimizations are thoroughly tested before release, but they
+offer less of a stability guarantee than the default execution mode.
+```
+parameters [
+  {
+    key: "use_experimental_optimizations"
+    value: { string_value: "true" }
+  }
+]
+```
+
+#### `threads_per_tree` (GPU only)
+This parameter applies only to GPU deployments and determines the number
+of consecutive CUDA threads used to evaluate a single tree. While
+correctly tuning this value offers significant performance improvements,
+it is very difficult to determine the optimal value *a priori*.
+
+In general, servers under higher load or those receiving larger batches from
+clients will benefit from a higher value. On the other hand, more
+powerful GPUs typically see optimal performance with a somewhat lower value.
+
+To find the optimal value for your deployment, test under realistic traffic
+and experiment with powers of 2 from 1 to 32.
+```
+parameters [
+  {
+    key: "threads_per_tree"
+    value: { string_value: "4" }
+  }
+]
+```
+
+#### `storage_type` (GPU only)
+This parameter determines how trees are represented in device memory.
+Choosing `DENSE` will consume more memory but may sometimes offer
+performance benefits. Choosing `SPARSE` will consume less memory and may
+perform as well as or better than `DENSE` for some models. Choosing `AUTO`
+will apply a heuristic that defaults to `DENSE` unless it is obvious that
+doing so will consume significantly more memory.
+
+`SPARSE8` is an
+experimental format which offers an even smaller memory footprint than
+`SPARSE` and may offer better throughput/latency in some cases. You should
+thoroughly test your model's output with `SPARSE8` if you choose to use it.
+
+```
+parameters [
+  {
+    key: "storage_type"
+    value: { string_value: "SPARSE" }
+  }
+]
+```
+
+#### `algo` (GPU only)
+This parameter determines how nodes within a tree are organized in memory
+as well as how they are accessed during inference. `NAIVE` uses a
+breadth-first layout and is the only value which should be used with the
+`SPARSE` or `SPARSE8` storage types. `TREE_REORG` rearranges trees to improve
+memory coalescing. `BATCH_TREE_REORG` is similar to `TREE_REORG` but
+performs inference on several rows at once within a thread block.
+`ALGO_AUTO` will default to `NAIVE` for sparse storage and
+`BATCH_TREE_REORG` for dense storage.
+
+Different settings for this parameter may produce modest performance
+benefits depending on the details of the model.
+```
+parameters [
+  {
+    key: "algo"
+    value: { string_value: "NAIVE" }
+  }
+]
+```
+
+#### `blocks_per_sm` (GPU only)
+This experimental option attempts to launch the indicated number of blocks
+per streaming multiprocessor if set to a value greater than 0. This will
+fail if your hardware cannot support the number of threads associated with
+this value. Tweaking this number can sometimes result in small
+performance benefits.
+```
+parameters [
+  {
+    key: "blocks_per_sm"
+    value: { string_value: "2" }
+  }
+]
+```
+
+#### `transfer_threshold` (GPU only)
+For extremely lightweight models operating on a deployment with very light
+traffic and small batch sizes, the overhead of moving data to the GPU
+sometimes outweighs the faster inference. As traffic increases, however,
+you will want to take advantage of available NVIDIA GPUs to provide optimal
+throughput/latency. To facilitate this, the `transfer_threshold` can be set to
+some integer value indicating the number of rows beyond which data should
+be transferred to the GPU. If this setting is beneficial at all, it
+typically takes on a small value (~1-5 for typical hardware
+configurations). Most models are unlikely to benefit from setting this to any
+value other than 0, however.
+```
+parameters [
+  {
+    key: "transfer_threshold"
+    value: { string_value: "2" }
+  }
+]
+```
