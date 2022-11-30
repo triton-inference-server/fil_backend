@@ -91,3 +91,17 @@ While the FIL backend can load double-precision models, it performs all
 computations in single-precision mode. This can lead to slight differences in
 model output for frameworks like LightGBM which natively use double precision.
 Support for double-precision execution is planned for an upcoming release.
+
+## Categorical Feature Support
+As of version 21.11, the FIL backend includes support for models with
+categorical features (e.g. some
+[XGBoost](https://xgboost.readthedocs.io/en/stable/tutorials/categorical.html) and [LightGBM ](https://lightgbm.readthedocs.io/en/latest/Advanced-Topics.html#categorical-feature-support)) models.
+These models can be deployed just like any other model, but it is worth
+remembering that (as with any other inference pipeline which includes
+categorical features), care must be taken to ensure that the categorical
+encoding used during inference matches that used during training. If the data
+passed through at inference time does not contain all of the categories used
+during training, there is no way to reconstruct the correct mapping of
+features, so some record must be made of the complete set of categories used
+during training. With that record, categorical columns can be appropriately
+converted to float32 columns, and submitted to Triton as with any other input.

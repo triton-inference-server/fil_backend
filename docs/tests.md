@@ -92,6 +92,6 @@ the `qa/generate_example_models.sh` script, start the Triton server against
 the generated model repository, and then run `pytest --repo qa/L0_e2e/model_repository qa/L0_e2e`.
 
 This approach is not an officially supported testing method, and minimal
-support will be provided for it. If you find it useful and which to
+support will be provided for it. If you find it useful and wish to
 contribute documentation to make this method easier, pull requests are
 welcome.
