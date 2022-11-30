@@ -65,7 +65,7 @@ do just that.**
 If you aren't sure where to start with this documentation, consider one of the
 following paths:
 
-1. **I currently use XGBoost/LightGBM or other tree models and am trying to
+- **I currently use XGBoost/LightGBM or other tree models and am trying to
    assess if Triton is the right solution for production deployment of my
    models**
    1. Check out the FIL backend's [blog post announcement](https://developer.nvidia.com/blog/real-time-serving-for-xgboost-scikit-learn-randomforest-lightgbm-and-more/)
@@ -73,15 +73,15 @@ following paths:
    2. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
    3. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb).
    4. Check out the main [Triton documentation](https://github.com/triton-inference-server/server#triton-inference-server) for additional features and helpful tips on deployment (including example [Helm charts](https://github.com/triton-inference-server/server/blob/main/deploy/gcp/README.md#kubernetes-deploy-triton-inference-server-cluster)).
-2. **I am familiar with Triton, but I am using it to deploy an XGBoost/LightGBM
+- **I am familiar with Triton, but I am using it to deploy an XGBoost/LightGBM
 model for the first time.**
    1. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
    2. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb). Note that it includes specific example code for serialization of [XGBoost](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.1:-Serializing-an-XGBoost-model) and [LightGBM](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-1.2-Serializing-a-LightGBM-model) models.
    3. Review the FAQ notebook's [tips](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#Example-9:-Optimizing-model-performance) for optimizing model performance.
-2. **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn or cuML tree model for the first time**
+- **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn or cuML tree model for the first time**
     1. Look at the section on preparing [Scikit-Learn/cuML models](https://github.com/triton-inference-server/fil_backend/blob/main/docs/sklearn_and_cuml.md) for Triton.
     2. Try deploying your model by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb), especially the sections on [Scikit-Learn and cuML](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1.3-Can-I-deploy-Scikit-Learn/cuML-models-serialized-with-Pickle?).
-3. **I am a data scientist familiar with tree model training, and I am trying
+- **I am a data scientist familiar with tree model training, and I am trying
    to understand how Triton might be used with my models.**
    1. Take a glance at the [Triton product page](https://developer.nvidia.com/nvidia-triton-inference-server) to get a sense of what Triton is used for.
    2. Download and run the [introductory example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection) for yourself. If you do not have access to a GPU locally, you can just look over this notebook and then jump to the [FAQ notebook](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/faq) which has specific information on CPU-only training and deployment.
@@ -89,7 +89,7 @@ model for the first time.**
    1. Take a look at XGBoost's [documentation](https://xgboost.readthedocs.io/en/stable/get_started.html#python).
    2. Download and run the [introductory example](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/categorical-fraud-detection) for yourself.
    3. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb).
-5. **I don't like reading docs.**
+- **I don't like reading docs.**
     1. Look at the
        [Quickstart](https://github.com/triton-inference-server/fil_backend#quickstart-deploying-a-tree-model-in-3-steps) below
     2. Open the [FAQs notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb) in a browser.
