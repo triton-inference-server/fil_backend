@@ -105,3 +105,6 @@ during training, there is no way to reconstruct the correct mapping of
 features, so some record must be made of the complete set of categories used
 during training. With that record, categorical columns can be appropriately
 converted to float32 columns, and submitted to Triton as with any other input.
+
+For a fully-worked example of using a model with categorical features, check
+out the [introductory fraud detection notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb).
