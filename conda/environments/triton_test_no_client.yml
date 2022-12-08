@@ -8,14 +8,14 @@ dependencies:
   - clang-tools=11.1.0
   - cudatoolkit=11.5
   - cuda-python<11.7.0
-  - cudf=22.10
-  - cuml=22.10
+  - cudf=22.12
+  - cuml=22.12
   - flake8
   - hypothesis<6.46.8
   - lightgbm
   - pip
   - pytest
   - python=3.8
-  - rapidsai::xgboost
+  - rapidsai::xgboost>=1.7
   - scikit-learn
   - treelite

@@ -6,7 +6,7 @@ channels:
 dependencies:
   - cudatoolkit=11.5
   - cuda-python<11.7.0
-  - cudf=22.10
+  - cudf=22.12
   - matplotlib
   - pip
   - python=3.8
