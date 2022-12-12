@@ -1,5 +1,9 @@
 # Scikit-Learn and cuML random forest support
 
+**NOTE:** Due to a change in Scikit-Learn 1.2.0, forest models from version
+1.2.0 and later are not currently supported. Support will be added in an
+upcoming release of Triton.
+
 ## Model Serialization
 
 While LightGBM and XGBoost have their own serialization formats that are
