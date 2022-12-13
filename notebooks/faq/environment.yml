@@ -15,7 +15,7 @@ dependencies:
   - pandas
   - pip
   - python=3.8
-  - scikit-learn
+  - scikit-learn<1.2.0
   - skl2onnx
   - treelite=2.3.0
   - pip:
