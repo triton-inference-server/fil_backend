@@ -12,13 +12,15 @@ dependencies:
   - cuml=22.10
   - flake8
   - hypothesis<6.46.8
+  - libcusolver<=11.4.1.48
+  - libcusparse<=12.0
   - lightgbm
   - matplotlib
   - pip
   - pytest
   - python=3.8
   - rapidsai::xgboost
-  - scikit-learn
+  - scikit-learn<1.2.0
   - treelite
   - pip:
       - tritonclient[all]

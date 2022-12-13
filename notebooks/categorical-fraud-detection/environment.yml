@@ -16,7 +16,7 @@ dependencies:
   - pandas
   - pip
   - python=3.8
-  - scikit-learn
+  - scikit-learn<1.2.0
   - pip:
       - tritonclient[all]
       - xgboost>=1.5,<1.6
