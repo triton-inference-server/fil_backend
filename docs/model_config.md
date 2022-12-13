@@ -26,9 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
 # FIL Backend Model Configuration
-Like all Triton backends, models deployed via the FIL backend make use of a
-specially laid-out "model repository" directory containing at least one
-serialized model and a `config.pbtxt` configuration file:
+Like all Triton
+[backends](https://github.com/triton-inference-server/backend/#where-can-i-find-all-the-backends-that-are-available-for-triton),
+models deployed via the FIL backend make use of a specially laid-out "model
+repository" directory containing at least one serialized model and a
+`config.pbtxt` configuration file:
 ```
 model_repository/
 ├─ example/
@@ -107,10 +109,12 @@ Input and output tensors for a model are described using three entries:
 *always* be `"input__0"`, and the name for the primary output tensor should
 *always* be `"output__0"`.
 
-The FIL backend currently exclusively uses 32-bit precision. 64-bit model
-parameters are rounded to 32-bit values, although optional support for 64-bit
-execution should be added in the near future. At present, however, both
-inputs and outputs should *always* use `TYPE_FP32` for their `data_type`.
+The FIL backend currently
+[exclusively](https://github.com/triton-inference-server/fil_backend/issues/231)
+uses 32-bit precision. 64-bit model parameters are rounded to 32-bit values,
+although optional support for 64-bit execution should be added in the near
+future. At present, however, both inputs and outputs should *always* use
+`TYPE_FP32` for their `data_type`.
 
 The dimensions of the I/O tensors do *not* include the batch dimension and
 are model-dependent. The input tensor's single dimension should just be the
@@ -201,7 +205,9 @@ For each model type, Triton expects a particular default filename:
 - `model.txt` for LightGBM
 - `checkpoint.tl` for Treelite
 It is recommended that you use these filenames, but custom filenames can be
-specified using Triton's usual configuration options.
+specified using Triton's usual
+[configuration](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#model-configuration)
+options.
 
 ### Classification vs. Regression (`output_class`)
 Set `output_class` to `true` if your model is a classification model or
