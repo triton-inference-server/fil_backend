@@ -68,10 +68,10 @@ To contribute code to this project, please follow these steps:
 Additional information useful to contributors is available in the
 following sections:
 
-- [Development workflow](https://github.com/triton-inference-server/fil_backend/blob/main/docs/workflow.md)
-- [Overview of the repo](https://github.com/triton-inference-server/fil_backend/blob/main/docs/repo_overview.md)
-- [Build instructions](https://github.com/triton-inference-server/fil_backend/blob/main/docs/build.md)
-- [Running tests](https://github.com/triton-inference-server/fil_backend/blob/main/docs/tests.md)
+- [Development workflow](docs/workflow.md)
+- [Overview of the repo](docs/repo_overview.md)
+- [Build instructions](docs/build.md)
+- [Running tests](docs/tests.md)
 
 ## Style
 Contributions to the FIL backend should:

@@ -34,7 +34,7 @@ To quickly get up and running with a Triton Docker image, follow these
 steps.
 
 **Note**: Looking for instructions to *build* the FIL backend yourself? Check out our [build
-guide](https://github.com/triton-inference-server/fil_backend/blob/main/docs/build.md).
+guide](docs/build.md).
 
 ## Prerequisites
 - [Docker](https://docs.docker.com/get-docker/)
@@ -55,13 +55,13 @@ working FIL backend implementation.
 In order to actually deploy a model, you will need to provide the serialized
 model and configuration file in a specially-structured directory called the
 "model repository." Check out the
-[configuration guide](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_config.md) for details on how to do this for your model.
+[configuration guide](docs/model_config.md) for details on how to do this for your model.
 
-Assuming your model repository is on your host system, you can
+Assuming your model repository is on the host system, you can
 bind-mount it into the container and start the server via the following
 command:
 ```
-!docker run --gpus all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v ${MODEL_REPO}:/models --name tritonserver nvcr.io/nvidia/tritonserver:22.11-py3 tritonserver --model-repository=/models
+docker run --gpus all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v ${MODEL_REPO}:/models --name tritonserver nvcr.io/nvidia/tritonserver:22.11-py3 tritonserver --model-repository=/models
 ```
 Remember that bind-mounts **require an absolute path** to the host
 directory.

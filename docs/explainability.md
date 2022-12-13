@@ -52,7 +52,7 @@ default in the FIL backend.
 
 To turn on Shapley Value support, you must add an additional output to the
 `config.pbtxt` file for your model as shown below:
-```
+```protobuf
 output [
  {
     name: "output__0"

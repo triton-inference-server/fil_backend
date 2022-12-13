@@ -31,7 +31,7 @@
 For developers working on the FIL backend, the easiest way to run tests is to
 invoke the `ci/local/build.sh` script, which will build the server image
 and a test image then run a container based on that image which runs the
-complete test suite. In general, this script is quite efficient and should cache as much as possible in order to speed up iteration during development.
+complete test suite.
 
 One of the most time-consuming parts of running the test suite is
 training the end-to-end test models. The `ci/local/build.sh` script will
@@ -78,7 +78,8 @@ to control build and execution of tests:
 - `BUILDPY`: If set to 1, build with Triton's `build.py` script rather than
   the FIL backend Dockerfile.
 - `CPU_ONLY`: If set to 1, build without GPU support.
-- `NO_CACHE`: Set to 0 to enable Docker cache
+- `NO_CACHE`: Set to 0 to enable Docker cache. **By default, caching is
+  disabled.**
 - `USE_CLIENT_WHEEL`: If set to 1, install the Triton client from a wheel
   copied from Triton's SDK image. This is useful for testing on ARM
   machines, where the Triton Python client is not available via pip.

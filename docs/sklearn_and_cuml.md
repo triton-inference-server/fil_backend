@@ -28,6 +28,10 @@
 
 # Scikit-Learn and cuML Support
 
+**NOTE:** Due to a change in Scikit-Learn 1.2.0, forest models from version
+1.2.0 and later are not currently supported. Support will be added in an
+upcoming release of Triton.
+
 ## Model Serialization
 
 While LightGBM and XGBoost have their own serialization formats that are
@@ -62,7 +66,7 @@ For convenience, a conda environment config file
 which will install all three of these prerequisites:
 
 ```
-conda env update -f scripts/environment.yml
+conda env create -f scripts/environment.yml
 conda activate triton_scripts
 ```
 

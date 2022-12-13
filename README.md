@@ -44,21 +44,21 @@ do just that.**
 
 ## Table of Contents
 ### Usage Information
-- [Installation](https://github.com/triton-inference-server/fil_backend/blob/main/docs/install.md)
+- [Installation](docs/install.md)
 - [Introductory end-to-end
   example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
 - [FAQ
   notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb) with code snippets for many common scenarios
-- [Model Configuration](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_config.md)
-- [Explainability and Shapley value support](https://github.com/triton-inference-server/fil_backend/blob/main/docs/explainability.md)
-- [Scikit-Learn and cuML model support](https://github.com/triton-inference-server/fil_backend/blob/main/docs/sklearn_and_cuml.md)
-- [Model support and limitations](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_support.md)
+- [Model Configuration](docs/model_config.md)
+- [Explainability and Shapley value support](docs/explainability.md)
+- [Scikit-Learn and cuML model support](docs/sklearn_and_cuml.md)
+- [Model support and limitations](docs/model_support.md)
 
 ### Contributor Docs
-- [Development workflow](https://github.com/triton-inference-server/fil_backend/blob/main/docs/workflow.md)
-- [Overview of the repo](https://github.com/triton-inference-server/fil_backend/blob/main/docs/repo_overview.md)
-- [Build instructions](https://github.com/triton-inference-server/fil_backend/blob/main/docs/build.md)
-- [Running tests](https://github.com/triton-inference-server/fil_backend/blob/main/docs/tests.md)
+- [Development workflow](docs/workflow.md)
+- [Overview of the repo](docs/repo_overview.md)
+- [Build instructions](docs/build.md)
+- [Running tests](docs/tests.md)
 - [Making a contribution](https://github.com/triton-inference-server/fil_backend/blob/main/CONTRIBUTING.md)
 
 ## Not sure where to start?
@@ -68,7 +68,7 @@ following paths:
 **I currently use XGBoost/LightGBM or other tree models and am trying to assess if Triton is the right solution for production deployment of my models**
 
 1. Check out the FIL backend's [blog post announcement](https://developer.nvidia.com/blog/real-time-serving-for-xgboost-scikit-learn-randomforest-lightgbm-and-more/)
-2. Make sure your model is supported by looking at the [model support](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_support.md) section
+2. Make sure your model is supported by looking at the [model support](docs/model_support.md) section
 2. Look over the [introductory example](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/categorical-fraud-detection/Fraud_Detection_Example.ipynb)
 3. Try deploying your own model locally by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb).
 4. Check out the main [Triton documentation](https://github.com/triton-inference-server/server#triton-inference-server) for additional features and helpful tips on deployment (including example [Helm charts](https://github.com/triton-inference-server/server/blob/main/deploy/gcp/README.md#kubernetes-deploy-triton-inference-server-cluster)).
@@ -81,7 +81,7 @@ following paths:
 
 **I am familiar with Triton and the FIL backend, but I am using it to deploy a Scikit-Learn or cuML tree model for the first time**
 
-1. Look at the section on preparing [Scikit-Learn/cuML models](https://github.com/triton-inference-server/fil_backend/blob/main/docs/sklearn_and_cuml.md) for Triton.
+1. Look at the section on preparing [Scikit-Learn/cuML models](docs/sklearn_and_cuml.md) for Triton.
 2. Try deploying your model by consulting the [FAQ notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb), especially the sections on [Scikit-Learn and cuML](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1.3-Can-I-deploy-Scikit-Learn/cuML-models-serialized-with-Pickle?).
 
 **I am a data scientist familiar with tree model training, and I am trying to understand how Triton might be used with my models.**

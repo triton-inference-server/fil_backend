@@ -34,12 +34,12 @@ The FIL backend repo is organized in the following directories:
 This directory contains scripts and configuration files for working with CI.
 Developers may invoke `ci/local/build.sh` to build and run tests locally or
 `ci/gitlab/build.sh` to more precisely mirror the test environment run in
-official CI. This directory is not intended for end-users.
+official CI. This directory is not intended for end users.
 
 ## `cmake`
 This directory contains CMake files required for the build, especially those
 which are used to retrieve external dependencies. It is not intended for
-end-users
+end users.
 
 ## `conda`
 This directory contains conda-related infrastructure including environment yaml
@@ -72,7 +72,7 @@ users.
 
 ## `qa`
 This directory contains files for running tests and benchmarks. It is not
-intended for end-users.
+intended for end users.
 
 ## `scripts`
 This directory contains utility scripts for e.g. converting models to Treelite
@@ -81,4 +81,4 @@ necessary dependencies for running these scripts.
 
 ## `src`
 This directory contains the C++ source files for the FIL backend. It is not
-intended for end-users.
+intended for end users.

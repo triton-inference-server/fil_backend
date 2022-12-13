@@ -47,7 +47,7 @@ succinct overview, refer to the [FAQ notebook](https://nbviewer.org/github/trito
 
 ## Structure of configuration file
 A typical `config.pbtxt` file might look something like this:
-```
+```protobuf
 backend: "fil"
 max_batch_size: 32768
 input [                                 
@@ -87,7 +87,7 @@ configuration file with the top-level `backend: "fil"` option. For
 information on models supported by the FIL backend, see [Model
 Support](https://developers.google.com/protocol-buffers/docs/text-format-spec)
 or the [FAQ
-notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?)
+notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?).
 
 ## Maximum Batch Size
 Because of the relatively quick execution speed of most tree models and the
@@ -170,16 +170,15 @@ deployments.
 
 ## FIL-Specific Options
 All other options covered here are specific to FIL and will go in the
-`parameters` section of the configuration. Due to a limitation in Triton's
-configuration parsing, all backend-specific parameters are represented as
-string values and converted when read.
+`parameters` section of the configuration. Triton's backend-specific parameters
+are represented as string values and converted when read.
 
 ### Model Type
 The FIL backend accepts models in a
 [number](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?) of serialization formats,
 including XGBoost JSON and binary formats, LightGBM's text format, and
 Treelite's checkpoint format. For more information, see [Model
-Support](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_support.md).
+Support](docs/model_support.md).
 
 The `model_type` option is used to indicate which of these serialization
 formats your model uses: `xgboost` for XGBoost binary, `xgboost_json` for
@@ -249,7 +248,7 @@ output, but experimenting with them can significantly improve model
 performance for your specific use case.
 
 #### `use_experimental_optimizations`
-As of release 22.11, this parameter only affects CPU deployments. Setting it to
+As of release 22.11, this flag only affects CPU deployments. Setting it to
 true can significantly improve both latency and throughput. In the future,
 the current experimental optimizations will become default, and new
 performance optimizations will be trialed using this flag. Even these

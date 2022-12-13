@@ -35,8 +35,7 @@ you may follow the indicated steps.
 **Note**: Most users will not need to build their own copy of the FIL backend.
 These instructions are intended for developers and those who wish to make
 custom tweaks to the backend. If you are just looking for install instructions,
-follow our [installation
-guide](https://github.com/triton-inference-server/fil_backend/blob/main/docs/install.md).
+follow our [installation guide](docs/install.md).
 
 ## Prerequisites
 The FIL backend may be built either using Docker or on the host. We
@@ -93,9 +92,10 @@ summarized below:
   **Note:** This is **not** recommended for end-users. It is included
   primarily for testing compatibility with upstream build changes. If you must
   invoke this option, you will need the dependencies indicated in the
-  associated conda [environment file](https://github.com/triton-inference-server/fil_backend/blob/main/conda/environments/buildpy.yml)
+  associated conda [environment file](https://github.com/triton-inference-server/fil_backend/blob/main/conda/environments/buildpy.yml).
 
 #### Environment variables
+##### Standard options
 - `BASE_IMAGE`: The base image for Docker images or the build image for
   `build.py` if `--buildpy` is invoked
 - `TRITON_VERSION`: The version of Triton to use for this build
@@ -106,30 +106,32 @@ summarized below:
   image.
 - `RAPIDS_VERSION`: The version of RAPIDS to require for RAPIDS
   dependencies
-- `USE_CLIENT_WHEEL` (ADVANCED): If 1, the Triton Python client will be
+##### Advanced options
+- `USE_CLIENT_WHEEL`: If 1, the Triton Python client will be
   installed from a wheel distributed in the Triton SDK Docker image. This
   option is useful for ARM development, since the Triton client cannot
   currently be installed via `pip` for ARM.
-- `SDK_IMAGE` (ADVANCED): If set, this image will be used to provide the
+- `SDK_IMAGE`: If set, this image will be used to provide the
   Python client wheel. Otherwise, if `USE_CLIENT_WHEEL` is set to 1 and this
   variable is unset, the image will be selected based on the Triton
   version.
-- `CONDA_DEV_TAG` (ADVANCED): A Docker image containing the development conda
+- `CONDA_DEV_TAG`: A Docker image containing the development conda
+  environment. Used primarily to speed up CI; rarely invoked during
+  development.
+- `CONDA_TEST_TAG`: A Docker image containing the test conda
   environment. Used primarily to speed up CI; rarely invoked during development
-- `CONDA_TEST_TAG` (ADVANCED): A Docker image containing the test conda
-  environment. Used primarily to speed up CI; rarely invoked during development
-- `TRITON_REF` (ADVANCED): The commit ref for the Triton server repo when using
+- `TRITON_REF`: The commit ref for the Triton server repo when using
   `--buildpy`
-- `CORE_REF` (ADVANCED): The commit ref for the Triton core repo when using
+- `CORE_REF`: The commit ref for the Triton core repo when using
   `--buildpy`
-- `COMMON_REF` (ADVANCED): The commit ref for the Triton common repo when using
+- `COMMON_REF`: The commit ref for the Triton common repo when using
   `--buildpy`
-- `BACKEND_REF` (ADVANCED): The commit ref for the Triton backend repo when using
+- `BACKEND_REF`: The commit ref for the Triton backend repo when using
   `--buildpy`
-- `THIRDPARTY_REF` (ADVANCED): The commit ref for the Triton third-party repo when using
+- `THIRDPARTY_REF`: The commit ref for the Triton third-party repo when using
   `--buildpy`
-- `JOB_ID` (ADVANCED): Used for CI builds to uniquely identify a particular
+- `JOB_ID`: Used for CI builds to uniquely identify a particular
   build job.
-- `BUILDPY_BRANCH` (ADVANCED): Use this branch of the Triton server repo to
+- `BUILDPY_BRANCH`: Use this branch of the Triton server repo to
   provide the `build.py` script if `--buildpy` is used.
-- `TREELITE_STATIC` (ADVANCED): if set to `ON`, Treelite will be statically linked into the built binaries
+- `TREELITE_STATIC`: if set to `ON`, Treelite will be statically linked into the built binaries
