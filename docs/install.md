@@ -64,7 +64,8 @@ command:
 docker run --gpus all -p 8000:8000 -p 8001:8001 -p 8002:8002 -v ${MODEL_REPO}:/models --name tritonserver nvcr.io/nvidia/tritonserver:22.11-py3 tritonserver --model-repository=/models
 ```
 Remember that bind-mounts **require an absolute path** to the host
-directory.
+directory, so `${MODEL_REPO}` should be replaced by the absolute path to the
+model repository directory on the host.
 
 Assuming you started your container with the name "tritonserver" as in the
 above snippet, you can bring the server down again and remove the
