@@ -6,7 +6,6 @@ channels:
   - rapidsai
 dependencies:
   - cudatoolkit=11.4
-  - cuda-python<11.7.0
   - cuml=22.04
   - joblib
   - jupyter
