@@ -21,7 +21,7 @@ MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
 CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
-NO_CACHE=${CPU_ONLY:-1}
+NO_CACHE=${NO_CACHE:-1}
 
 if [ -z $CI_COMMIT_BRANCH ]
 then

@@ -6,6 +6,7 @@ channels:
   - rapidsai
 dependencies:
   - cudatoolkit=11.4
+  - cuda-python<11.7.0
   - cuml=22.04
   - joblib
   - jupyter
@@ -18,6 +19,6 @@ dependencies:
   - skl2onnx
   - treelite=2.3.0
   - pip:
-      - tritonclient[all]
       - xgboost>=1.5,<1.6
       - protobuf==3.20.1
+      - tritonclient[all]
