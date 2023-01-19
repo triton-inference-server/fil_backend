@@ -101,7 +101,7 @@ RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
     then \
       rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
     else \
-      mkdir /opt/tritonserver/backends/${BACKEND_NAME}; \
+      mkdir -p /opt/tritonserver/backends/${BACKEND_NAME}; \
     fi
 
 # Stage where build actually takes place
