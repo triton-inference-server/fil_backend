@@ -81,7 +81,10 @@ RUN  if command -v curl; \
  && rm /tmp/cuda-keyring.deb; fi
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y build-essential \
+    && apt-get install --no-install-recommends -y \
+      build-essential \
+      ca-certificates \
+      git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
