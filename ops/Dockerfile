@@ -71,14 +71,14 @@ ENV PATH="/root/miniconda3/bin:${PATH}"
 
 # In CI, CPU base image may not have curl, but it also does not need to update
 # the cuda keys
-RUN  ! command -v curl  \
- || [ $(uname -m) = 'x86_64' ] \
+RUN  if command -v curl; \
+ then [ $(uname -m) = 'x86_64' ] \
  && curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb \
  || curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/sbsa/cuda-keyring_1.0-1_all.deb; \
  dpkg -i /tmp/cuda-keyring.deb \
- && rm /tmp/cuda-keyring.deb
+ && rm /tmp/cuda-keyring.deb; fi
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y build-essential \
