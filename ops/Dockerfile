@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=22.12
+ARG TRITON_VERSION=23.01
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -69,16 +69,22 @@ FROM ${BASE_IMAGE} as base
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
-RUN [ $(uname -m) = 'x86_64' ] \
+# In CI, CPU base image may not have curl, but it also does not need to update
+# the cuda keys
+RUN  if command -v curl; \
+ then [ $(uname -m) = 'x86_64' ] \
  && curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb \
  || curl -o /tmp/cuda-keyring.deb \
       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/sbsa/cuda-keyring_1.0-1_all.deb; \
  dpkg -i /tmp/cuda-keyring.deb \
- && rm /tmp/cuda-keyring.deb
+ && rm /tmp/cuda-keyring.deb; fi
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y build-essential \
+    && apt-get install --no-install-recommends -y \
+      build-essential \
+      ca-certificates \
+      git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
