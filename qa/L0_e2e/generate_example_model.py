@@ -396,15 +396,13 @@ def generate_config(
         treeshap_output_str = f"{features + 1}"
     else:
         treeshap_output_str = f"{treeshap_output_dim}, {features + 1}"
-    treeshap_output = ""
-    if model_name == 'xgboost_shap':
-        treeshap_output = f"""
-        ,{{
-            name: "treeshap_output"
-            data_type: TYPE_FP32
-            dims: [ {treeshap_output_str} ]
-        }}
-        """
+    treeshap_output = f"""
+    ,{{
+        name: "treeshap_output"
+        data_type: TYPE_FP32
+        dims: [ {treeshap_output_str} ]
+    }}
+    """
 
     return f"""name: "{model_name}"
 backend: "fil"

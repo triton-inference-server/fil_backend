@@ -56,20 +56,6 @@ then
   models+=( $name )
 fi
 
-name=xgboost_shap
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --depth 11 \
-    --trees 2000 \
-    --classes 3 \
-    --features 500 \
-    --storage_type SPARSE \
-    --max_batch_size 4096
-  models+=( $name )
-fi
-
 name=lightgbm
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then

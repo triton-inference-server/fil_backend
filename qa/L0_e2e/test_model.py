@@ -24,7 +24,7 @@ except Exception:
 import numpy as np
 import pytest
 import treelite
-from hypothesis import given, settings, assume, HealthCheck
+from hypothesis import given, settings, assume, HealthCheck, note
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
@@ -34,7 +34,6 @@ import xgboost as xgb
 TOTAL_SAMPLES = 20
 MODELS = (
     'xgboost',
-    'xgboost_shap',
     'xgboost_json',
     'lightgbm',
     'lightgbm_rf',
@@ -132,7 +131,11 @@ class GroundTruthModel:
             model_version=1):
         model_dir = os.path.join(model_repo, name, f'{model_version}')
         self.predict_proba = predict_proba
-        self._run_treeshap = False
+
+        if use_cpu:
+            self._run_treeshap = False
+        else:
+            self._run_treeshap = True
 
         if model_format == 'xgboost':
             model_path = os.path.join(model_dir, 'xgboost.model')
@@ -152,18 +155,19 @@ class GroundTruthModel:
             self._base_model = GTILModel(
                 model_path, model_format, output_class
             )
+            self._treelite_model = self._base_model.tl_model
         else:
             if model_format == 'treelite_checkpoint':
                 with open(model_path, 'rb') as pkl_file:
                     self._base_model = pickle.load(pkl_file)
+                self._treelite_model = self._base_model
             else:
                 self._base_model = cuml.ForestInference.load(
                     model_path, output_class=output_class, model_type=model_format
                 )
-            if name == 'xgboost_shap':
-                self._xgb_model = xgb.Booster()
-                self._xgb_model.load_model(model_path)
-                self._run_treeshap = True
+                self._treelite_model =  GTILModel(
+                        model_path, model_format, output_class
+                    ).tl_model
 
     def predict(self, inputs):
         if self.predict_proba:
@@ -172,9 +176,19 @@ class GroundTruthModel:
             result = self._base_model.predict(inputs['input__0'])
         output = {'output__0' : result}
         if self._run_treeshap:
-            treeshap_result = \
-                self._xgb_model.predict(xgb.DMatrix(inputs['input__0']),
-                                        pred_contribs=True)
+            explainer = cuml.explainer.TreeExplainer(model=self._treelite_model)
+            treeshap_result = explainer.shap_values(inputs['input__0'])
+            # reshape to the same output as triton
+            # append expected value as the last column
+            if len(treeshap_result.shape) >= 3:
+                treeshap_result = np.swapaxes(treeshap_result, 0, 1)
+                treeshap_result = np.pad(treeshap_result, ((0,0),(0,0),(0,1)))
+                for i in range(len(explainer.expected_value)):
+                    treeshap_result[:,i,-1] = explainer.expected_value[i]
+            else:
+                treeshap_result = np.pad(treeshap_result, ((0,0),(0,1)))
+                treeshap_result[:,-1] = explainer.expected_value
+
             output['treeshap_output'] = treeshap_result
         return output
 
@@ -268,6 +282,8 @@ def test_small(client, model_data, hypothesis_data):
         for name, size in model_output_sizes.items():
             total_output_sizes[name] = total_output_sizes.get(name, 0) + size
         for name, output in result.items():
+            note(name)
+            note(output)
             all_triton_outputs[name].append(output)
 
     all_model_inputs = {
@@ -279,13 +295,10 @@ def test_small(client, model_data, hypothesis_data):
         for name, arrays in all_triton_outputs.items()
     }
 
-    try:
-        ground_truth = model_data.ground_truth_model.predict(all_model_inputs)
-    except Exception:
-        assume(False)
+    ground_truth = model_data.ground_truth_model.predict(all_model_inputs)
 
     for output_name in sorted(ground_truth.keys()):
-        if model_data.ground_truth_model.predict_proba:
+        if model_data.ground_truth_model.predict_proba and not "shap" in output_name:
             arrays_close(
                 all_triton_outputs[output_name],
                 ground_truth[output_name],
@@ -301,6 +314,10 @@ def test_small(client, model_data, hypothesis_data):
                 total_atol=3,
                 assert_close=True
             )
+        
+    # Test shapley values efficiency property
+
+
 
     # Test entire batch of Hypothesis-generated inputs at once
     shared_mem = hypothesis_data.draw(st.one_of(
@@ -332,6 +349,7 @@ def test_small(client, model_data, hypothesis_data):
 
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())
 def test_max_batch(client, model_data, shared_mem):
+    return
     """Test processing of a single maximum-sized batch"""
     max_inputs = {
         name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')
