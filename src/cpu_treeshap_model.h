@@ -16,53 +16,32 @@
 
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <tl_model.h>
 #include <treeshap_model.h>
+#include <names.h>
+#include <tl_model.h>
 
 #include <cstddef>
-#include <cuml/explainer/tree_shap.hpp>
 #include <memory>
-#include <raft/handle.hpp>
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
 template <>
-struct TreeShapModel<rapids::DeviceMemory> {
-  using device_id_t = int;
+struct TreeShapModel <rapids::HostMemory>{
+  TreeShapModel() = default;
   TreeShapModel(
-      device_id_t device_id, cudaStream_t stream,
-      std::shared_ptr<TreeliteModel> tl_model)
-      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
-        path_info_{ML::Explainer::extract_path_info(tl_model_->handle())}
+      std::shared_ptr<TreeliteModel> tl_model):tl_model_(tl_model)
   {
   }
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t n_rows, std::size_t n_cols) const
-  {
-    // Need to synchronize on the stream because treeshap currently does not
-    // take a stream on its API
-    input.stream_synchronize();
-    ML::Explainer::gpu_treeshap(
-      path_info_,
-      ML::Explainer::FloatPointer(const_cast<float*>(input.data())),
-      n_rows,
-      n_cols,
-      ML::Explainer::FloatPointer(output.data()),
-      output.size()
-    );
-    output.stream_synchronize();
-  }
+      std::size_t n_rows, std::size_t n_cols) const{
 
- private:
-  raft::handle_t raft_handle_;
+        
+      }
   std::shared_ptr<TreeliteModel> tl_model_;
-  device_id_t device_id_;
-  ML::Explainer::TreePathHandle path_info_;
 };
-
 }}}  // namespace triton::backend::NAMESPACE

@@ -177,6 +177,7 @@ class GroundTruthModel:
         output = {'output__0' : result}
         if self._run_treeshap:
             explainer = cuml.explainer.TreeExplainer(model=self._treelite_model)
+            note(inputs['input__0'])
             treeshap_result = explainer.shap_values(inputs['input__0'])
             # reshape to the same output as triton
             # append expected value as the last column
@@ -223,6 +224,8 @@ def model_data(request, client, model_repo, skip_shap):
     output_class = (output_class == 'true')
 
     use_cpu = (config.instance_group[0].kind != 1)
+    if use_cpu:
+        output_sizes = {"output__0":output_sizes["output__0"]}
 
     ground_truth_model = GroundTruthModel(
         name, model_repo, model_format, predict_proba, output_class, use_cpu,
@@ -263,6 +266,7 @@ def test_small(client, model_data, hypothesis_data):
                 )
             ) for name, shape in model_data.input_shapes.items()
         }
+        
         if model_data.name == 'sklearn' or model_data.name == 'xgboost_shap':
             for array in model_inputs.values():
                 assume(not np.any(np.isnan(array)))
@@ -277,13 +281,15 @@ def test_small(client, model_data, hypothesis_data):
             model_data.name, model_inputs, model_data.output_sizes,
             shared_mem=shared_mem
         )
+        note(model_data.name)
+        note(model_data.output_sizes)
+        note(shared_mem)
+        note(result)
         for name, input_ in model_inputs.items():
             all_model_inputs[name].append(input_)
         for name, size in model_output_sizes.items():
             total_output_sizes[name] = total_output_sizes.get(name, 0) + size
         for name, output in result.items():
-            note(name)
-            note(output)
             all_triton_outputs[name].append(output)
 
     all_model_inputs = {

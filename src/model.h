@@ -21,16 +21,13 @@
 #include <gpu_forest_model.h>
 #ifdef TRITON_FIL_ENABLE_TREESHAP
 #include <gpu_treeshap_model.h>
-#else
-#include <treeshap_model.h>
 #endif
 #else
 #include <forest_model.h>
-#include <treeshap_model.h>
-
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 
+#include <cpu_treeshap_model.h>
 #include <cpu_forest_model.h>
 #include <names.h>
 #include <shared_state.h>
@@ -118,47 +115,30 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     output.finalize();
 
-    /* For running gpu treeshap
-     * Make sure that input and output buffers are in device memory
-     * for gpu treeshap */
-    if constexpr (rapids::IS_GPU_BUILD && IS_TREESHAP_BUILD) {
-      // boolean to check whether gpu treeshap will be executed
-      auto run_gpu_treeshap =
-          shared_state->check_output_name("treeshap_output");
+    // boolean to check whether gpu treeshap will be executed
+    auto run_treeshap =
+        shared_state->check_output_name("treeshap_output");
+    if (run_treeshap) {
+      auto treeshap_output = get_output<float>(batch, "treeshap_output");
+      auto treeshap_output_buffer = rapids::Buffer<float>(
+          treeshap_output.data(), treeshap_output.size(),
+          treeshap_output.mem_type(), treeshap_output.device(),
+          treeshap_output.stream());
 
-      if (run_gpu_treeshap) {
-        auto treeshap_output = get_output<float>(batch, "treeshap_output");
-        auto treeshap_output_buffer = rapids::Buffer<float>(
-            treeshap_output.data(), treeshap_output.size(),
-            treeshap_output.mem_type(), treeshap_output.device(),
-            treeshap_output.stream());
-
-        if (gpu_treeshap_model.has_value()) {
-          // Always copy input buffer to device memory
-          if (input_buffer.mem_type() == rapids::HostMemory) {
-            input_buffer = rapids::Buffer<float const>(
-                input_buffer, rapids::DeviceMemory, get_device_id());
-          }
-
-          // This will force a copy of the output buffer to device memory
-          if (input_buffer.mem_type() != treeshap_output_buffer.mem_type()) {
-            // Create output buffer in correct  location
-            treeshap_output_buffer = rapids::Buffer<float>(
-                treeshap_output.size(), input_buffer.mem_type(),
-                get_device_id(), get_stream());
-          }
-
+      if (gpu_treeshap_model.has_value() &&
+          input_buffer.mem_type() == rapids::DeviceMemory) {
+        if constexpr (rapids::IS_GPU_BUILD && IS_TREESHAP_BUILD) {
           // The shape of treeshap output is (, num_classes * (n_cols + 1))
           gpu_treeshap_model->predict(
               treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
         }
-
-        if (treeshap_output_buffer.mem_type() != treeshap_output.mem_type()) {
-          rapids::copy(treeshap_output.buffer(), treeshap_output_buffer);
-        }
-
-        treeshap_output.finalize();
       }
+      else{
+          cpu_treeshap_model.predict(
+              treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
+      }
+
+      treeshap_output.finalize();
     }
   }
 
@@ -215,6 +195,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         model_file(), shared_state->model_format(), shared_state->config(),
         shared_state->predict_proba(), shared_state->use_herring());
 
+
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
         gpu_model.emplace(get_device_id(), get_stream(), tl_model);
@@ -227,6 +208,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
       }
     }
     cpu_model = ForestModel<rapids::HostMemory>(tl_model);
+    cpu_treeshap_model = TreeShapModel<rapids::HostMemory>(tl_model);
   }
 
   std::optional<rapids::MemoryType> preferred_mem_type(
@@ -239,6 +221,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   std::optional<rapids::MemoryType> preferred_mem_type_{};
   std::size_t num_classes_{};
   ForestModel<rapids::HostMemory> cpu_model;
+  TreeShapModel<rapids::HostMemory> cpu_treeshap_model;
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
   std::optional<TreeShapModel<rapids::DeviceMemory>> gpu_treeshap_model{};
 };
