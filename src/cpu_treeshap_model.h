@@ -31,6 +31,18 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
+template <typename tl_threshold_t, typename tl_output_t>
+float
+leaf_probability(
+    const treelite::Tree<tl_threshold_t, tl_output_t>& tree, int node)
+{
+  if (tree.HasSumHess(node) && tree.HasSumHess(0)) {
+    return static_cast<double>(tree.SumHess(node) / tree.SumHess(0));
+  } else if (tree.HasDataCount(node) && tree.HasDataCount(0)) {
+    return static_cast<double>(tree.DataCount(node)) / tree.DataCount(0);
+  }
+}
+
 // The linear treeshap algorithm requires some extra info for each tree
 template<typename tl_threshold_t, typename tl_output_t>
 struct TreeMetaInfo{
@@ -39,8 +51,9 @@ struct TreeMetaInfo{
   std::vector<int> parents;
   int max_depth = 0;
   const treelite::Tree<tl_threshold_t, tl_output_t>& tree;
+  float global_bias;
 
-  int Recurse(int node, int parent = -1, int depth = 0, std::map<int, int> seen_features = std::map<int, int>())
+  std::pair<int, float> Recurse(int node, int parent = -1, int depth = 0, std::map<int, int> seen_features = std::map<int, int>())
   {
     if (node != 0) {
       auto feature = tree.SplitIndex(parent);
@@ -64,16 +77,18 @@ struct TreeMetaInfo{
       seen_features[feature] = node;
     }
 
+    float bias = 0.0f;
     if (!tree.IsLeaf(node)) {
-      auto left_max_features = Recurse(tree.LeftChild(node),node, depth + 1, seen_features);
-      auto right_max_features = Recurse(tree.RightChild(node), node,depth + 1, seen_features);
+      auto [left_max_features,left_bias] = Recurse(tree.LeftChild(node),node, depth + 1, seen_features);
+      auto [right_max_features,right_bias] = Recurse(tree.RightChild(node), node,depth + 1, seen_features);
       edge_heights[node] = std::max(left_max_features, right_max_features);
-
+      bias = left_bias + right_bias;
     } else {
       edge_heights[node] = seen_features.size();
       max_depth = std::max(max_depth, depth);
+      bias = leaf_probability(tree, node) * tree.LeafValue(node);
     }
-    return edge_heights[node];
+    return std::make_pair(edge_heights[node], bias);
   }
 
   explicit TreeMetaInfo(const treelite::Tree<tl_threshold_t, tl_output_t>& tree)
@@ -82,7 +97,8 @@ struct TreeMetaInfo{
     weights.resize(tree.num_nodes, 1.0f);
     parents.resize(tree.num_nodes, -1);
     edge_heights.resize(tree.num_nodes);
-    Recurse(0);
+    auto [_, bias] = Recurse(0);
+    global_bias = bias;
   }
 };
 
@@ -198,17 +214,6 @@ decision(
   }
 }
 
-template <typename tl_threshold_t, typename tl_output_t>
-float
-leaf_probability(
-    const treelite::Tree<tl_threshold_t, tl_output_t>& tree, int node)
-{
-  if (tree.HasSumHess(node) && tree.HasSumHess(0)) {
-    return static_cast<double>(tree.SumHess(node) / tree.SumHess(0));
-  } else if (tree.HasDataCount(node) && tree.HasDataCount(0)) {
-    return static_cast<double>(tree.DataCount(node)) / tree.DataCount(0);
-  }
-}
 
 template <typename tl_threshold_t, typename tl_output_t>
 void inference(const TreeMetaInfo<tl_threshold_t, tl_output_t> &tree_info,
@@ -301,8 +306,9 @@ template <typename tl_threshold_t, typename tl_output_t>
 void
 linear_treeshap(
     const TreeMetaInfo<tl_threshold_t, tl_output_t>& tree_info,
-    float* output, float const* input)
+    float* output, float const* input, std::size_t n_cols)
 {
+  output[n_cols] += tree_info.global_bias;
   int size = (tree_info.max_depth + 1) * tree_info.max_depth;
   std::vector<float> C(size, 1);
   std::vector<float> E(size);
@@ -336,7 +342,7 @@ struct TreeShapModel<rapids::HostMemory> {
           for (auto i = 0; i < n_rows; i++) {
             linear_treeshap(
                 info[tree_idx], output.data() + i * (n_cols + 1),
-                input.data() + i * n_cols);
+                input.data() + i * n_cols, n_cols);
           }
         }
         // Scale output
@@ -344,6 +350,7 @@ struct TreeShapModel<rapids::HostMemory> {
         for (auto i = 0; i < output.size(); i++) {
           output.data()[i] = output.data()[i] * scale + model.param.global_bias;
         }
+
       });
   }
   std::shared_ptr<TreeliteModel> tl_model_;
