@@ -230,6 +230,19 @@ using tl_dispatched_model = std::variant<
   simple_model<double, std::uint32_t, std::uint32_t, std::uint32_t, std::vector<double>>
 >;
 
+
+template<typename tl_threshold_t, typename tl_output_t>
+auto get_average_factor(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model) {
+  if (tl_model.average_tree_output) {
+    if (tl_model.task_type == treelite::TaskType::kMultiClfGrovePerClass) {
+      return float(tl_model.trees.size() /  tl_model.task_param.num_class);
+    } else {
+      return float(tl_model.trees.size());
+    }
+  }
+  return 1.0f;
+}
+
 template<std::size_t model_variant_index, typename tl_threshold_t, typename tl_output_t>
 auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model) {
   using model_type = std::variant_alternative_t<model_variant_index, tl_dispatched_model>;
@@ -246,15 +259,7 @@ auto convert_dispatched_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> c
 
   result.num_class = tl_model.task_param.num_class;
   result.num_feature = tl_model.num_feature;
-  if (tl_model.average_tree_output) {
-    if (tl_model.task_type == treelite::TaskType::kMultiClfGrovePerClass) {
-      result.average_factor = tl_model.trees.size() / result.num_class;
-    } else {
-      result.average_factor = tl_model.trees.size();
-    }
-  } else {
-    result.average_factor = 1.0f;
-  }
+  result.average_factor = get_average_factor(tl_model);
   result.bias = tl_model.param.global_bias;
 
   result.set_element_postproc(element_op::disable);

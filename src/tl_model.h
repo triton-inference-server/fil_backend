@@ -73,6 +73,7 @@ struct TreeliteModel {
   TreeliteModel& operator=(TreeliteModel&& other) = default;
   ~TreeliteModel() = default;
 
+  auto base_tl_model() const { return base_tl_model_.get(); }
   auto* handle() const { return static_cast<void*>(base_tl_model_.get()); }
   auto num_classes() const { return num_classes_; }
   auto& config() const { return *tl_config_; }
