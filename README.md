@@ -152,7 +152,7 @@ dynamic_batching {}
 ```
 docker run -p 8000:8000 -p 8001:8001 --gpus all \
   -v ${PWD}/model_repository:/models \
-  nvcr.io/nvidia/tritonserver:22.12-py3 \
+  nvcr.io/nvidia/tritonserver:23.01-py3 \
   tritonserver --model-repository=/models
 ```
 
