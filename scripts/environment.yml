@@ -8,4 +8,4 @@ dependencies:
   - cuml=23.02
   - python=3.8
   - scikit-learn
-  - treelite=3.0.1
+  - treelite
