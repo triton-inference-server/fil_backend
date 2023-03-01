@@ -4,7 +4,7 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - aws-sdk-cpp<1.9
+  - aws-sdk-cpp
   - clang-tools=11.1.0
   - cudatoolkit=11.5
   - cudf=23.02
