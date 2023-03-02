@@ -24,8 +24,8 @@ set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/co
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:23.01-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "23.01" CACHE STRING "Triton version for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:23.02-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "23.02" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>

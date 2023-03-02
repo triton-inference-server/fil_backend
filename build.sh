@@ -198,7 +198,7 @@ if [ -z $TRITON_VERSION ] && [ $HOST_BUILD -eq 1 ]
 then
   # Must use a version compatible with a released backend image in order to
   # test a host build, so default to latest release branch rather than main
-  TRITON_VERSION=23.01
+  TRITON_VERSION=23.02
 fi
 
 if [ ! -z $TRITON_VERSION ]
