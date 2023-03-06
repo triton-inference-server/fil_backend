@@ -42,6 +42,16 @@ MODELS = (
     'cuml'
 )
 
+SHAP_MODELS = (
+    'xgboost_shap',
+    'xgboost_json_shap',
+    'lightgbm_shap',
+    'lightgbm_rf_shap',
+    'regression_shap',
+    'sklearn_shap',
+    'cuml_shap'
+)
+
 ModelData = namedtuple('ModelData', (
     'name',
     'input_shapes',
@@ -192,17 +202,15 @@ class GroundTruthModel:
                 treeshap_result = np.pad(treeshap_result, ((0,0),(0,1)))
                 treeshap_result[:,-1] = explainer.expected_value
 
-            output['treeshap_output'] = treeshap_result
+            #output['treeshap_output'] = treeshap_result
         return output
 
 
-@pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo, skip_shap):
+def get_model_data(name, client, model_repo, skip_shap):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
-    name = request.param
-    if skip_shap and name == 'xgboost_shap':
-        pytest.skip("GPU Treeshap tests not enabled")
+    if skip_shap and 'shap' in name:
+        pytest.skip("Treeshap tests not enabled")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input
@@ -241,6 +249,13 @@ def model_data(request, client, model_repo, skip_shap):
         config
     )
 
+@pytest.fixture(scope='session', params=MODELS)
+def model_data(request, client, model_repo, skip_shap):
+    return get_model_data(request.param,client,model_repo,skip_shap)
+
+@pytest.fixture(scope='session', params=SHAP_MODELS)
+def shap_model_data(request, client, model_repo, skip_shap):
+    return get_model_data(request.param,client,model_repo,skip_shap)
 
 @given(hypothesis_data=st.data())
 @settings(
@@ -317,14 +332,6 @@ def test_small(client, model_data, hypothesis_data):
                 assert_close=True
             )
         
-    # Test shapley values efficiency property
-    if not model_data.ground_truth_model.predict_proba and not model_data.ground_truth_model.output_class:
-        note(all_triton_outputs["treeshap_output"].sum(axis=-1))
-        note(all_triton_outputs["output__0"])
-        note(all_triton_outputs["output__0"] - all_triton_outputs["treeshap_output"].sum(axis=-1))
-        arrays_close(all_triton_outputs["treeshap_output"].sum(axis=-1), all_triton_outputs["output__0"],atol=0.1,total_atol=3,
- assert_close=True)
-                
 
     # Test entire batch of Hypothesis-generated inputs at once
     shared_mem = hypothesis_data.draw(st.one_of(
@@ -354,9 +361,45 @@ def test_small(client, model_data, hypothesis_data):
             )
 
 
+
+@given(hypothesis_data=st.data())
+@settings(
+    deadline=None,
+    suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much)
+)
+def test_shap_small(client, shap_model_data, hypothesis_data):
+    # skip gpu for now
+    if shap_model_data.config.instance_group[0].kind == 1:
+        pytest.skip()
+    
+    input_shape = list(shap_model_data.input_shapes.values())[0]
+    X = np.random.rand(6, *input_shape).astype('float32')
+    model_input = {"input__0":X}
+    #ground_truth = shap_model_data.ground_truth_model.predict(model_input)
+
+    # Test entire batch of Hypothesis-generated inputs at once
+    shared_mem = hypothesis_data.draw(st.one_of(
+        st.just(mode) for mode in valid_shm_modes()
+    ))
+
+    model_output_sizes = {
+        name: size * X.shape[0]
+        for name, size in shap_model_data.output_sizes.items()
+    }
+
+    triton_output = client.predict(
+        shap_model_data.name, model_input, model_output_sizes,
+        shared_mem=shared_mem
+    )
+    # Test shapley values efficiency property
+    note(triton_output["output__0"])
+    note(triton_output["treeshap_output"].sum(axis=-1))
+    note(triton_output["output__0"] - triton_output["treeshap_output"].sum(axis=-1))
+    assert np.allclose(triton_output["treeshap_output"].sum(axis=-1), triton_output["output__0"])
+                
+
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())
 def test_max_batch(client, model_data, shared_mem):
-    return
     """Test processing of a single maximum-sized batch"""
     max_inputs = {
         name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ leaf_probability(
   } else if (tree.HasDataCount(node) && tree.HasDataCount(0)) {
     return static_cast<double>(tree.DataCount(node)) / tree.DataCount(0);
   }
+  return 0.0f;
 }
 
 // The linear treeshap algorithm requires some extra info for each tree
@@ -52,6 +53,7 @@ struct TreeMetaInfo{
   int max_depth = 0;
   const treelite::Tree<tl_threshold_t, tl_output_t>& tree;
   float global_bias;
+  int class_idx;
 
   std::pair<int, float> Recurse(int node, int parent = -1, int depth = 0, std::map<int, int> seen_features = std::map<int, int>())
   {
@@ -86,13 +88,14 @@ struct TreeMetaInfo{
     } else {
       edge_heights[node] = seen_features.size();
       max_depth = std::max(max_depth, depth);
-      bias = leaf_probability(tree, node) * tree.LeafValue(node);
+      float leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[class_idx] : tree.LeafValue(node);
+      bias = leaf_probability(tree, node) * leaf_value;
     }
     return std::make_pair(edge_heights[node], bias);
   }
 
-  explicit TreeMetaInfo(const treelite::Tree<tl_threshold_t, tl_output_t>& tree)
-      : tree(tree)
+  explicit TreeMetaInfo(const treelite::Tree<tl_threshold_t, tl_output_t>& tree, int class_idx)
+      : tree(tree),class_idx(class_idx)
   {
     weights.resize(tree.num_nodes, 1.0f);
     parents.resize(tree.num_nodes, -1);
@@ -102,7 +105,7 @@ struct TreeMetaInfo{
   }
 };
 
-// Helper to strip types from treelite
+// Helper to get types from treelite
 template<typename tl_threshold_t, typename tl_output_t>
 auto get_tree_meta_info_vector(const treelite::ModelImpl<tl_threshold_t, tl_output_t>&){
   return std::vector<TreeMetaInfo<tl_threshold_t, tl_output_t>>{};
@@ -279,8 +282,9 @@ void inference(const TreeMetaInfo<tl_threshold_t, tl_output_t> &tree_info,
       addition(child_e, current_e, tree_info.max_depth);
     } else {
 
+      float leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[tree_info.class_idx] : tree.LeafValue(node);
       times(
-          current_c, current_e, tree.LeafValue(node) * leaf_probability(tree, node),
+          current_c, current_e, leaf_value * leaf_probability(tree, node),
           tree_info.max_depth);
     }
 
@@ -322,10 +326,12 @@ struct TreeShapModel<rapids::HostMemory> {
   TreeShapModel(
       std::shared_ptr<TreeliteModel> tl_model):tl_model_(tl_model)
   {
-
-    
+      tl_model_->base_tl_model()->Dispatch([&](const auto& model) {
+              rapids::log_info(__FILE__, __LINE__) << "Leaf vector size: " << model.task_param.leaf_vector_size;
+              rapids::log_info(__FILE__, __LINE__) << "Num class" << model.task_param.num_class;
+              rapids::log_info(__FILE__, __LINE__) << "Task " << static_cast<int>(model.task_type);
+      });
   }
-
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
@@ -333,16 +339,27 @@ struct TreeShapModel<rapids::HostMemory> {
   {
       tl_model_->base_tl_model()->Dispatch([&](const auto& model) {
         auto info = get_tree_meta_info_vector(model);
-        info.reserve(model.trees.size());
-        for (auto tree_idx = 0; tree_idx < model.trees.size(); ++tree_idx) {
-          info.push_back(
-              typename decltype(info)::value_type(model.trees[tree_idx]));
+        int num_class = std::max(model.task_param.num_class, model.task_param.leaf_vector_size);
+        bool is_vector_leaf = model.task_param.leaf_vector_size > 1;
+        int num_info = is_vector_leaf ? model.trees.size() * num_class
+                                      : model.trees.size();
+        info.reserve(num_info);
+        // Deal with vector leaf models by duplicating the meta info structs once for each class of a tree
+        for (auto info_idx = 0; info_idx < num_info; info_idx++) {
+          auto class_idx = info_idx % num_class;
+          auto tree_idx = is_vector_leaf ? info_idx / num_class : info_idx;
+          info.push_back(typename decltype(info)::value_type(
+              model.trees.at(tree_idx), class_idx));
         }
-        for (auto tree_idx = 0; tree_idx < model.trees.size(); tree_idx++) {
-          for (auto i = 0; i < n_rows; i++) {
+        for (auto i = 0; i < n_rows; i++) {
+          for (auto info_idx = 0; info_idx < num_info; info_idx++) {
+            // One class per tree
+            auto output_offset =
+                output.data() + (i * num_class + info[info_idx].class_idx) * (n_cols + 1);
             linear_treeshap(
-                info[tree_idx], output.data() + i * (n_cols + 1),
-                input.data() + i * n_cols, n_cols);
+                info[info_idx], output_offset, input.data() + i * n_cols,
+                n_cols);
+                
           }
         }
         // Scale output
@@ -350,7 +367,6 @@ struct TreeShapModel<rapids::HostMemory> {
         for (auto i = 0; i < output.size(); i++) {
           output.data()[i] = output.data()[i] * scale + model.param.global_bias;
         }
-
       });
   }
   std::shared_ptr<TreeliteModel> tl_model_;

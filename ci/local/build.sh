@@ -38,7 +38,7 @@ fi
 echo "Building Docker images..."
 $REPO_DIR/build.sh $BUILD_ARGS
 
-DOCKER_ARGS="-t -v ${QA_DIR}/logs:/qa/logs"
+DOCKER_ARGS="-t -v ${QA_DIR}/logs:/qa/logs -m 10g"
 
 if [ -z $CUDA_VISIBLE_DEVICES ]
 then

@@ -43,6 +43,21 @@ then
   models+=( $name )
 fi
 
+name=xgboost_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --depth 11 \
+    --trees 2000 \
+    --classes 3 \
+    --features 500 \
+    --storage_type SPARSE \
+    --generate_shapley_values \
+    --predict_proba
+  models+=( $name )
+fi
+
 name=xgboost_json
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then
@@ -56,6 +71,19 @@ then
   models+=( $name )
 fi
 
+name=xgboost_json_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format xgboost_json \
+    --depth 7 \
+    --trees 500 \
+    --features 500 \
+    --generate_shapley_values 
+  models+=( $name )
+fi
+
 name=lightgbm
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then
@@ -65,8 +93,21 @@ then
     --type lightgbm \
     --depth 3 \
     --trees 2000 \
+    --cat_features 3
+  models+=( $name )
+fi
+
+name=lightgbm_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format lightgbm \
+    --type lightgbm \
+    --depth 3 \
+    --trees 2000 \
     --cat_features 3 \
-    --predict_proba
+    --generate_shapley_values
   models+=( $name )
 fi
 
@@ -80,6 +121,21 @@ then
     --depth 10 \
     --trees 20 \
     --classes 10
+  models+=( $name )
+fi
+
+name=lightgbm_rf_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format lightgbm \
+    --type lightgbm_rf \
+    --depth 10 \
+    --trees 20 \
+    --classes 10 \
+    --generate_shapley_values \
+    --predict_proba
   models+=( $name )
 fi
 
@@ -97,6 +153,21 @@ then
   models+=( $name )
 fi
 
+name=regression_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format lightgbm \
+    --type lightgbm \
+    --depth 25 \
+    --trees 10 \
+    --features 400 \
+    --task regression \
+    --generate_shapley_values
+  models+=( $name )
+fi
+
 name=sklearn
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then
@@ -106,6 +177,21 @@ then
     --depth 3 \
     --trees 10 \
     --features 500 \
+    --predict_proba
+  models+=( $name )
+fi
+$SKLEARN_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
+
+name=sklearn_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --type sklearn \
+    --depth 3 \
+    --trees 10 \
+    --features 500 \
+    --generate_shapley_values \
     --predict_proba
   models+=( $name )
 fi
@@ -122,6 +208,22 @@ then
     --max_batch_size 32768 \
     --features 500 \
     --task regression
+  models+=( $name )
+fi
+$CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
+
+name=cuml_shap
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --type cuml \
+    --depth 3 \
+    --trees 10 \
+    --max_batch_size 32768 \
+    --features 500 \
+    --task regression \
+    --generate_shapley_values
   models+=( $name )
 fi
 $CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
