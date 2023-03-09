@@ -60,7 +60,7 @@ struct TreeShapModel {
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t n_rows, std::size_t n_cols) const
+      std::size_t n_rows, std::size_t n_cols, bool predict_proba) const
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,

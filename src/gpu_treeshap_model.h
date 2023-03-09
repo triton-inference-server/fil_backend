@@ -42,7 +42,7 @@ struct TreeShapModel<rapids::DeviceMemory> {
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
-      std::size_t n_rows, std::size_t n_cols) const
+      std::size_t n_rows, std::size_t n_cols, bool predict_proba) const
   {
     // Need to synchronize on the stream because treeshap currently does not
     // take a stream on its API
