@@ -75,7 +75,7 @@ def valid_shm_modes():
 def client():
     """A RAPIDS-Triton client for submitting inference requests"""
     client = Client()
-    client.wait_for_server(10)
+    client.wait_for_server(120)
     return client
 
 
@@ -332,6 +332,7 @@ def test_small(client, model_data, hypothesis_data):
                 assert_close=True
             )
         
+
     # Test entire batch of Hypothesis-generated inputs at once
     shared_mem = hypothesis_data.draw(st.one_of(
         st.just(mode) for mode in valid_shm_modes()
@@ -394,7 +395,7 @@ def test_shap_small(client, shap_model_data, hypothesis_data):
     note(triton_output["output__0"])
     note(triton_output["treeshap_output"].sum(axis=-1))
     note(triton_output["output__0"] - triton_output["treeshap_output"].sum(axis=-1))
-    assert np.allclose(triton_output["treeshap_output"].sum(axis=-1), triton_output["output__0"], atol=1e-2, rtol=1e-2)
+    assert np.allclose(triton_output["treeshap_output"].sum(axis=-1), triton_output["output__0"])
                 
 
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())

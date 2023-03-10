@@ -130,12 +130,12 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         if constexpr (rapids::IS_GPU_BUILD && IS_TREESHAP_BUILD) {
           // The shape of treeshap output is (, num_classes * (n_cols + 1))
           gpu_treeshap_model->predict(
-              treeshap_output_buffer, input_buffer, samples, input.shape()[1], shared_state->predict_proba());
+              treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
         }
       }
       else{
           cpu_treeshap_model.predict(
-              treeshap_output_buffer, input_buffer, samples, input.shape()[1], shared_state->predict_proba());
+              treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
       }
 
       treeshap_output.finalize();

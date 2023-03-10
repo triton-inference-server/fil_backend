@@ -333,35 +333,9 @@ struct TreeShapModel<rapids::HostMemory> {
       });
   }
 
-  // In some cases triton wants to output both negative and positive classes
-  // However treelite has num_class set to 1 in the xgboost style of outputting only positive class
-  // Mirror the output to get the negative class also
-  void correct_probability_output(
-      rapids::Buffer<float>& output, std::size_t n_rows,
-      std::size_t n_cols) const
-  {
-      std::vector<float> tmp(output.size());
-      auto bias = output.data()[n_cols];
-      for (std::size_t i = 0; i < n_rows; i++) {
-        for (std::size_t j = 0; j < n_cols; j++) {
-          auto positive_class_output_idx = (i * 2 + 1) * (n_cols + 1) + j;
-          auto negative_class_output_idx = (i * 2) * (n_cols + 1) + j;
-          auto old_idx = i * (n_cols + 1) + j;
-          tmp[positive_class_output_idx] = output.data()[old_idx];
-          tmp[negative_class_output_idx] = -output.data()[old_idx];
-        }
-        // Bias
-        tmp[(i * 2 + 1) * (n_cols + 1) + n_cols] = bias;
-        tmp[(i * 2) * (n_cols + 1) + n_cols] = 1.0f - bias;
-      }
-      for (std::size_t i = 0; i < output.size(); i++) {
-        output.data()[i] = tmp[i];
-      }
-  }
-
   void predict(
-      rapids::Buffer<float>& output, rapids::Buffer<float const> const& input, 
-      std::size_t n_rows, std::size_t n_cols, bool predict_proba) const
+      rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
+      std::size_t n_rows, std::size_t n_cols) const
   {
       tl_model_->base_tl_model()->Dispatch([&](const auto& model) {
         auto info = get_tree_meta_info_vector(model);
@@ -392,10 +366,6 @@ struct TreeShapModel<rapids::HostMemory> {
         auto scale = 1.0f / herring::get_average_factor(model);
         for (auto i = 0; i < output.size(); i++) {
           output.data()[i] = output.data()[i] * scale + model.param.global_bias;
-        }
-
-        if(model.task_param.num_class == 1 && predict_proba){
-          this->correct_probability_output(output, n_rows,n_cols);
         }
       });
   }
