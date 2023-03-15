@@ -93,7 +93,8 @@ then
     --type lightgbm_rf \
     --depth 10 \
     --trees 20 \
-    --classes 10
+    --classes 10 \
+    --predict_proba
   models+=( $name )
 fi
 

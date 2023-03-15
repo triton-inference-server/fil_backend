@@ -44,6 +44,9 @@ struct TreeliteModel {
           if (!predict_proba && tl_config_->output_class && num_classes > 1) {
             std::strcpy(result->param.pred_transform, "max_index");
           }
+          if (predict_proba && result->task_type == treelite::TaskType::kMultiClfGrovePerClass) {
+            std::strcpy(result->param.pred_transform, "softmax");
+          }
           return result;
         }()},
         num_classes_{tl_get_num_classes(*base_tl_model_)},

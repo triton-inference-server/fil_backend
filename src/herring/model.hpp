@@ -183,7 +183,7 @@ namespace herring {
             ) / average_factor, output + row_index * num_class + class_index);
           }
           if (row_postproc == row_op::softmax) {
-            auto const row_begin = output + row_index;
+            auto const row_begin = output + row_index * num_class;
             auto const row_end = row_begin + num_class;
             auto const max_value = *std::max_element(row_begin, row_end);
             std::transform(
@@ -196,7 +196,7 @@ namespace herring {
             std::transform(
               row_begin,
               row_end,
-              output + row_index,
+              output + row_index * num_class,
               [&normalization](auto const& val) {
                 return val / normalization;
               }
