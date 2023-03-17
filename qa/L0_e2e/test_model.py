@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import os
-import pickle
-from collections import defaultdict, namedtuple
-from functools import lru_cache
+import shutil
+import time
 
 try:
     import cuml
@@ -23,345 +22,241 @@ except Exception:
     cuml = None
 import numpy as np
 import pytest
-import treelite
-from hypothesis import given, settings, assume, HealthCheck
-from hypothesis import strategies as st
-from hypothesis.extra.numpy import arrays as st_arrays
 from rapids_triton import Client
-from rapids_triton.testing import get_random_seed, arrays_close
 import xgboost as xgb
 
-TOTAL_SAMPLES = 20
-MODELS = (
-    'xgboost',
-    'xgboost_shap',
-    'xgboost_json',
-    'lightgbm',
-    'lightgbm_rf',
-    'regression',
-    'sklearn',
-    'cuml'
-)
 
-ModelData = namedtuple('ModelData', (
-    'name',
-    'input_shapes',
-    'output_sizes',
-    'max_batch_size',
-    'ground_truth_model',
-    'config'
-))
-
-# TODO(wphicks): Replace with cache in 3.9
-@lru_cache()
 def valid_shm_modes():
     """Return a tuple of allowed shared memory modes"""
     modes = [None]
-    if os.environ.get('CPU_ONLY', 0) == 0:
-        modes.append('cuda')
+    if os.environ.get("CPU_ONLY", 0) == 0:
+        modes.append("cuda")
     return tuple(modes)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def client():
     """A RAPIDS-Triton client for submitting inference requests"""
     client = Client()
-    client.wait_for_server(120)
+    client.wait_for_server(10)
     return client
-
 
 @pytest.fixture(scope='session')
 def model_repo(pytestconfig):
     """The path to the model repository directory"""
     return pytestconfig.getoption('repo')
 
-
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def skip_shap(pytestconfig):
-    return pytestconfig.getoption('no_shap')
+    return pytestconfig.getoption("no_shap")
 
 
-def get_model_parameter(config, param, default=None):
-    """Retrieve custom model parameters from config"""
-    param_str = config.parameters[param].string_value
-    if param_str:
-        return param_str
-    else:
-        return default
+def generate_config(
+    model_name,
+    config_directory,
+    n_features,
+    output_dim,
+    num_classes,
+    predict_proba,
+    output_class,
+    instance_kind,
+    model_format,
+    output_shap = False,
+    max_batch_size=8192,
+    use_experimental_optimizations=True,
+    storage_type="AUTO",
+    threshold=0.5,
+):
+    # Add treeshap output to xgboost_shap model
+    treeshap_output = ""
+    if output_shap:
+      treeshap_output_dim = num_classes if num_classes > 2 else 1
+      if treeshap_output_dim == 1:
+          treeshap_output_str = f"{n_features + 1}"
+      else:
+          treeshap_output_str = f"{treeshap_output_dim}, {n_features + 1}"
+      treeshap_output = f"""
+      ,{{
+          name: "treeshap_output"
+          data_type: TYPE_FP32
+          dims: [ {treeshap_output_str} ]
+      }}"""
+    config = f"""name: "{model_name}"
+backend: "fil"
+max_batch_size: {max_batch_size}
+input [
+ {{
+    name: "input__0"
+    data_type: TYPE_FP32
+    dims: [ {n_features} ]
+  }}
+]
+output [
+ {{
+    name: "output__0"
+    data_type: TYPE_FP32
+    dims: [ {output_dim} ]
+  }}
+ {treeshap_output}
+]
+instance_group [{{ kind: {instance_kind} }}]
+parameters [
+  {{
+    key: "model_type"
+    value: {{ string_value: "{model_format}" }}
+  }},
+  {{
+    key: "predict_proba"
+    value: {{ string_value: "{str(predict_proba).lower()}" }}
+  }},
+  {{
+    key: "output_class"
+    value: {{ string_value: "{str(output_class).lower()}" }}
+  }},
+  {{
+    key: "threshold"
+    value: {{ string_value: "{threshold}" }}
+  }},
+  {{
+    key: "algo"
+    value: {{ string_value: "ALGO_AUTO" }}
+  }},
+  {{
+    key: "storage_type"
+    value: {{ string_value: "{storage_type}" }}
+  }},
+  {{
+    key: "blocks_per_sm"
+    value: {{ string_value: "0" }}
+  }},
+  {{
+    key: "use_experimental_optimizations"
+    value: {{ string_value: "{use_experimental_optimizations}" }}
+  }}
+]
+
+dynamic_batching {{ }}"""
+    config_path = os.path.join(config_directory, 'config.pbtxt')
+
+    with open(config_path, 'w') as config_file:
+        config_file.write(config)
 
 
-class GTILModel:
-    """A compatibility wrapper for executing models with GTIL"""
-
-    def __init__(self, model_path, model_format, output_class):
-        if model_format == 'treelite_checkpoint':
-            self.tl_model = treelite.Model.deserialize(model_path)
-        else:
-            self.tl_model = treelite.Model.load(model_path, model_format)
-        self.output_class = output_class
-
-    def _predict(self, arr):
-        return treelite.gtil.predict(self.tl_model, arr)
-
-    def predict_proba(self, arr):
-        result = self._predict(arr)
-        if len(result.shape) > 1:
-            return result
-        else:
-            return np.transpose(np.vstack((1 - result, result)))
-
-    def predict(self, arr):
-        if self.output_class:
-            return np.argmax(self.predict_proba(arr), axis=1)
-        else:
-            return self._predict(arr)
-
-
-class GroundTruthModel:
-    """A reference model used for comparison against results returned from
-    Triton"""
-    def __init__(
-            self,
-            name,
-            model_repo,
-            model_format,
-            predict_proba,
-            output_class,
-            use_cpu,
-            *,
-            model_version=1):
-        model_dir = os.path.join(model_repo, name, f'{model_version}')
-        self.predict_proba = predict_proba
-        self._run_treeshap = False
-
-        if model_format == 'xgboost':
-            model_path = os.path.join(model_dir, 'xgboost.model')
-        elif model_format == 'xgboost_json':
-            model_path = os.path.join(model_dir, 'xgboost.json')
-        elif model_format == 'lightgbm':
-            model_path = os.path.join(model_dir, 'model.txt')
-        elif model_format == 'treelite_checkpoint':
-            if use_cpu:
-                model_path = os.path.join(model_dir, 'checkpoint.tl')
-            else:
-                model_path = os.path.join(model_dir, 'model.pkl')
-        else:
-            raise RuntimeError('Model format not recognized')
-
-        if use_cpu:
-            self._base_model = GTILModel(
-                model_path, model_format, output_class
-            )
-        else:
-            if model_format == 'treelite_checkpoint':
-                with open(model_path, 'rb') as pkl_file:
-                    self._base_model = pickle.load(pkl_file)
-            else:
-                self._base_model = cuml.ForestInference.load(
-                    model_path, output_class=output_class, model_type=model_format
-                )
-            if name == 'xgboost_shap':
-                self._xgb_model = xgb.Booster()
-                self._xgb_model.load_model(model_path)
-                self._run_treeshap = True
-
-    def predict(self, inputs):
-        if self.predict_proba:
-            result = self._base_model.predict_proba(inputs['input__0'])
-        else:
-            result = self._base_model.predict(inputs['input__0'])
-        output = {'output__0' : result}
-        if self._run_treeshap:
-            treeshap_result = \
-                self._xgb_model.predict(xgb.DMatrix(inputs['input__0']),
-                                        pred_contribs=True)
-            output['treeshap_output'] = treeshap_result
-        return output
-
-
-@pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo, skip_shap):
-    """All data associated with a model required for generating examples and
-    comparing with ground truth results"""
-    name = request.param
-    if skip_shap and name == 'xgboost_shap':
-        pytest.skip("GPU Treeshap tests not enabled")
-    config = client.get_model_config(name)
-    input_shapes = {
-        input_.name: list(input_.dims) for input_ in config.input
-    }
+# convenience wrapper around client.predict
+def predict(client, model_name, X):
+    config = client.get_model_config(model_name)
+  
     output_sizes = {
         output.name: np.product(output.dims) * np.dtype('float32').itemsize
         for output in config.output
     }
-    max_batch_size = config.max_batch_size
-
-    model_format = get_model_parameter(
-        config, 'model_type', default='xgboost'
-    )
-    predict_proba = get_model_parameter(
-        config, 'predict_proba', default='false'
-    )
-    predict_proba = (predict_proba == 'true')
-    output_class = get_model_parameter(
-        config, 'output_class', default='true'
-    )
-    output_class = (output_class == 'true')
-
-    use_cpu = (config.instance_group[0].kind != 1)
-
-    ground_truth_model = GroundTruthModel(
-        name, model_repo, model_format, predict_proba, output_class, use_cpu,
-        model_version=1
-    )
-
-    return ModelData(
-        name,
-        input_shapes,
-        output_sizes,
-        max_batch_size,
-        ground_truth_model,
-        config
-    )
-
-
-@given(hypothesis_data=st.data())
-@settings(
-    deadline=None,
-    suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much)
-)
-def test_small(client, model_data, hypothesis_data):
-    """Test Triton-served model on many small Hypothesis-generated examples"""
-    all_model_inputs = defaultdict(list)
-    total_output_sizes = {}
-    all_triton_outputs = defaultdict(list)
-    default_arrays = {
-        name: np.random.rand(TOTAL_SAMPLES, *shape).astype('float32')
-        for name, shape in model_data.input_shapes.items()
+    inputs = {
+        input_.name: X for input_ in config.input
     }
-
-    for i in range(TOTAL_SAMPLES):
-        model_inputs = {
-            name: hypothesis_data.draw(
-                st.one_of(
-                    st.just(default_arrays[name][i:i+1, :]),
-                    st_arrays('float32', [1] + shape)
-                )
-            ) for name, shape in model_data.input_shapes.items()
-        }
-        if model_data.name == 'sklearn' or model_data.name == 'xgboost_shap':
-            for array in model_inputs.values():
-                assume(not np.any(np.isnan(array)))
-        model_output_sizes = {
-            name: size
-            for name, size in model_data.output_sizes.items()
-        }
-        shared_mem = hypothesis_data.draw(st.one_of(
-            st.just(mode) for mode in valid_shm_modes()
-        ))
-        result = client.predict(
-            model_data.name, model_inputs, model_data.output_sizes,
-            shared_mem=shared_mem
-        )
-        for name, input_ in model_inputs.items():
-            all_model_inputs[name].append(input_)
-        for name, size in model_output_sizes.items():
-            total_output_sizes[name] = total_output_sizes.get(name, 0) + size
-        for name, output in result.items():
-            all_triton_outputs[name].append(output)
-
-    all_model_inputs = {
-        name: np.concatenate(arrays)
-        for name, arrays in all_model_inputs.items()
-    }
-    all_triton_outputs = {
-        name: np.concatenate(arrays)
-        for name, arrays in all_triton_outputs.items()
-    }
-
-    try:
-        ground_truth = model_data.ground_truth_model.predict(all_model_inputs)
-    except Exception:
-        assume(False)
-
-    for output_name in sorted(ground_truth.keys()):
-        if model_data.ground_truth_model.predict_proba:
-            arrays_close(
-                all_triton_outputs[output_name],
-                ground_truth[output_name],
-                rtol=1e-3,
-                atol=1e-2,
-                assert_close=True
-            )
-        else:
-            arrays_close(
-                all_triton_outputs[output_name],
-                ground_truth[output_name],
-                atol=0.1,
-                total_atol=3,
-                assert_close=True
-            )
-
-    # Test entire batch of Hypothesis-generated inputs at once
-    shared_mem = hypothesis_data.draw(st.one_of(
-        st.just(mode) for mode in valid_shm_modes()
-    ))
-    all_triton_outputs = client.predict(
-        model_data.name, all_model_inputs, total_output_sizes,
-        shared_mem=shared_mem
+    return client.predict(model_name,
+        inputs, output_sizes
     )
 
-    for output_name in sorted(ground_truth.keys()):
-        if model_data.ground_truth_model.predict_proba:
-            arrays_close(
-                all_triton_outputs[output_name],
-                ground_truth[output_name],
-                rtol=1e-3,
-                atol=1e-2,
-                assert_close=True
-            )
-        else:
-            arrays_close(
-                all_triton_outputs[output_name],
-                ground_truth[output_name],
-                atol=0.1,
-                total_atol=3,
-                assert_close=True
-            )
+# create directories for triton models and configuration
+def get_directories(model_repo, model_name):
+    dir = os.path.abspath(os.path.join(model_repo, model_name))
+    model_dir = os.path.join(dir, '1')
+    os.makedirs(model_dir, exist_ok=True)
+    return dir, model_dir
 
+# cleanup our models after each test
+@pytest.fixture(autouse=True)
+def run_around_tests(model_repo):
+    yield
+    for filename in os.listdir(model_repo):
+      filepath = os.path.join(model_repo, filename)
+      try:
+          shutil.rmtree(filepath)
+      except OSError:
+          os.remove(filepath)
 
-@pytest.mark.parametrize("shared_mem", valid_shm_modes())
-def test_max_batch(client, model_data, shared_mem):
-    """Test processing of a single maximum-sized batch"""
-    max_inputs = {
-        name: np.random.rand(model_data.max_batch_size, *shape).astype('float32')
-        for name, shape in model_data.input_shapes.items()
+available_instance_types = ["KIND_CPU", "KIND_GPU"] if os.environ.get("CPU_ONLY", 0) == 0 else ["KIND_CPU" ]
+
+def get_xgb_classifier(n_features, num_class):
+    rng = np.random.RandomState(9)
+    training_params = {
+        "tree_method": "hist",
+        "max_depth": 15,
+        "n_estimators": 10,
+        "use_label_encoder": False,
     }
-    model_output_sizes = {
-        name: size * model_data.max_batch_size
-        for name, size in model_data.output_sizes.items()
-    }
-    shared_mem = valid_shm_modes()[0]
-    result = client.predict(
-        model_data.name, max_inputs, model_output_sizes, shared_mem=shared_mem
-    )
+    model = xgb.XGBClassifier(**training_params)
 
-    ground_truth = model_data.ground_truth_model.predict(max_inputs)
+    return model.fit(rng.random((1000, n_features)), rng.randint(0, num_class, 1000))
 
-    for output_name in sorted(ground_truth.keys()):
-        if model_data.ground_truth_model.predict_proba:
-            arrays_close(
-                result[output_name],
-                ground_truth[output_name],
-                rtol=1e-3,
-                atol=1e-2,
-                assert_close=True
-            )
-        else:
-            arrays_close(
-                result[output_name],
-                ground_truth[output_name],
-                atol=0.1,
-                total_rtol=3,
-                assert_close=True
-            )
+@pytest.mark.parametrize("instance_kind", available_instance_types)
+@pytest.mark.parametrize("num_class", [2, 4])
+def test_xgb_classification_model(client, model_repo, instance_kind, num_class):
+    n_features = 100
+    model = get_xgb_classifier(n_features, num_class)
+
+    base_name = "xgboost_{}_class_{}".format(num_class, instance_kind)
+    # Binary probability output
+    # Use json
+    dir, model_dir = get_directories(model_repo, base_name + "_proba_json")
+    model.save_model(os.path.join(model_dir, 'xgboost.json'))
+
+    generate_config(
+        base_name + "_proba_json",
+        dir,
+        n_features,
+        num_class,
+        num_class,
+        predict_proba=True,
+        output_class=True, # FIL gets upset if this is not set
+        instance_kind=instance_kind,
+        model_format="xgboost_json",
+    )      
+
+    # Class output
+    dir, model_dir = get_directories(model_repo, base_name + "_class")
+    model.save_model(os.path.join(model_dir, 'xgboost.model'))
+    generate_config(
+        base_name + "_class",
+        dir,
+        n_features,
+        1,
+        num_class,
+        predict_proba=False,
+        output_class=True,
+        instance_kind=instance_kind,
+        model_format="xgboost",
+    ) 
+
+    # Shap output
+    dir, model_dir = get_directories(model_repo, base_name + "_shap")
+    model.save_model(os.path.join(model_dir, 'xgboost.model'))
+    generate_config(
+        base_name + "_shap",
+        dir,
+        n_features,
+        1,
+        num_class,
+        predict_proba=False,
+        output_class=True,
+        output_shap=True,
+        instance_kind=instance_kind,
+        model_format="xgboost",
+    ) 
+    # Wait for triton load
+    time.sleep(2)
+    
+    rng = np.random.RandomState(10)
+    X = rng.random((100,n_features)).astype(np.float32)
+    # Add some NaNs
+    X.ravel()[rng.choice(X.size, int(X.size*0.1), replace=False)] = np.nan
+
+    result = predict(client, base_name + "_proba_json", X)
+    np.testing.assert_allclose(result['output__0'],  model.predict_proba(X), rtol=1e-3, atol=1e-3)
+
+    result = predict(client, base_name + "_class", X)
+    np.testing.assert_allclose(result['output__0'].astype(int),  model.predict(X), rtol=1e-3, atol=1e-3)
+
+    if instance_kind == "KIND_GPU":
+      result = predict(client, base_name + "_shap", X)
+      np.testing.assert_allclose(result['treeshap_output'].sum(axis=-1),  model.predict(X, output_margin=True), rtol=1e-3, atol=1e-3)

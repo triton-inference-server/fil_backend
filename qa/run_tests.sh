@@ -16,7 +16,7 @@
 set -e
 
 QA_DIR=$(cd $(dirname $0); pwd)
-SERVER_ARGS=""
+SERVER_ARGS="--model-control-mode=poll --repository-poll-secs=1"
 UUID="$(cat /proc/sys/kernel/random/uuid)"
 CONTAINER_NAME="fil_backend-ci-$UUID"
 DOCKER_RUN=0
@@ -99,20 +99,5 @@ finally() {
 
 trap finally EXIT
 
-if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
-then
-  pytest \
-    --repo "${MODEL_REPO}" \
-    --no_shap \
-    --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR" 
-elif [ "$TRITON_FIL_ENABLE_TREESHAP" == "OFF" ]
-then
-  pytest \
-    --repo "${MODEL_REPO}" \
-    --no_shap \
-    --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR"
-else
-  pytest --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
-fi
+rm -fr ${MODEL_REPO}/*
+pytest -sv --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE" 

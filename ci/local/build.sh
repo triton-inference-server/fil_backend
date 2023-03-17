@@ -47,24 +47,11 @@ else
   DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
 fi
 
-echo "Generating example models..."
-docker run \
-  -e RETRAIN=${RETRAIN:-0} \
-  -e OWNER_ID=$(id -u) \
-  -e OWNER_GID=$(id -g) \
-  -e TEST_PROFILE=$TEST_PROFILE \
-  $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
-  --rm $TEST_TAG \
-  bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
-
 echo "Running GPU-enabled tests..."
 docker run \
   $DOCKER_ARGS \
   -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
 
 export SERVER_TAG=triton_fil:cpu
@@ -79,5 +66,4 @@ docker run \
   -e TRITON_ENABLE_GPU=OFF \
   -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG
