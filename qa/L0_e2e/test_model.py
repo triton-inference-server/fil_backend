@@ -131,7 +131,7 @@ parameters [
   }},
   {{
     key: "use_experimental_optimizations"
-    value: {{ string_value: "{use_experimental_optimizations}" }}
+    value: {{ string_value: "{str(use_experimental_optimizations).lower()}" }}
   }}
 ]
 
@@ -189,9 +189,10 @@ def get_xgb_classifier(n_features, num_class):
 
     return model.fit(rng.random((1000, n_features)), rng.randint(0, num_class, 1000))
 
+@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
 @pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 4])
-def test_xgb_classification_model(client, model_repo, instance_kind, num_class):
+@pytest.mark.parametrize("num_class", [2, 3])
+def test_xgb_classification_model(client, model_repo, instance_kind, num_class, use_experimental_optimizations):
     n_features = 100
     model = get_xgb_classifier(n_features, num_class)
 
@@ -211,6 +212,7 @@ def test_xgb_classification_model(client, model_repo, instance_kind, num_class):
         output_class=True, # FIL gets upset if this is not set
         instance_kind=instance_kind,
         model_format="xgboost_json",
+        use_experimental_optimizations=use_experimental_optimizations
     )      
 
     # Class output
