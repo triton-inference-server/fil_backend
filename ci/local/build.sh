@@ -44,7 +44,7 @@ if [ -z $CUDA_VISIBLE_DEVICES ]
 then
   DOCKER_ARGS="$DOCKER_ARGS --gpus all"
 else
-  DOCKER_ARGS="$DOCKER_ARGS --gpus $CUDA_VISIBLE_DEVICES"
+  DOCKER_ARGS="$DOCKER_ARGS --gpus \"device=$CUDA_VISIBLE_DEVICES\""
 fi
 
 echo "Running GPU-enabled tests..."
