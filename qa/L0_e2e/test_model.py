@@ -14,7 +14,8 @@
 
 import os
 import shutil
-import time
+from functools import lru_cache
+
 
 try:
     import cuml
@@ -172,23 +173,35 @@ def run_around_tests(model_repo):
 has_gpu = os.environ.get("CPU_ONLY", 0) == 0
 available_instance_types = ["KIND_CPU", "KIND_GPU"] if has_gpu else ["KIND_CPU" ]
 
+def data_with_categoricals(n_rows, n_cols, seed=23):
+    rng = np.random.RandomState(seed)
+    X = rng.random((n_rows, n_cols))
+    # Add some NaNs
+    X.ravel()[rng.choice(X.size, int(X.size*0.1), replace=False)] = np.nan
+    # Add categorical in column 1
+    X[:,1] = rng.randint(0,5)
+    return X.astype(np.float32)
+
+
 def get_xgb_classifier(n_features, num_class):
     rng = np.random.RandomState(9)
+    feature_types = ["q"] * n_features
+    feature_types[1] = "c"
     training_params = {
         "tree_method": "hist",
         "max_depth": 15,
         "n_estimators": 10,
+        "feature_types": feature_types
     }
     model = xgb.XGBClassifier(**training_params)
 
-    return model.fit(rng.random((1000, n_features)), rng.randint(0, num_class, 1000))
+    return model.fit(data_with_categoricals(1000,n_features, 91), rng.randint(0, num_class, 1000))
 
 @pytest.mark.parametrize("use_experimental_optimizations", [True, False])
 @pytest.mark.parametrize("instance_kind", available_instance_types)
 @pytest.mark.parametrize("num_class", [2, 4])
 def test_xgb_classification_model(client, model_repo, instance_kind, num_class, use_experimental_optimizations):
-    return
-    n_features = 100
+    n_features = 50
     model = get_xgb_classifier(n_features, num_class)
 
     base_name = "xgboost_{}_class_{}".format(num_class, instance_kind)
@@ -240,13 +253,8 @@ def test_xgb_classification_model(client, model_repo, instance_kind, num_class, 
         instance_kind=instance_kind,
         model_format="xgboost",
     ) 
-    # Wait for triton load
-    time.sleep(2)
     
-    rng = np.random.RandomState(10)
-    X = rng.random((100,n_features)).astype(np.float32)
-    # Add some NaNs
-    X.ravel()[rng.choice(X.size, int(X.size*0.1), replace=False)] = np.nan
+    X = data_with_categoricals(100,n_features,13)
 
     result = predict(client, base_name + "_proba_json", X)
     np.testing.assert_allclose(result['output__0'],  model.predict_proba(X), rtol=1e-3, atol=1e-3)
@@ -263,22 +271,24 @@ def test_xgb_classification_model(client, model_repo, instance_kind, num_class, 
         result = predict(client, base_name + "_class", X, shared_mem='cuda')
         np.testing.assert_allclose(result['output__0'].astype(int),  model.predict(X), rtol=1e-3, atol=1e-3)
 
+
 def get_xgb_regressor(n_features):
     rng = np.random.RandomState(11)
+    feature_types = ["q"] * n_features
+    feature_types[1] = "c"
     training_params = {
         "tree_method": "hist",
         "max_depth": 15,
         "n_estimators": 10,
+        "feature_types": feature_types
     }
     model = xgb.XGBRegressor(**training_params)
-
-    return model.fit(rng.random((1000, n_features)), rng.random(1000))
+    return model.fit(data_with_categoricals(1000,n_features,13), rng.random(1000))
 
 @pytest.mark.parametrize("use_experimental_optimizations", [True, False])
 @pytest.mark.parametrize("instance_kind", available_instance_types)
 def test_xgb_regression_model(client, model_repo, instance_kind, use_experimental_optimizations):
-    return
-    n_features = 100
+    n_features = 50
     model = get_xgb_regressor(n_features)
 
     base_name = "xgboost_regression_{}".format(instance_kind)
@@ -313,13 +323,8 @@ def test_xgb_regression_model(client, model_repo, instance_kind, use_experimenta
         instance_kind=instance_kind,
         model_format="xgboost",
     ) 
-    # Wait for triton load
-    time.sleep(2)
     
-    rng = np.random.RandomState(10)
-    X = rng.random((100,n_features)).astype(np.float32)
-    # Add some NaNs
-    X.ravel()[rng.choice(X.size, int(X.size*0.1), replace=False)] = np.nan
+    X = data_with_categoricals(100,n_features,17)
 
     result = predict(client, base_name, X)
     np.testing.assert_allclose(result['output__0'],  model.predict(X), rtol=1e-3, atol=1e-3)
@@ -330,17 +335,17 @@ def test_xgb_regression_model(client, model_repo, instance_kind, use_experimenta
         np.testing.assert_allclose(result['treeshap_output'].sum(axis=-1),  model.predict(X), rtol=1e-3, atol=1e-3)
 
 
+@lru_cache
 def get_lgbm_classifier(n_features, num_class):
-    rng = np.random.RandomState(9)
-    model = lgbm.LGBMClassifier()
-
-    return model.fit(rng.random((1000, n_features)), rng.randint(0, num_class, 1000))
+    rng = np.random.RandomState(1132)
+    model = lgbm.LGBMClassifier(n_estimators=20, categorical_feature=[1])
+    return model.fit(data_with_categoricals(1000,n_features,291), rng.randint(0, num_class, 1000))
 
 @pytest.mark.parametrize("use_experimental_optimizations", [True, False])
 @pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 10])
+@pytest.mark.parametrize("num_class", [2, 5])
 def test_lgbm_classification_model(client, model_repo, instance_kind, num_class, use_experimental_optimizations):
-    n_features = 100
+    n_features = 50
     model = get_lgbm_classifier(n_features, num_class)
 
     base_name = "lgbm{}_class_{}".format(num_class, instance_kind)
@@ -360,7 +365,6 @@ def test_lgbm_classification_model(client, model_repo, instance_kind, num_class,
         model_format="lightgbm",
         use_experimental_optimizations=use_experimental_optimizations
     )
-    
 
     # Class output
     dir, model_dir = get_directories(model_repo, base_name + "_class")
@@ -393,17 +397,69 @@ def test_lgbm_classification_model(client, model_repo, instance_kind, num_class,
         model_format="lightgbm",
     ) 
     
-    rng = np.random.RandomState(10)
-    X = rng.random((100,n_features)).astype(np.float32)
-    # Add some NaNs
-    X.ravel()[rng.choice(X.size, int(X.size*0.1), replace=False)] = np.nan
+    X = data_with_categoricals(100,n_features,72)
 
-    result = predict(client, base_name + "_proba", X)
+    shared_mem = 'cuda' if instance_kind == "KIND_GPU" else None
+    result = predict(client, base_name + "_proba", X, shared_mem)
     np.testing.assert_allclose(result['output__0'],  model.predict_proba(X), rtol=1e-3, atol=1e-3)
 
-    result = predict(client, base_name + "_class", X)
+    result = predict(client, base_name + "_class", X, shared_mem)
     np.testing.assert_allclose(result['output__0'].astype(int),  model.predict(X), rtol=1e-3, atol=1e-3)
 
     if instance_kind == "KIND_GPU":
-        result = predict(client, base_name + "_shap", X)
+        result = predict(client, base_name + "_shap", X, shared_mem)
         np.testing.assert_allclose(result['treeshap_output'].sum(axis=-1),  model.predict(X, raw_score=True), rtol=1e-3, atol=1e-3)
+
+@lru_cache
+def get_lgbm_regressor(n_features):
+    rng = np.random.RandomState(1132)
+    model = lgbm.LGBMRegressor(n_estimators=20, categorical_feature=[1])
+    return model.fit(data_with_categoricals(1000,n_features,291), rng.random(1000))
+
+@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
+@pytest.mark.parametrize("instance_kind", available_instance_types)
+def test_lgbm_regression_model(client, model_repo, instance_kind, use_experimental_optimizations):
+    n_features = 50
+    model = get_lgbm_regressor(n_features)
+
+    base_name = "lgbm{}_reg".format(instance_kind)
+    dir, model_dir = get_directories(model_repo, base_name)
+    model.booster_.save_model(os.path.join(model_dir, 'model.txt'))
+
+    generate_config(
+        base_name ,
+        dir,
+        n_features,
+        1,
+        1,
+        predict_proba=False,
+        output_class=False,
+        instance_kind=instance_kind,
+        model_format="lightgbm",
+        use_experimental_optimizations=use_experimental_optimizations
+    )
+
+    # Shap output
+    dir, model_dir = get_directories(model_repo, base_name + "_shap")
+    model.booster_.save_model(os.path.join(model_dir, 'model.txt'))
+    generate_config(
+        base_name + "_shap",
+        dir,
+        n_features,
+        1,
+        1,
+        predict_proba=False,
+        output_class=False,
+        output_shap=True,
+        instance_kind=instance_kind,
+        model_format="lightgbm",
+    ) 
+
+    X = data_with_categoricals(100,n_features,72)
+    shared_mem = 'cuda' if instance_kind == "KIND_GPU" else None
+    result = predict(client, base_name, X, shared_mem)
+    np.testing.assert_allclose(result['output__0'],  model.predict(X), rtol=1e-3, atol=1e-3)
+
+    if instance_kind == "KIND_GPU":
+        result = predict(client, base_name + "_shap", X, shared_mem)
+        np.testing.assert_allclose(result['treeshap_output'].sum(axis=-1),  model.predict(X), rtol=1e-3, atol=1e-3)

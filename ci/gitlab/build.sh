@@ -18,7 +18,6 @@ set -e
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
-CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${NO_CACHE:-1}
@@ -113,7 +112,6 @@ docker run \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   $MODEL_BUILDER_IMAGE \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
@@ -129,5 +127,4 @@ docker run \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   --rm $TEST_TAG

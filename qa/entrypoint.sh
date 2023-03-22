@@ -22,7 +22,8 @@ if [[ $TRITON_ENABLE_GPU != "OFF" ]]
 then
   echo 'Running tests for GPU/CPU models...'
   MODEL_REPO="${QA_DIR}/L0_e2e/model_repository" "$TEST_SCRIPT"
+else
+  echo 'Running tests without visible GPUs...'
+  CPU_ONLY=1 "$TEST_SCRIPT"
 fi
 
-echo 'Running tests without visible GPUs...'
-CPU_ONLY=1 "$TEST_SCRIPT"
