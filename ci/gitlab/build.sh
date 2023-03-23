@@ -104,17 +104,6 @@ then
   DOCKER_ARGS="$DOCKER_ARGS --label RUNNER_ID=${RUNNER_ID}"
 fi
 
-echo "Generating example models..."
-docker run \
-  -e RETRAIN=1 \
-  -e OWNER_ID=$(id -u) \
-  -e OWNER_GID=$(id -g) \
-  $GPU_DOCKER_ARGS \
-  $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  $MODEL_BUILDER_IMAGE \
-  bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
-
 if [ $CPU_ONLY -eq 1 ]
 then
   DOCKER_ARGS="${DOCKER_ARGS} -e TRITON_ENABLE_GPU=OFF"
