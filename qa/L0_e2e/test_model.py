@@ -439,7 +439,26 @@ def test_cuml_classification_model(client, model_repo, instance_kind, num_class,
     save_cuml_as_tl(model_dir, model)
     rng = np.random.RandomState(7372)
     X = rng.random((100,num_features)).astype(np.float32)
-    # CUML cannot currently predict probabiliy 
-    expected_shap_sum = None 
-    expected_proba = model.predict_proba(X)
+    # CUML cannot currently predict probabiliy with CPU
+    # issue #348
+    expected_shap_sum = None
+    expected_proba = model.predict_proba(X) if instance_kind == "KIND_GPU" else None
     run_classification_model(client, base_name,model_repo, "treelite_checkpoint", X, instance_kind, num_class, num_features, use_experimental_optimizations, model.predict(X), expected_proba, expected_shap_sum)
+
+def get_cuml_regressor(num_features):
+    cuml = pytest.importorskip('cuml')
+    rng = np.random.RandomState(134)
+    model = cuml.ensemble.RandomForestRegressor(n_estimators=20)
+    return model.fit(rng.random((1000,num_features)), rng.random(1000))
+
+@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
+@pytest.mark.parametrize("instance_kind", available_instance_types)
+def test_cuml_regression_model(client, model_repo, instance_kind, use_experimental_optimizations):
+    num_features = 50
+    model = get_cuml_regressor(num_features)
+    base_name = "cuml_regressor"
+    model_dir = get_model_directory(model_repo, base_name)
+    save_cuml_as_tl(model_dir, model)
+    rng = np.random.RandomState(25)
+    X = rng.random((100,num_features)).astype(np.float32)
+    run_regression_model(client, base_name,model_repo, "treelite_checkpoint", X, instance_kind, num_features, use_experimental_optimizations, model.predict(X))
