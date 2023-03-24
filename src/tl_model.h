@@ -44,9 +44,15 @@ struct TreeliteModel {
           if (!predict_proba && tl_config_->output_class && num_classes > 1) {
             std::strcpy(result->param.pred_transform, "max_index");
           }
-          if (predict_proba && result->task_type == treelite::TaskType::kMultiClfGrovePerClass) {
+          if (predict_proba &&
+              result->task_type == treelite::TaskType::kMultiClfGrovePerClass) {
             std::strcpy(result->param.pred_transform, "softmax");
           }
+          if (predict_proba &&
+              result->task_type == treelite::TaskType::kMultiClfProbDistLeaf) {
+            std::strcpy(result->param.pred_transform, "identity_multiclass");
+          }
+
           return result;
         }()},
         num_classes_{tl_get_num_classes(*base_tl_model_)},
@@ -58,7 +64,8 @@ struct TreeliteModel {
                 return herring::convert_model(concrete_model);
               });
               rapids::log_info(__FILE__, __LINE__) << "Loaded model to Herring format";
-            } catch (herring::unconvertible_model_exception const& herring_err) {
+            }
+            catch (herring::unconvertible_model_exception const& herring_err) {
               result = std::nullopt;
               auto log_stream = rapids::log_info(__FILE__, __LINE__);
               log_stream << "Herring load failed with error \"";

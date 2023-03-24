@@ -20,11 +20,10 @@ TEST_SCRIPT="$QA_DIR/run_tests.sh"
 
 if [[ $TRITON_ENABLE_GPU != "OFF" ]]
 then
-  echo 'Running tests for GPU models...'
+  echo 'Running tests for GPU/CPU models...'
   MODEL_REPO="${QA_DIR}/L0_e2e/model_repository" "$TEST_SCRIPT"
-  echo 'Running tests for CPU models...'
-  TRITON_FIL_ENABLE_TREESHAP=OFF MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository" "$TEST_SCRIPT"
+else
+  echo 'Running tests without visible GPUs...'
+  CPU_ONLY=1 "$TEST_SCRIPT"
 fi
 
-echo 'Running tests without visible GPUs...'
-CPU_ONLY=1 MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository" "$TEST_SCRIPT"

@@ -5,9 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - cudatoolkit=11.5
-  - cuml=22.12
-  - libcusolver<=11.4.1.48
-  - libcusparse<=12.0
+  - cuml=23.02
   - python=3.8
   - scikit-learn
-  - treelite=3.0.1
+  - treelite

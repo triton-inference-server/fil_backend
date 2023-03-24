@@ -16,7 +16,15 @@
 set -e
 
 QA_DIR=$(cd $(dirname $0); pwd)
-SERVER_ARGS=""
+
+# Allow 2gb device memory on each gpu
+NUM_GPUS=$(nvidia-smi --query-gpu=count --format=csv,noheader | head -n 1)
+SERVER_ARGS="--model-control-mode=explicit"
+for (( i=0; i<=$NUM_GPUS; i++ ))
+do
+  SERVER_ARGS="${SERVER_ARGS} --cuda-memory-pool-byte-size=${i}:2000000000"
+done
+
 UUID="$(cat /proc/sys/kernel/random/uuid)"
 CONTAINER_NAME="fil_backend-ci-$UUID"
 DOCKER_RUN=0
@@ -99,19 +107,5 @@ finally() {
 
 trap finally EXIT
 
-PYTEST_ARGS="-s"
-if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
-then
-  pytest "$PYTEST_ARGS" \
-    --repo "${MODEL_REPO}" \
-    --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR" 
-elif [ "$TRITON_FIL_ENABLE_TREESHAP" == "OFF" ]
-then
-  pytest "$PYTEST_ARGS" \
-    --repo "${MODEL_REPO}" \
-    --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR"
-else
-  pytest "$PYTEST_ARGS" --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
-fi
+rm -fr ${MODEL_REPO}/*
+pytest -svx --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"

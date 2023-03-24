@@ -4,19 +4,18 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - aws-sdk-cpp<1.9
+  - aws-sdk-cpp
   - clang-tools=11.1.0
   - cudatoolkit=11.5
-  - cudf=22.12
-  - cuml=22.12
+  - cudf=23.02
+  - cuml=23.02
   - flake8
   - hypothesis<6.46.8
-  - libcusolver<=11.4.1.48
-  - libcusparse<=12.0
   - lightgbm
   - pip
   - pytest
   - python=3.8
+  - python-rapidjson
   - rapidsai::xgboost>=1.7
-  - scikit-learn<1.2.0
+  - scikit-learn=1.2.0
   - treelite
