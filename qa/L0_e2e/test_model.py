@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,6 +55,7 @@ def generate_config(
     instance_kind,
     model_format,
     output_shap=False,
+    shap_num_outputs=1,
     max_batch_size=2048,
     use_experimental_optimizations=True,
     storage_type="AUTO",
@@ -63,11 +64,10 @@ def generate_config(
     # Add treeshap output to xgboost_shap model
     treeshap_output = ""
     if output_shap:
-        treeshap_output_dim = num_classes if num_classes > 2 else 1
-        if treeshap_output_dim == 1:
+        if shap_num_outputs == 1:
             treeshap_output_str = f"{num_features + 1}"
         else:
-            treeshap_output_str = f"{treeshap_output_dim}, {num_features + 1}"
+            treeshap_output_str = f"{shap_num_outputs}, {num_features + 1}"
         treeshap_output = f"""
       ,{{
           name: "treeshap_output"
@@ -228,6 +228,9 @@ def run_classification_model(
 
     # Shap output
     if instance_kind == "KIND_GPU" and expected_shap_sum is not None:
+        shap_num_outputs = (
+            1 if len(expected_shap_sum.shape) == 1 else expected_shap_sum.shape[1]
+        )
         generate_config(
             model_name,
             model_repo,
@@ -237,14 +240,16 @@ def run_classification_model(
             predict_proba=False,
             output_class=True,
             output_shap=True,
+            shap_num_outputs=shap_num_outputs,
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
         )
         result = predict(client, model_name, X)
+        shap_sum = result["treeshap_output"].sum(axis=-1)
         np.testing.assert_allclose(
-            result["treeshap_output"].sum(axis=-1),
-            expected_shap_sum,
+            shap_sum,
+            expected_shap_sum.reshape(shap_sum.shape),
             rtol=1e-3,
             atol=1e-3,
         )
@@ -309,6 +314,7 @@ def data_with_categoricals(n_rows, n_cols, seed=23):
     return X.astype(np.float32)
 
 
+@lru_cache
 def get_xgb_classifier(num_features, num_class):
     rng = np.random.RandomState(9)
     feature_types = ["q"] * num_features
@@ -382,6 +388,7 @@ def test_xgb_classification_model_json(
     )
 
 
+@lru_cache
 def get_xgb_regressor(num_features):
     rng = np.random.RandomState(11)
     feature_types = ["q"] * num_features
@@ -492,7 +499,7 @@ def test_lgbm_regression_model(
 
 
 @lru_cache
-def get_sklearn_classifier(num_features, num_class):
+def get_sklearn_rf_classifier(num_features, num_class):
     rng = np.random.RandomState(1132)
     model = sklearn.ensemble.RandomForestClassifier(n_estimators=20)
     return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
@@ -510,8 +517,8 @@ def test_sklearn_classification_model(
     client, model_repo, instance_kind, num_class, use_experimental_optimizations
 ):
     num_features = 50
-    model = get_sklearn_classifier(num_features, num_class)
-    base_name = "sklearn{}_class_{}".format(num_class, instance_kind)
+    model = get_sklearn_rf_classifier(num_features, num_class)
+    base_name = "sklearn_rf_{}_class_{}".format(num_class, instance_kind)
     model_dir = get_model_directory(model_repo, base_name)
     save_sklearn_as_tl(model_dir, model)
     rng = np.random.RandomState(1133)
@@ -536,7 +543,7 @@ def test_sklearn_classification_model(
 
 
 @lru_cache
-def get_sklearn_regressor(num_features):
+def get_sklearn_rf_regressor(num_features):
     rng = np.random.RandomState(234)
     model = sklearn.ensemble.RandomForestRegressor(n_estimators=20)
     return model.fit(rng.random((1000, num_features)), rng.random(1000))
@@ -544,12 +551,12 @@ def get_sklearn_regressor(num_features):
 
 @pytest.mark.parametrize("use_experimental_optimizations", [True, False])
 @pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_sklearn_regression_model(
+def test_sklearn_rf_regression_model(
     client, model_repo, instance_kind, use_experimental_optimizations
 ):
     num_features = 50
-    model = get_sklearn_regressor(num_features)
-    base_name = "sklearn_regressor"
+    model = get_sklearn_rf_regressor(num_features)
+    base_name = "sklearn__rf_regressor"
     model_dir = get_model_directory(model_repo, base_name)
     save_sklearn_as_tl(model_dir, model)
     rng = np.random.RandomState(22345)
@@ -593,9 +600,9 @@ def test_cuml_classification_model(
     rng = np.random.RandomState(7372)
     X = rng.random((100, num_features)).astype(np.float32)
 
-    expected_proba = model.predict_proba(X) 
-    expected_shap_sum = expected_proba 
-    
+    expected_proba = model.predict_proba(X)
+    expected_shap_sum = expected_proba
+
     run_classification_model(
         client,
         base_name,
@@ -630,6 +637,74 @@ def test_cuml_regression_model(
     model_dir = get_model_directory(model_repo, base_name)
     save_cuml_as_tl(model_dir, model)
     rng = np.random.RandomState(25)
+    X = rng.random((100, num_features)).astype(np.float32)
+    run_regression_model(
+        client,
+        base_name,
+        model_repo,
+        "treelite_checkpoint",
+        X,
+        instance_kind,
+        num_features,
+        use_experimental_optimizations,
+        model.predict(X),
+    )
+
+
+@lru_cache
+def get_sklearn_gbm_classifier(num_features, num_class):
+    rng = np.random.RandomState(1236)
+    model = sklearn.ensemble.GradientBoostingClassifier(n_estimators=20, init="zero")
+    return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
+
+
+@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
+@pytest.mark.parametrize("instance_kind", available_instance_types)
+@pytest.mark.parametrize("num_class", [2, 5])
+def test_sklearn_gbm_classification_model(
+    client, model_repo, instance_kind, num_class, use_experimental_optimizations
+):
+    num_features = 50
+    model = get_sklearn_gbm_classifier(num_features, num_class)
+    base_name = "sklearn_gbm_{}_class_{}".format(num_class, instance_kind)
+    model_dir = get_model_directory(model_repo, base_name)
+    save_sklearn_as_tl(model_dir, model)
+    rng = np.random.RandomState(1133)
+    X = rng.random((100, num_features)).astype(np.float32)
+    run_classification_model(
+        client,
+        base_name,
+        model_repo,
+        "treelite_checkpoint",
+        X,
+        instance_kind,
+        num_class,
+        num_features,
+        use_experimental_optimizations,
+        model.predict(X),
+        model.predict_proba(X),
+        model._raw_predict(X),
+    )
+
+
+@lru_cache
+def get_sklearn_gbm_regressor(num_features):
+    rng = np.random.RandomState(1162)
+    model = sklearn.ensemble.GradientBoostingRegressor(n_estimators=20, init="zero")
+    return model.fit(rng.random((1000, num_features)), rng.random(1000))
+
+
+@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
+@pytest.mark.parametrize("instance_kind", available_instance_types)
+def test_sklearn_gbm_regression_model(
+    client, model_repo, instance_kind, use_experimental_optimizations
+):
+    num_features = 50
+    model = get_sklearn_gbm_regressor(num_features)
+    base_name = "sklearn_gbm_regressor_{}".format(instance_kind)
+    model_dir = get_model_directory(model_repo, base_name)
+    save_sklearn_as_tl(model_dir, model)
+    rng = np.random.RandomState(1133)
     X = rng.random((100, num_features)).astype(np.float32)
     run_regression_model(
         client,
