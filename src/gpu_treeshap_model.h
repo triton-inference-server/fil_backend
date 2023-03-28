@@ -40,6 +40,11 @@ struct TreeShapModel<rapids::DeviceMemory> {
   {
   }
 
+  TreeShapModel(TreeShapModel const& other) = default;
+  TreeShapModel& operator=(TreeShapModel const& other) = default;
+  TreeShapModel(TreeShapModel&& other) = default;
+  TreeShapModel& operator=(TreeShapModel&& other) = default;
+
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t n_rows, std::size_t n_cols) const
