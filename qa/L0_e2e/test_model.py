@@ -29,7 +29,7 @@ import treelite
 def client():
     """A RAPIDS-Triton client for submitting inference requests"""
     client = Client()
-    client.wait_for_server(10)
+    client.wait_for_server(120)
     return client
 
 
@@ -197,7 +197,7 @@ def run_classification_model(
             num_class,
             num_class,
             predict_proba=True,
-            output_class=True,  # FIL gets upset if this is not set
+            output_class=True,  # issue #350
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
@@ -225,6 +225,24 @@ def run_classification_model(
     shared_mem = "cuda" if instance_kind == "KIND_GPU" else None
     result = predict(client, model_name, X, shared_mem=shared_mem)
     np.testing.assert_equal(result["output__0"], expected_class)
+
+    if num_class == 2:
+        # threshold
+        generate_config(
+            model_name,
+            model_repo,
+            num_features,
+            1,
+            num_class,
+            predict_proba=False,
+            output_class=True,
+            threshold=0.9,
+            instance_kind=instance_kind,
+            model_format=model_format,
+            use_experimental_optimizations=use_experimental_optimizations,
+        )
+        result = predict(client, model_name, X)
+        np.testing.assert_equal(result["output__0"], np.greater(expected_proba[:,1], 0.9))
 
     # Shap output
     if instance_kind == "KIND_GPU" and expected_shap_sum is not None:
