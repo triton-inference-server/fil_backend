@@ -148,6 +148,11 @@ class GroundTruthModel:
         else:
             raise RuntimeError('Model format not recognized')
 
+        if name == 'xgboost_shap':
+            self._xgb_model = xgb.Booster()
+            self._xgb_model.load_model(model_path)
+            self._run_treeshap = True
+            
         if use_cpu:
             self._base_model = GTILModel(
                 model_path, model_format, output_class
@@ -160,10 +165,6 @@ class GroundTruthModel:
                 self._base_model = cuml.ForestInference.load(
                     model_path, output_class=output_class, model_type=model_format
                 )
-            if name == 'xgboost_shap':
-                self._xgb_model = xgb.Booster()
-                self._xgb_model.load_model(model_path)
-                self._run_treeshap = True
 
     def predict(self, inputs):
         if self.predict_proba:

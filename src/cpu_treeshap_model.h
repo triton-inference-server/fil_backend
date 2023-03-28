@@ -109,6 +109,12 @@ struct TreeMetaInfo {
     edge_heights.resize(tree.num_nodes);
     auto [_, bias] = Recurse(0);
     global_bias = bias;
+    if (max_depth >= 32) {
+      throw rapids::TritonException(
+          rapids::Error::Unsupported,
+          "Tree depths above 32 not supported. Shap cannot be considered "
+          "accurate at this depth.");
+    }
   }
 };
 
