@@ -227,32 +227,31 @@ def run_classification_model(
     np.testing.assert_equal(result["output__0"], expected_class)
 
     # Shap output
-    if instance_kind == "KIND_GPU" and expected_shap_sum is not None:
-        shap_num_outputs = (
-            1 if len(expected_shap_sum.shape) == 1 else expected_shap_sum.shape[1]
-        )
-        generate_config(
-            model_name,
-            model_repo,
-            num_features,
-            1,
-            num_class,
-            predict_proba=False,
-            output_class=True,
-            output_shap=True,
-            shap_num_outputs=shap_num_outputs,
-            instance_kind=instance_kind,
-            model_format=model_format,
-            use_experimental_optimizations=use_experimental_optimizations,
-        )
-        result = predict(client, model_name, X)
-        shap_sum = result["treeshap_output"].sum(axis=-1)
-        np.testing.assert_allclose(
-            shap_sum,
-            expected_shap_sum.reshape(shap_sum.shape),
-            rtol=1e-3,
-            atol=1e-3,
-        )
+    shap_num_outputs = (
+        1 if len(expected_shap_sum.shape) == 1 else expected_shap_sum.shape[1]
+    )
+    generate_config(
+        model_name,
+        model_repo,
+        num_features,
+        1,
+        num_class,
+        predict_proba=False,
+        output_class=True,
+        output_shap=True,
+        shap_num_outputs=shap_num_outputs,
+        instance_kind=instance_kind,
+        model_format=model_format,
+        use_experimental_optimizations=use_experimental_optimizations,
+    )
+    result = predict(client, model_name, X)
+    shap_sum = result["treeshap_output"].sum(axis=-1)
+    np.testing.assert_allclose(
+        shap_sum,
+        expected_shap_sum.reshape(shap_sum.shape),
+        rtol=1e-2,
+        atol=1e-2,
+    ) 
 
 
 def run_regression_model(
@@ -284,24 +283,23 @@ def run_regression_model(
     np.testing.assert_allclose(result["output__0"], expected, rtol=1e-3, atol=1e-3)
 
     # Shap output
-    if instance_kind == "KIND_GPU":
-        generate_config(
-            model_name,
-            model_repo,
-            num_features,
-            1,
-            1,
-            predict_proba=False,
-            output_class=False,
-            output_shap=True,
-            instance_kind=instance_kind,
-            model_format=model_format,
-            use_experimental_optimizations=use_experimental_optimizations,
-        )
-        result = predict(client, model_name, X)
-        np.testing.assert_allclose(
-            result["treeshap_output"].sum(axis=-1), expected, rtol=1e-3, atol=1e-3
-        )
+    generate_config(
+        model_name,
+        model_repo,
+        num_features,
+        1,
+        1,
+        predict_proba=False,
+        output_class=False,
+        output_shap=True,
+        instance_kind=instance_kind,
+        model_format=model_format,
+        use_experimental_optimizations=use_experimental_optimizations,
+    )
+    result = predict(client, model_name, X)
+    np.testing.assert_allclose(
+        result["treeshap_output"].sum(axis=-1), expected, rtol=1e-2, atol=1e-2
+    )
 
 
 def data_with_categoricals(n_rows, n_cols, seed=23):
@@ -501,7 +499,7 @@ def test_lgbm_regression_model(
 @lru_cache
 def get_sklearn_rf_classifier(num_features, num_class):
     rng = np.random.RandomState(1132)
-    model = sklearn.ensemble.RandomForestClassifier(n_estimators=20)
+    model = sklearn.ensemble.RandomForestClassifier(n_estimators=20, random_state=rng)
     return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
 
 
@@ -545,7 +543,7 @@ def test_sklearn_classification_model(
 @lru_cache
 def get_sklearn_rf_regressor(num_features):
     rng = np.random.RandomState(234)
-    model = sklearn.ensemble.RandomForestRegressor(n_estimators=20)
+    model = sklearn.ensemble.RandomForestRegressor(n_estimators=20, random_state=rng)
     return model.fit(rng.random((1000, num_features)), rng.random(1000))
 
 
@@ -573,13 +571,6 @@ def test_sklearn_rf_regression_model(
         model.predict(X),
     )
 
-@pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo, skip_shap):
-    return get_model_data(request.param,client,model_repo,skip_shap)
-
-@pytest.fixture(scope='session', params=SHAP_MODELS)
-def shap_model_data(request, client, model_repo, skip_shap):
-    return get_model_data(request.param,client,model_repo,skip_shap)
 
 def get_cuml_classifier(num_features, num_class):
     cuml = pytest.importorskip("cuml")

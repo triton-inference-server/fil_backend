@@ -32,7 +32,7 @@
 namespace triton { namespace backend { namespace NAMESPACE {
 
 template <typename tl_threshold_t, typename tl_output_t>
-float
+double
 leaf_probability(
     const treelite::Tree<tl_threshold_t, tl_output_t>& tree, int node)
 {
@@ -47,19 +47,19 @@ leaf_probability(
 // The linear treeshap algorithm requires some extra info for each tree
 template<typename tl_threshold_t, typename tl_output_t>
 struct TreeMetaInfo{
-  std::vector<float> weights;
+  std::vector<double> weights;
   std::vector<int> edge_heights;
   std::vector<int> parents;
   int max_depth = 0;
   const treelite::Tree<tl_threshold_t, tl_output_t>& tree;
-  float global_bias;
+  double global_bias;
   int class_idx;
 
-  std::pair<int, float> Recurse(int node, int parent = -1, int depth = 0, std::map<int, int> seen_features = std::map<int, int>())
+  std::pair<int, double> Recurse(int node, int parent = -1, int depth = 0, std::map<int, int> seen_features = std::map<int, int>())
   {
     if (node != 0) {
       auto feature = tree.SplitIndex(parent);
-      float weight = 0.0f;
+      double weight = 0.0;
       if (tree.HasSumHess(parent) && tree.HasSumHess(node)) {
         weight =
             static_cast<double>(tree.SumHess(node) / tree.SumHess(parent));
@@ -79,7 +79,7 @@ struct TreeMetaInfo{
       seen_features[feature] = node;
     }
 
-    float bias = 0.0f;
+    double bias = 0.0;
     if (!tree.IsLeaf(node)) {
       auto [left_max_features,left_bias] = Recurse(tree.LeftChild(node),node, depth + 1, seen_features);
       auto [right_max_features,right_bias] = Recurse(tree.RightChild(node), node,depth + 1, seen_features);
@@ -88,7 +88,7 @@ struct TreeMetaInfo{
     } else {
       edge_heights[node] = seen_features.size();
       max_depth = std::max(max_depth, depth);
-      float leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[class_idx] : tree.LeafValue(node);
+      double leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[class_idx] : tree.LeafValue(node);
       bias = leaf_probability(tree, node) * leaf_value;
     }
     return std::make_pair(edge_heights[node], bias);
@@ -111,9 +111,9 @@ auto get_tree_meta_info_vector(const treelite::ModelImpl<tl_threshold_t, tl_outp
   return std::vector<TreeMetaInfo<tl_threshold_t, tl_output_t>>{};
 }
 
-float psi(float *e, const float *offset, const float *Base, float q, const float *n, int d)
+double psi(double *e, const double *offset, const double *Base, double q, const double *n, int d)
 {
-    float res = 0.;
+    double res = 0.;
     for (int i = 0; i < d; i++)
     {
         res += e[i] *offset[i] / (Base[i] + q) * n[i];
@@ -121,7 +121,7 @@ float psi(float *e, const float *offset, const float *Base, float q, const float
     return res / d;
 }
 
-void times(const float *input, float *output, float scalar, int size)
+void times(const double *input, double *output, double scalar, int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -129,7 +129,7 @@ void times(const float *input, float *output, float scalar, int size)
     }
 };
 
-void times_broadcast(const float *input, float *output, int size)
+void times_broadcast(const double *input, double *output, int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -137,7 +137,7 @@ void times_broadcast(const float *input, float *output, int size)
     }
 };
 
-void addition(float *input, float *output, int size)
+void addition(double *input, double *output, int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -145,7 +145,7 @@ void addition(float *input, float *output, int size)
     }
 };
 
-void write(float *from, float *to, int size)
+void write(double *from, double *to, int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -223,14 +223,14 @@ void inference(const TreeMetaInfo<tl_threshold_t, tl_output_t> &tree_info,
                const float *x,
                uint8_t *activation,
                float *value,
-               float *C,
-               float *E,
+               double *C,
+               double *E,
                int node = 0,
                int feature = -1,
                int depth = 0)
 {
     const auto& tree = tree_info.tree;
-    float s = 0.;
+    double s = 0.;
     int parent = tree_info.parents[node];
     if (parent >= 0)
     {
@@ -240,16 +240,16 @@ void inference(const TreeMetaInfo<tl_threshold_t, tl_output_t> &tree_info,
         }
     }
 
-    float *current_e = E + depth * tree_info.max_depth;
-    float *child_e = E + (depth + 1) * tree_info.max_depth;
-    float *current_c = C + depth * tree_info.max_depth;
-    float q = 0.;
+    double *current_e = E + depth * tree_info.max_depth;
+    double *child_e = E + (depth + 1) * tree_info.max_depth;
+    double *current_c = C + depth * tree_info.max_depth;
+    double q = 0.;
     if (feature >= 0) {
       if (activation[node]) {
         q = 1 / tree_info.weights[node];
       }
 
-      float *prev_c = C + (depth - 1) * tree_info.max_depth;
+      double *prev_c = C + (depth - 1) * tree_info.max_depth;
       for (int i = 0; i < tree_info.max_depth; i++) {
         current_c[i] = prev_c[i] * (kBase[i] + q);
       }
@@ -282,7 +282,7 @@ void inference(const TreeMetaInfo<tl_threshold_t, tl_output_t> &tree_info,
       addition(child_e, current_e, tree_info.max_depth);
     } else {
 
-      float leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[tree_info.class_idx] : tree.LeafValue(node);
+      double leaf_value = tree.HasLeafVector(node) ? tree.LeafVector(node)[tree_info.class_idx] : tree.LeafValue(node);
       times(
           current_c, current_e, leaf_value * leaf_probability(tree, node),
           tree_info.max_depth);
@@ -314,8 +314,8 @@ linear_treeshap(
 {
   output[n_cols] += tree_info.global_bias;
   int size = (tree_info.max_depth + 1) * tree_info.max_depth;
-  std::vector<float> C(size, 1);
-  std::vector<float> E(size);
+  std::vector<double> C(size, 1);
+  std::vector<double> E(size);
   std::vector<uint8_t> activation(tree_info.tree.num_nodes);
   inference(tree_info, input, activation.data(), output, C.data(), E.data());
 }
@@ -365,7 +365,15 @@ struct TreeShapModel<rapids::HostMemory> {
         // Scale output
         auto scale = 1.0f / herring::get_average_factor(model);
         for (auto i = 0; i < output.size(); i++) {
-          output.data()[i] = output.data()[i] * scale + model.param.global_bias;
+          output.data()[i] = output.data()[i] * scale ; 
+        }
+        // Add global bias to bias column
+        for (auto i = 0; i < n_rows; i++) {
+          for (auto class_idx=0; class_idx<num_class; class_idx++){
+            auto output_offset =
+                (i * num_class + class_idx) * (n_cols + 1) + n_cols;
+            output.data()[output_offset] += model.param.global_bias;
+          }
         }
       });
   }
