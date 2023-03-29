@@ -181,12 +181,10 @@ class GroundTruthModel:
 
 
 @pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo, skip_shap):
+def model_data(request, client, model_repo):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
     name = request.param
-    if skip_shap and name == 'xgboost_shap':
-        pytest.skip("GPU Treeshap tests not enabled")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input

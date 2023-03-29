@@ -23,6 +23,7 @@
 #include <treeshap_model.h>
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
@@ -127,7 +128,7 @@ get_tree_meta_info_vector(
   return std::vector<TreeMetaInfo<tl_threshold_t, tl_output_t>>{};
 }
 
-double
+auto
 psi(double* e, const double* offset, const double* Base, double q,
     const double* n, int d)
 {
@@ -137,14 +138,6 @@ psi(double* e, const double* offset, const double* Base, double q,
   }
   return res / d;
 }
-
-void
-times(const double* input, double* output, double scalar, int size)
-{
-  for (int i = 0; i < size; i++) {
-    output[i] = input[i] * scalar;
-  }
-};
 
 void
 times_broadcast(const double* input, double* output, int size)
@@ -162,29 +155,16 @@ addition(double* input, double* output, int size)
   }
 };
 
-void
-write(double* from, double* to, int size)
-{
-  for (int i = 0; i < size; i++) {
-    to[i] = from[i];
-  }
-};
-
-
 template <typename ThresholdType>
 bool
 decision_non_categorical(
     float fvalue, ThresholdType threshold, treelite::Operator op)
 {
-  // XGBoost
-  if (op == treelite::Operator::kLT) {
-    return fvalue < threshold;
-  }
-  // LightGBM, sklearn, cuML RF
-  if (op == treelite::Operator::kLE) {
-    return fvalue <= threshold;
-  }
   switch (op) {
+    case treelite::Operator::kLT:
+      return fvalue < threshold;
+    case treelite::Operator::kLE:
+      return fvalue <= threshold;
     case treelite::Operator::kEQ:
       return fvalue == threshold;
     case treelite::Operator::kGT:
@@ -291,22 +271,30 @@ inference(
         tree_info, x, activation, value, C, E, left, tree.SplitIndex(node),
         depth + 1);
     offset_degree = tree_info.edge_heights[node] - tree_info.edge_heights[left];
-    times_broadcast(kOffset[offset_degree], child_e, tree_info.max_depth);
-    write(child_e, current_e, tree_info.max_depth);
+    std::transform(
+        kOffset[offset_degree], kOffset[offset_degree] + tree_info.max_depth,
+        child_e, child_e, std::multiplies<double>());
+    std::copy(child_e, child_e + tree_info.max_depth, current_e);
     inference(
         tree_info, x, activation, value, C, E, right, tree.SplitIndex(node),
         depth + 1);
     offset_degree =
         tree_info.edge_heights[node] - tree_info.edge_heights[right];
-    times_broadcast(kOffset[offset_degree], child_e, tree_info.max_depth);
-    addition(child_e, current_e, tree_info.max_depth);
+    std::transform(
+        kOffset[offset_degree], kOffset[offset_degree] + tree_info.max_depth,
+        child_e, child_e, std::multiplies<double>());
+    std::transform(
+        child_e, child_e + tree_info.max_depth, current_e, current_e,
+        std::plus<double>());
   } else {
     double leaf_value = tree.HasLeafVector(node)
                             ? tree.LeafVector(node)[tree_info.class_idx]
                             : tree.LeafValue(node);
-    times(
-        current_c, current_e, leaf_value * leaf_probability(tree, node),
-        tree_info.max_depth);
+    std::transform(
+        current_c, current_c + tree_info.max_depth, current_e,
+        [&](auto&& elem) {
+          return leaf_value * leaf_probability(tree, node) * elem;
+        });
   }
 
   if (feature >= 0) {

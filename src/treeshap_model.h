@@ -31,12 +31,6 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-#ifdef TRITON_FIL_ENABLE_TREESHAP
-auto constexpr IS_TREESHAP_BUILD = true;
-#else
-auto constexpr IS_TREESHAP_BUILD = false;
-#endif
-
 template <rapids::MemoryType M>
 struct TreeShapModel {
   using device_id_t = int;
