@@ -127,14 +127,14 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
       if (gpu_treeshap_model.has_value() &&
           input_buffer.mem_type() == rapids::DeviceMemory) {
-        if constexpr (rapids::IS_GPU_BUILD && IS_TREESHAP_BUILD) {
+        if constexpr (rapids::IS_GPU_BUILD) {
           // The shape of treeshap output is (, num_classes * (n_cols + 1))
           gpu_treeshap_model->predict(
               treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
         }
       }
-      else{
-          cpu_treeshap_model.predict(
+      else if (cpu_treeshap_model.has_value()){
+          cpu_treeshap_model->predict(
               treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
       }
 
@@ -196,19 +196,20 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         shared_state->predict_proba(), shared_state->use_herring());
 
 
-    if constexpr (rapids::IS_GPU_BUILD) {
-      if (get_deployment_type() == rapids::GPUDeployment) {
+    if (get_deployment_type() == rapids::GPUDeployment) {
+      if constexpr (rapids::IS_GPU_BUILD) {
         gpu_model.emplace(get_device_id(), get_stream(), tl_model);
 
-        if constexpr (IS_TREESHAP_BUILD) {
-          if (shared_state->check_output_name("treeshap_output")) {
-            gpu_treeshap_model.emplace(get_device_id(), get_stream(), tl_model);
-          }
+        if (shared_state->check_output_name("treeshap_output")) {
+          gpu_treeshap_model.emplace(get_device_id(), get_stream(), tl_model);
         }
+      }
+    } else {
+      if (shared_state->check_output_name("treeshap_output")) {
+        cpu_treeshap_model.emplace(tl_model);
       }
     }
     cpu_model = ForestModel<rapids::HostMemory>(tl_model);
-    cpu_treeshap_model = TreeShapModel<rapids::HostMemory>(tl_model);
   }
 
   std::optional<rapids::MemoryType> preferred_mem_type(
@@ -221,7 +222,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   std::optional<rapids::MemoryType> preferred_mem_type_{};
   std::size_t num_classes_{};
   ForestModel<rapids::HostMemory> cpu_model;
-  TreeShapModel<rapids::HostMemory> cpu_treeshap_model;
+  std::optional<TreeShapModel<rapids::HostMemory>> cpu_treeshap_model;
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
   std::optional<TreeShapModel<rapids::DeviceMemory>> gpu_treeshap_model{};
 };
