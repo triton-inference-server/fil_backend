@@ -139,22 +139,6 @@ psi(double* e, const double* offset, const double* Base, double q,
   return res / d;
 }
 
-void
-times_broadcast(const double* input, double* output, int size)
-{
-  for (int i = 0; i < size; i++) {
-    output[i] *= input[i];
-  }
-};
-
-void
-addition(double* input, double* output, int size)
-{
-  for (int i = 0; i < size; i++) {
-    output[i] += input[i];
-  }
-};
-
 template <typename ThresholdType>
 bool
 decision_non_categorical(
