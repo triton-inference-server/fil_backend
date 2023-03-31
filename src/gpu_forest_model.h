@@ -25,7 +25,7 @@
 
 #include <cstddef>
 #include <memory>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
