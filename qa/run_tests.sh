@@ -103,16 +103,8 @@ if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
 then
   pytest \
     --repo "${MODEL_REPO}" \
-    --no_shap \
     --hypothesis-profile "$TEST_PROFILE" \
     "$QA_DIR" 
-elif [ "$TRITON_FIL_ENABLE_TREESHAP" == "OFF" ]
-then
-  pytest \
-    --repo "${MODEL_REPO}" \
-    --no_shap \
-    --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR"
 else
   pytest --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
 fi

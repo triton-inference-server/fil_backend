@@ -30,7 +30,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g               - build for debug
    -h               - print this text
    --cpu-only       - build CPU-only versions of targets
-   --no-treeshap    - build without treeshap in targets (GPU only)
    --tag-commit     - tag Docker images based on current git commit
    --buildpy        - use Triton's build.py script for build
    --no-cache       - disable Docker cache for build
@@ -70,7 +69,6 @@ HELP="$0 [<target> ...] [<flag> ...]
 
 BUILD_TYPE=Release
 TRITON_ENABLE_GPU=ON
-TRITON_FIL_ENABLE_TREESHAP=ON
 DOCKER_ARGS=""
 BUILDPY=0
 HOST_BUILD=0
@@ -99,7 +97,6 @@ fi
 # Long arguments
 LONG_ARGUMENT_LIST=(
     "cpu-only"
-    "treeshap"
     "tag-commit"
     "buildpy"
     "no-cache"
@@ -131,10 +128,6 @@ do
       ;;
     --cpu-only )
       TRITON_ENABLE_GPU=OFF
-      TRITON_FIL_ENABLE_TREESHAP=OFF
-      ;;
-    --no-treeshap )
-      TRITON_FIL_ENABLE_TREESHAP=OFF
       ;;
     --tag-commit )
       [ -z $SERVER_TAG ] \
@@ -172,7 +165,6 @@ fi
 
 DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
-DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_FIL_ENABLE_TREESHAP=${TRITON_FIL_ENABLE_TREESHAP}"
 
 if [ -z $RAPIDS_VERSION ]
 then
@@ -326,7 +318,6 @@ hostbuild () {
     -DTRITON_ENABLE_STATS="ON" \
     -DRAPIDS_DEPENDENCIES_VERSION="$RAPIDS_VERSION" \
     -DTRITON_FIL_USE_TREELITE_STATIC="$TREELITE_STATIC" \
-    -DTRITON_FIL_ENABLE_TREESHAP="$TRITON_FIL_ENABLE_TREESHAP" \
     -DBACKEND_FOLDER="$INSTALLDIR" ..;
   ninja
   cp libtriton_fil.so "$INSTALLDIR"

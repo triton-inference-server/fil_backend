@@ -14,8 +14,3 @@ def pytest_addoption(parser):
         action="store",
         default=default_repo_path
     )
-    # option to skip treeshap tests for CPU only
-    parser.addoption(
-        "--no_shap",
-        action="store_true"
-    )

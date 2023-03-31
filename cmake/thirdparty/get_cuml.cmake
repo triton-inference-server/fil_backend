@@ -21,9 +21,7 @@ function(find_and_configure_cuml)
                           "${multiValueArgs}" ${ARGN} )
 
     set(CUML_ALGORITHMS "FIL" CACHE STRING "List of algorithms to build in cuml")
-    if(TRITON_FIL_ENABLE_TREESHAP)
-      list(APPEND CUML_ALGORITHMS "TREESHAP")
-    endif()
+    list(APPEND CUML_ALGORITHMS "TREESHAP")
 
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++

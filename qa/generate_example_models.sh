@@ -152,6 +152,3 @@ fi
 
 find "${CPU_MODEL_REPO}" -name 'config.pbtxt' -exec \
   sed -i s/KIND_GPU/KIND_CPU/g {} +
-
-# delete CPU model of xgboost_shap
-rm -rf "${CPU_MODEL_REPO}/xgboost_shap"

@@ -83,8 +83,6 @@ summarized below:
 - `-g`: Perform a debug build
 - `-h`: Print help test for build script
 - `--cpu-only`: Build CPU-only version of library
-- `--no-treeshap`: Build without [treeshap
-  support](https://github.com/triton-inference-server/fil_backend/blob/main/conda/environments/rapids_triton_dev.yml)
 - `--tag-commit`: Tag Docker images using the current git commit
 - `--no-cache`: Disable Docker cache for this build
 - `--host`: Build on host, **not** in Docker

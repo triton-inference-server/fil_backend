@@ -148,6 +148,11 @@ class GroundTruthModel:
         else:
             raise RuntimeError('Model format not recognized')
 
+        if name == 'xgboost_shap':
+            self._xgb_model = xgb.Booster()
+            self._xgb_model.load_model(model_path)
+            self._run_treeshap = True
+            
         if use_cpu:
             self._base_model = GTILModel(
                 model_path, model_format, output_class
@@ -160,10 +165,6 @@ class GroundTruthModel:
                 self._base_model = cuml.ForestInference.load(
                     model_path, output_class=output_class, model_type=model_format
                 )
-            if name == 'xgboost_shap':
-                self._xgb_model = xgb.Booster()
-                self._xgb_model.load_model(model_path)
-                self._run_treeshap = True
 
     def predict(self, inputs):
         if self.predict_proba:
@@ -180,12 +181,10 @@ class GroundTruthModel:
 
 
 @pytest.fixture(scope='session', params=MODELS)
-def model_data(request, client, model_repo, skip_shap):
+def model_data(request, client, model_repo):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
     name = request.param
-    if skip_shap and name == 'xgboost_shap':
-        pytest.skip("GPU Treeshap tests not enabled")
     config = client.get_model_config(name)
     input_shapes = {
         input_.name: list(input_.dims) for input_ in config.input
