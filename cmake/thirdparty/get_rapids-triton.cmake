@@ -26,7 +26,7 @@ function(find_and_configure_rapids_triton)
       INSTALL_EXPORT_SET  rapids_triton-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/${PKG_FORK}/rapids-triton.git
-            GIT_TAG        ${PKG_PINNED_TAG}
+            GIT_TAG        dev-rapidjson_debug
             SOURCE_SUBDIR  cpp
             OPTIONS
               "BUILD_TESTS OFF"
