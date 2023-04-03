@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=23.01
+ARG TRITON_VERSION=23.03
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -141,9 +141,6 @@ ENV RAPIDS_DEPENDENCIES_VERSION=$RAPIDS_DEPENDENCIES_VERSION
 ARG TRITON_FIL_USE_TREELITE_STATIC=ON
 ENV TRITON_FIL_USE_TREELITE_STATIC=$TRITON_FIL_USE_TREELITE_STATIC
 
-ARG TRITON_FIL_ENABLE_TREESHAP=ON
-ENV TRITON_FIL_ENABLE_TREESHAP=$TRITON_FIL_ENABLE_TREESHAP
-
 COPY --from=conda-dev /conda/dev /conda/dev
 
 SHELL ["/bin/bash", "-c"]
@@ -161,7 +158,6 @@ RUN source /conda/dev/bin/activate \
       -DTRITON_ENABLE_STATS="${TRITON_ENABLE_STATS}" \
       -DRAPIDS_DEPENDENCIES_VERSION="${RAPIDS_DEPENDENCIES_VERSION}" \
       -DTRITON_FIL_USE_TREELITE_STATIC="${TRITON_FIL_USE_TREELITE_STATIC}" \
-      -DTRITON_FIL_ENABLE_TREESHAP="${TRITON_FIL_ENABLE_TREESHAP}" \
       -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
       ..;
 

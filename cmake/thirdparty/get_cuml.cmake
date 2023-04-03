@@ -21,9 +21,7 @@ function(find_and_configure_cuml)
                           "${multiValueArgs}" ${ARGN} )
 
     set(CUML_ALGORITHMS "FIL" CACHE STRING "List of algorithms to build in cuml")
-    if(TRITON_FIL_ENABLE_TREESHAP)
-      list(APPEND CUML_ALGORITHMS "TREESHAP")
-    endif()
+    list(APPEND CUML_ALGORITHMS "TREESHAP")
 
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml++
@@ -59,6 +57,6 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
                         FORK       rapidsai
-                        PINNED_TAG branch-22.12
+                        PINNED_TAG branch-23.02
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )

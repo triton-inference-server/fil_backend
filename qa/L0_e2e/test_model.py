@@ -42,12 +42,6 @@ def model_repo(pytestconfig):
     """The path to the model repository directory"""
     return pytestconfig.getoption("repo")
 
-
-@pytest.fixture(scope="session")
-def skip_shap(pytestconfig):
-    return pytestconfig.getoption("no_shap")
-
-
 # convenience wrapper around client.predict
 def predict(client, model_name, X, shared_mem=None, config=None):
     client.triton_client.load_model(model_name, config=config)

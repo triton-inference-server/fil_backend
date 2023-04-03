@@ -28,7 +28,7 @@
 
 # Model Explainability with Shapley Values
 
-**NOTE: This feature is currently *only* available for GPU deployments.**
+**NOTE: The CPU version of this feature is in an experimental state as of version 23.04**
 
 In addition to providing model output from forest models, the FIL backend
 can help you understand *why* the model came to a particular conclusion by
@@ -44,6 +44,8 @@ feature. For a more complete understanding, check out the [Wikipedia
 article](https://en.wikipedia.org/wiki/Shapley_value) on Shapley values or
 Lloyd Shapley's [original
 paper](https://www.rand.org/content/dam/rand/pubs/research_memoranda/2008/RM670.pdf).
+
+**NOTE: Tree depth is limited to 32 for shapley value computation. Tree models with higher depth will throw an error.**
 
 ## Using Shapley Values in the FIL Backend
 Because it takes additional time to compute and return the relatively large

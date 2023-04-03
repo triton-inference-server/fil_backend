@@ -31,26 +31,25 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-#ifdef TRITON_FIL_ENABLE_TREESHAP
-auto constexpr IS_TREESHAP_BUILD = true;
-#else
-auto constexpr IS_TREESHAP_BUILD = false;
-#endif
-
-/* This struct defines a unified prediction interface to both FIL and GTIL.
- * Template specializations are provided based on the type of memory the model
- * is expected to process */
 template <rapids::MemoryType M>
 struct TreeShapModel {
   using device_id_t = int;
 
   TreeShapModel(
-      device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+        "TreeShapModel invoked with a memory type unsupported by this build");
+  }
+  TreeShapModel(
+      device_id_t device_id, cudaStream_t stream,
+      std::shared_ptr<TreeliteModel> tl_model)
+      
+  {
+    throw rapids::TritonException(
+        rapids::Error::Unsupported,
+        "TreeShapModel invoked with a memory type unsupported by this build");
   }
 
   void predict(
@@ -59,7 +58,7 @@ struct TreeShapModel {
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,
-        "ForestModel invoked with a memory type unsupported by this build");
+        "TreeShapModel invoked with a memory type unsupported by this build");
   }
 };
 }}}  // namespace triton::backend::NAMESPACE
