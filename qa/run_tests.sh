@@ -45,6 +45,11 @@ then
 fi
 MODEL_REPO="$(readlink -f $MODEL_REPO)"
 
+if [ -z $MODEL_CACHE_DIR ]
+then
+  MODEL_CACHE_DIR="${QA_DIR}/L0_e2e/.model_cache"
+fi
+
 DOCKER_ARGS="${DOCKER_ARGS} -v ${MODEL_REPO}:/models"
 
 if [ -z $CPU_ONLY ] || [ $CPU_ONLY -eq 0 ]
@@ -108,4 +113,4 @@ finally() {
 trap finally EXIT
 
 rm -fr ${MODEL_REPO}/*
-pytest -svx --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
+pytest -v --repo "${MODEL_REPO}" --model_cache_dir "${MODEL_CACHE_DIR}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"

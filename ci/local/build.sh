@@ -12,7 +12,7 @@ set -e
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
-CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
+MODEL_CACHE_DIR="${QA_DIR}/L0_e2e/.model_cache"
 HOST_BUILD="${HOST_BUILD:-0}"
 TEST_PROFILE="${TEST_PROFILE:-dev}"
 
@@ -48,10 +48,12 @@ else
 fi
 
 echo "Running GPU-enabled tests..."
+mkdir -p "${MODEL_CACHE_DIR}"
 docker run \
   $DOCKER_ARGS \
   -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${MODEL_CACHE_DIR}:/qa/L0_e2e/.model_cache" \
   --rm $TEST_TAG
 
 export SERVER_TAG=triton_fil:cpu
@@ -66,4 +68,5 @@ docker run \
   -e TRITON_ENABLE_GPU=OFF \
   -e TEST_PROFILE=$TEST_PROFILE \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${MODEL_CACHE_DIR}:/qa/L0_e2e/.model_cache" \
   --rm $TEST_TAG

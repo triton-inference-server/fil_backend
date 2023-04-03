@@ -14,15 +14,19 @@
 
 import os
 import shutil
-from functools import lru_cache
-
 import numpy as np
 import pytest
 from rapids_triton import Client
-import xgboost as xgb
-import lightgbm as lgbm
-import sklearn.ensemble
 import treelite
+from generate_example_model import generate_config
+import generate_example_model
+from joblib import Memory
+
+
+@pytest.fixture(scope="session")
+def memory(pytestconfig):
+    """Use for caching via joblib"""
+    return Memory(pytestconfig.getoption("model_cache_dir"), verbose=1)
 
 
 @pytest.fixture(scope="session")
@@ -44,98 +48,6 @@ def skip_shap(pytestconfig):
     return pytestconfig.getoption("no_shap")
 
 
-def generate_config(
-    model_name,
-    model_repo,
-    num_features,
-    output_dim,
-    num_classes,
-    predict_proba,
-    output_class,
-    instance_kind,
-    model_format,
-    output_shap=False,
-    shap_num_outputs=1,
-    max_batch_size=2048,
-    use_experimental_optimizations=True,
-    storage_type="AUTO",
-    threshold=0.5,
-):
-    # Add treeshap output to xgboost_shap model
-    treeshap_output = ""
-    if output_shap:
-        if shap_num_outputs == 1:
-            treeshap_output_str = f"{num_features + 1}"
-        else:
-            treeshap_output_str = f"{shap_num_outputs}, {num_features + 1}"
-        treeshap_output = f"""
-      ,{{
-          name: "treeshap_output"
-          data_type: TYPE_FP32
-          dims: [ {treeshap_output_str} ]
-      }}"""
-    config = f"""name: "{model_name}"
-backend: "fil"
-max_batch_size: {max_batch_size}
-input [
- {{
-    name: "input__0"
-    data_type: TYPE_FP32
-    dims: [ {num_features} ]
-  }}
-]
-output [
- {{
-    name: "output__0"
-    data_type: TYPE_FP32
-    dims: [ {output_dim} ]
-  }}
- {treeshap_output}
-]
-instance_group [{{ kind: {instance_kind} }}]
-parameters [
-  {{
-    key: "model_type"
-    value: {{ string_value: "{model_format}" }}
-  }},
-  {{
-    key: "predict_proba"
-    value: {{ string_value: "{str(predict_proba).lower()}" }}
-  }},
-  {{
-    key: "output_class"
-    value: {{ string_value: "{str(output_class).lower()}" }}
-  }},
-  {{
-    key: "threshold"
-    value: {{ string_value: "{threshold}" }}
-  }},
-  {{
-    key: "algo"
-    value: {{ string_value: "ALGO_AUTO" }}
-  }},
-  {{
-    key: "storage_type"
-    value: {{ string_value: "{storage_type}" }}
-  }},
-  {{
-    key: "blocks_per_sm"
-    value: {{ string_value: "0" }}
-  }},
-  {{
-    key: "use_experimental_optimizations"
-    value: {{ string_value: "{str(use_experimental_optimizations).lower()}" }}
-  }}
-]
-
-dynamic_batching {{ }}"""
-    config_directory = os.path.abspath(os.path.join(model_repo, model_name))
-    config_path = os.path.join(config_directory, "config.pbtxt")
-
-    with open(config_path, "w") as config_file:
-        config_file.write(config)
-
-
 # convenience wrapper around client.predict
 def predict(client, model_name, X, shared_mem=None, config=None):
     client.triton_client.load_model(model_name, config=config)
@@ -155,6 +67,16 @@ def get_model_directory(model_repo, model_name):
     model_dir = os.path.join(dir, "1")
     os.makedirs(model_dir, exist_ok=True)
     return model_dir
+
+
+def save_sklearn_as_tl(model_dir, model):
+    model = treelite.sklearn.import_model(model)
+    model.serialize(os.path.join(model_dir, "checkpoint.tl"))
+
+
+def save_cuml_as_tl(model_dir, model):
+    tl_model = model.convert_to_treelite_model()
+    tl_model.to_treelite_checkpoint(os.path.join(model_dir, "checkpoint.tl"))
 
 
 # cleanup our models after each test
@@ -187,20 +109,20 @@ def run_classification_model(
     expected_class,
     expected_proba,
     expected_shap_sum,
+    storage_type="AUTO",
 ):
     # probability output
     if expected_proba is not None:
         generate_config(
             model_name,
             model_repo,
-            num_features,
-            num_class,
-            num_class,
+            features=num_features,
+            num_classes=num_class,
             predict_proba=True,
-            output_class=True,  # issue #350
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
+            storage_type=storage_type,
         )
 
         result = predict(client, model_name, X)
@@ -213,55 +135,51 @@ def run_classification_model(
     generate_config(
         model_name,
         model_repo,
-        num_features,
-        1,
-        num_class,
+        features=num_features,
+        num_classes=num_class,
         predict_proba=False,
-        output_class=True,
         instance_kind=instance_kind,
         model_format=model_format,
         use_experimental_optimizations=use_experimental_optimizations,
+        storage_type=storage_type,
     )
     shared_mem = "cuda" if instance_kind == "KIND_GPU" else None
     result = predict(client, model_name, X, shared_mem=shared_mem)
     np.testing.assert_equal(result["output__0"], expected_class)
 
-    if num_class == 2:
+    # issue #351 cuml models don't work with threshold
+    if num_class == 2 and "cuml" not in model_name:
         # threshold
         generate_config(
             model_name,
             model_repo,
-            num_features,
-            1,
-            num_class,
+            features=num_features,
+            num_classes=num_class,
             predict_proba=False,
-            output_class=True,
-            threshold=0.9,
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
+            threshold=0.9,
+            storage_type=storage_type,
         )
         result = predict(client, model_name, X)
-        np.testing.assert_equal(result["output__0"], np.greater(expected_proba[:,1], 0.9))
+        np.testing.assert_equal(
+            result["output__0"], np.greater(expected_proba[:, 1], 0.9)
+        )
 
     # Shap output
     if instance_kind == "KIND_GPU" and expected_shap_sum is not None:
-        shap_num_outputs = (
-            1 if len(expected_shap_sum.shape) == 1 else expected_shap_sum.shape[1]
-        )
         generate_config(
             model_name,
             model_repo,
-            num_features,
-            1,
-            num_class,
+            features=num_features,
+            num_classes=num_class,
             predict_proba=False,
-            output_class=True,
-            output_shap=True,
-            shap_num_outputs=shap_num_outputs,
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
+            generate_shap=True,
+            storage_type=storage_type,
         )
         result = predict(client, model_name, X)
         shap_sum = result["treeshap_output"].sum(axis=-1)
@@ -284,20 +202,18 @@ def run_regression_model(
     use_experimental_optimizations,
     expected,
 ):
-    # Binary probability output
     generate_config(
         model_name,
         model_repo,
-        num_features,
-        1,
-        1,
+        features=num_features,
+        num_classes=1,
         predict_proba=False,
-        output_class=False,
+        task="regression",
         instance_kind=instance_kind,
         model_format=model_format,
         use_experimental_optimizations=use_experimental_optimizations,
+        generate_shap=False,
     )
-
     result = predict(client, model_name, X)
     np.testing.assert_allclose(result["output__0"], expected, rtol=1e-3, atol=1e-3)
 
@@ -306,15 +222,14 @@ def run_regression_model(
         generate_config(
             model_name,
             model_repo,
-            num_features,
-            1,
-            1,
+            features=num_features,
+            num_classes=1,
+            task="regression",
             predict_proba=False,
-            output_class=False,
-            output_shap=True,
             instance_kind=instance_kind,
             model_format=model_format,
             use_experimental_optimizations=use_experimental_optimizations,
+            generate_shap=True,
         )
         result = predict(client, model_name, X)
         np.testing.assert_allclose(
@@ -332,406 +247,330 @@ def data_with_categoricals(n_rows, n_cols, seed=23):
     return X.astype(np.float32)
 
 
-@lru_cache
-def get_xgb_classifier(num_features, num_class):
-    rng = np.random.RandomState(9)
-    feature_types = ["q"] * num_features
-    feature_types[1] = "c"
-    training_params = {
-        "tree_method": "hist",
-        "max_depth": 15,
-        "n_estimators": 10,
-        "feature_types": feature_types,
-    }
-    model = xgb.XGBClassifier(**training_params)
+@pytest.mark.parametrize(
+    "use_experimental_optimizations",
+    [True, False],
+    ids=lambda x: "exper_optim:" + str(x),
+)
+@pytest.mark.parametrize(
+    "instance_kind", available_instance_types, ids=lambda x: "instance:" + str(x)
+)
+class TestModels:
+    pass
 
-    return model.fit(
-        data_with_categoricals(1000, num_features, 91), rng.randint(0, num_class, 1000)
+
+@pytest.mark.parametrize("num_class", [2, 10], ids=lambda x: "num_class:" + str(x))
+class TestClassifiers(TestModels):
+    @pytest.mark.parametrize(
+        "use_json", [True, False], ids=lambda x: "use_json:" + str(x)
     )
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 4])
-def test_xgb_classification_model(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_xgb_classifier(num_features, num_class)
-    base_name = "xgboost_{}_class_{}".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    model.save_model(os.path.join(model_dir, "xgboost.model"))
-    X = data_with_categoricals(100, num_features, 13)
-    run_classification_model(
+    def test_xgb(
+        self,
         client,
-        base_name,
+        memory,
         model_repo,
-        "xgboost",
-        X,
         instance_kind,
         num_class,
-        num_features,
         use_experimental_optimizations,
-        model.predict(X),
-        model.predict_proba(X),
-        model.predict(X, output_margin=True),
-    )
+        use_json,
+    ):
+        num_features = 500
+        X, y = memory.cache(generate_example_model.generate_classification_data)(
+            num_class, cols=num_features, cat_cols=2 if use_json else 0, add_nans=True
+        )
+        model = memory.cache(generate_example_model.train_xgboost_classifier)(
+            X, y, depth=11, trees=2000
+        )
+        base_name = "xgboost_{}_class_{}".format(num_class, instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        model.save_model(
+            os.path.join(model_dir, "xgboost.json" if use_json else "xgboost.model")
+        )
+        run_classification_model(
+            client,
+            base_name,
+            model_repo,
+            "xgboost_json" if use_json else "xgboost",
+            X.to_numpy(dtype=np.float32) if "to_numpy" in dir(X) else X,
+            instance_kind,
+            num_class,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+            model.predict_proba(X),
+            model.predict(X, output_margin=True),
+            storage_type="SPARSE",
+        )
 
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 4])
-def test_xgb_classification_model_json(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_xgb_classifier(num_features, num_class)
-    base_name = "xgboost_{}_class_{}_json".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    model.save_model(os.path.join(model_dir, "xgboost.json"))
-    X = data_with_categoricals(100, num_features, 13)
-    run_classification_model(
+    def test_lgbm_classification_model(
+        self,
         client,
-        base_name,
+        memory,
         model_repo,
-        "xgboost_json",
-        X,
         instance_kind,
         num_class,
-        num_features,
         use_experimental_optimizations,
-        model.predict(X),
-        model.predict_proba(X),
-        model.predict(X, output_margin=True),
-    )
+    ):
+        num_features = 50
+        X, y = memory.cache(generate_example_model.generate_classification_data)(
+            num_class, cols=num_features, cat_cols=2, add_nans=True
+        )
+        model = memory.cache(generate_example_model.train_lightgbm_classifier)(
+            X, y, depth=3, trees=2000
+        )
+        base_name = "lgbm_{}_class_{}".format(num_class, instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        model.booster_.save_model(os.path.join(model_dir, "model.txt"))
+        run_classification_model(
+            client,
+            base_name,
+            model_repo,
+            "lightgbm",
+            X.to_numpy(dtype=np.float32) if "to_numpy" in dir(X) else X,
+            instance_kind,
+            num_class,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+            model.predict_proba(X),
+            model.predict(X, raw_score=True),
+        )
 
-
-@lru_cache
-def get_xgb_regressor(num_features):
-    rng = np.random.RandomState(11)
-    feature_types = ["q"] * num_features
-    feature_types[1] = "c"
-    training_params = {
-        "tree_method": "hist",
-        "max_depth": 15,
-        "n_estimators": 10,
-        "feature_types": feature_types,
-    }
-    model = xgb.XGBRegressor(**training_params)
-    return model.fit(data_with_categoricals(1000, num_features, 13), rng.random(1000))
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_xgb_regression_model(
-    client, model_repo, instance_kind, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_xgb_regressor(num_features)
-
-    base_name = "xgboost_regression_{}".format(instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    model.save_model(os.path.join(model_dir, "xgboost.model"))
-
-    X = data_with_categoricals(100, num_features, 17)
-    run_regression_model(
+    def test_sklearn(
+        self,
         client,
-        base_name,
+        memory,
         model_repo,
-        "xgboost",
-        X,
-        instance_kind,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-    )
-
-
-@lru_cache
-def get_lgbm_classifier(num_features, num_class):
-    rng = np.random.RandomState(1132)
-    model = lgbm.LGBMClassifier(n_estimators=20, categorical_feature=[1])
-    return model.fit(
-        data_with_categoricals(1000, num_features, 291), rng.randint(0, num_class, 1000)
-    )
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 5])
-def test_lgbm_classification_model(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_lgbm_classifier(num_features, num_class)
-    base_name = "lgbm_{}_class_{}".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    model.booster_.save_model(os.path.join(model_dir, "model.txt"))
-    X = data_with_categoricals(100, num_features, 13)
-    run_classification_model(
-        client,
-        base_name,
-        model_repo,
-        "lightgbm",
-        X,
         instance_kind,
         num_class,
-        num_features,
         use_experimental_optimizations,
-        model.predict(X),
-        model.predict_proba(X),
-        model.predict(X, raw_score=True),
-    )
+    ):
+        num_features = 500
+        X, y = memory.cache(generate_example_model.generate_classification_data)(
+            num_class, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_sklearn_classifier)(
+            X, y, depth=10, trees=100
+        )
+        base_name = "sklearn_rf_{}_class_{}".format(num_class, instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        save_sklearn_as_tl(model_dir, model)
+        expected_shap_sum = (
+            model.predict_proba(X) if num_class > 2 else model.predict_proba(X)[:, 1]
+        )
+        run_classification_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_class,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+            model.predict_proba(X),
+            expected_shap_sum,
+        )
 
-
-@lru_cache
-def get_lgbm_regressor(num_features):
-    rng = np.random.RandomState(1132)
-    model = lgbm.LGBMRegressor(n_estimators=20, categorical_feature=[1])
-    return model.fit(data_with_categoricals(1000, num_features, 291), rng.random(1000))
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_lgbm_regression_model(
-    client, model_repo, instance_kind, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_lgbm_regressor(num_features)
-
-    base_name = "lgbm{}_reg".format(instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    model.booster_.save_model(os.path.join(model_dir, "model.txt"))
-    X = data_with_categoricals(100, num_features, 72)
-    run_regression_model(
+    def test_cuml(
+        self,
         client,
-        base_name,
+        memory,
         model_repo,
-        "lightgbm",
-        X,
-        instance_kind,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-    )
-
-
-@lru_cache
-def get_sklearn_rf_classifier(num_features, num_class):
-    rng = np.random.RandomState(1132)
-    model = sklearn.ensemble.RandomForestClassifier(n_estimators=20)
-    return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
-
-
-def save_sklearn_as_tl(model_dir, model):
-    model = treelite.sklearn.import_model(model)
-    model.serialize(os.path.join(model_dir, "checkpoint.tl"))
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 5])
-def test_sklearn_classification_model(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_sklearn_rf_classifier(num_features, num_class)
-    base_name = "sklearn_rf_{}_class_{}".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    save_sklearn_as_tl(model_dir, model)
-    rng = np.random.RandomState(1133)
-    X = rng.random((100, num_features)).astype(np.float32)
-    expected_shap_sum = (
-        model.predict_proba(X) if num_class > 2 else model.predict_proba(X)[:, 1]
-    )
-    run_classification_model(
-        client,
-        base_name,
-        model_repo,
-        "treelite_checkpoint",
-        X,
         instance_kind,
         num_class,
-        num_features,
         use_experimental_optimizations,
-        model.predict(X),
-        model.predict_proba(X),
-        expected_shap_sum,
-    )
+    ):
+        num_features = 500
+        X, y = memory.cache(generate_example_model.generate_classification_data)(
+            num_class, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_cuml_classifier)(
+            X, y, depth=10, trees=1000
+        )
+        base_name = "cuml{}_class_{}".format(num_class, instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        save_cuml_as_tl(model_dir, model)
 
+        expected_proba = model.predict_proba(X)
+        expected_shap_sum = expected_proba
 
-@lru_cache
-def get_sklearn_rf_regressor(num_features):
-    rng = np.random.RandomState(234)
-    model = sklearn.ensemble.RandomForestRegressor(n_estimators=20)
-    return model.fit(rng.random((1000, num_features)), rng.random(1000))
+        run_classification_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_class,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+            expected_proba,
+            expected_shap_sum,
+        )
 
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_sklearn_rf_regression_model(
-    client, model_repo, instance_kind, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_sklearn_rf_regressor(num_features)
-    base_name = "sklearn__rf_regressor"
-    model_dir = get_model_directory(model_repo, base_name)
-    save_sklearn_as_tl(model_dir, model)
-    rng = np.random.RandomState(22345)
-    X = rng.random((100, num_features)).astype(np.float32)
-    run_regression_model(
+    def test_sklearn_gbm(
+        self,
         client,
-        base_name,
+        memory,
         model_repo,
-        "treelite_checkpoint",
-        X,
-        instance_kind,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-    )
-
-
-def get_cuml_classifier(num_features, num_class):
-    cuml = pytest.importorskip("cuml")
-    rng = np.random.RandomState(134)
-    model = cuml.ensemble.RandomForestClassifier(n_estimators=20)
-    return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
-
-
-def save_cuml_as_tl(model_dir, model):
-    tl_model = model.convert_to_treelite_model()
-    tl_model.to_treelite_checkpoint(os.path.join(model_dir, "checkpoint.tl"))
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 5])
-def test_cuml_classification_model(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_cuml_classifier(num_features, num_class)
-    base_name = "cuml{}_class_{}".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    save_cuml_as_tl(model_dir, model)
-    rng = np.random.RandomState(7372)
-    X = rng.random((100, num_features)).astype(np.float32)
-
-    expected_proba = model.predict_proba(X)
-    expected_shap_sum = expected_proba
-
-    run_classification_model(
-        client,
-        base_name,
-        model_repo,
-        "treelite_checkpoint",
-        X,
         instance_kind,
         num_class,
-        num_features,
         use_experimental_optimizations,
-        model.predict(X),
-        expected_proba,
-        expected_shap_sum,
-    )
+    ):
+        num_features = 50
+        X, y = memory.cache(generate_example_model.generate_classification_data)(
+            num_class, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_sklearn_gbm_classifier)(
+            X, y, depth=10, trees=100
+        )
+        base_name = "sklearn_gbm_{}_class_{}".format(num_class, instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        save_sklearn_as_tl(model_dir, model)
+        run_classification_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_class,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+            model.predict_proba(X),
+            model._raw_predict(np.array(X, order="C")),
+        )
 
 
-def get_cuml_regressor(num_features):
-    cuml = pytest.importorskip("cuml")
-    rng = np.random.RandomState(134)
-    model = cuml.ensemble.RandomForestRegressor(n_estimators=20)
-    return model.fit(rng.random((1000, num_features)), rng.random(1000))
+class TestRegressors(TestModels):
+    def test_xgb(
+        self, client, memory, model_repo, instance_kind, use_experimental_optimizations
+    ):
+        num_features = 500
+        X, y = memory.cache(generate_example_model.generate_regression_data)(
+            1000, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_xgboost_regressor)(
+            X, y, depth=11, trees=2000
+        )
+        base_name = "xgboost_regression_{}".format(instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        model.save_model(os.path.join(model_dir, "xgboost.model"))
+        run_regression_model(
+            client,
+            base_name,
+            model_repo,
+            "xgboost",
+            X,
+            instance_kind,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+        )
 
+    def test_lgbm(
+        self, client, memory, model_repo, instance_kind, use_experimental_optimizations
+    ):
+        num_features = 400
+        X, y = memory.cache(generate_example_model.generate_regression_data)(
+            1000, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_lightgbm_regressor)(
+            X, y, depth=25, trees=2000
+        )
 
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_cuml_regression_model(
-    client, model_repo, instance_kind, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_cuml_regressor(num_features)
-    base_name = "cuml_regressor"
-    model_dir = get_model_directory(model_repo, base_name)
-    save_cuml_as_tl(model_dir, model)
-    rng = np.random.RandomState(25)
-    X = rng.random((100, num_features)).astype(np.float32)
-    run_regression_model(
-        client,
-        base_name,
-        model_repo,
-        "treelite_checkpoint",
-        X,
-        instance_kind,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-    )
+        base_name = "lgbm{}_reg".format(instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        model.booster_.save_model(os.path.join(model_dir, "model.txt"))
+        run_regression_model(
+            client,
+            base_name,
+            model_repo,
+            "lightgbm",
+            X,
+            instance_kind,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+        )
 
+    def test_sklearn(
+        self, client, memory, model_repo, instance_kind, use_experimental_optimizations
+    ):
+        num_features = 50
+        X, y = memory.cache(generate_example_model.generate_regression_data)(
+            1000, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_sklearn_regressor)(
+            X, y, depth=25, trees=100
+        )
+        base_name = "sklearn__rf_regressor"
+        model_dir = get_model_directory(model_repo, base_name)
+        save_sklearn_as_tl(model_dir, model)
+        run_regression_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+        )
 
-@lru_cache
-def get_sklearn_gbm_classifier(num_features, num_class):
-    rng = np.random.RandomState(1236)
-    model = sklearn.ensemble.GradientBoostingClassifier(n_estimators=20, init="zero")
-    return model.fit(rng.random((1000, num_features)), rng.randint(0, num_class, 1000))
+    def test_cuml(
+        self, client, memory, model_repo, instance_kind, use_experimental_optimizations
+    ):
+        num_features = 500
+        X, y = memory.cache(generate_example_model.generate_regression_data)(
+            1000, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_cuml_regressor)(
+            X, y, depth=25, trees=100
+        )
+        base_name = "cuml_regressor"
+        model_dir = get_model_directory(model_repo, base_name)
+        save_cuml_as_tl(model_dir, model)
+        rng = np.random.RandomState(25)
+        X = rng.random((100, num_features)).astype(np.float32)
+        run_regression_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+        )
 
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-@pytest.mark.parametrize("num_class", [2, 5])
-def test_sklearn_gbm_classification_model(
-    client, model_repo, instance_kind, num_class, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_sklearn_gbm_classifier(num_features, num_class)
-    base_name = "sklearn_gbm_{}_class_{}".format(num_class, instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    save_sklearn_as_tl(model_dir, model)
-    rng = np.random.RandomState(1133)
-    X = rng.random((100, num_features)).astype(np.float32)
-    run_classification_model(
-        client,
-        base_name,
-        model_repo,
-        "treelite_checkpoint",
-        X,
-        instance_kind,
-        num_class,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-        model.predict_proba(X),
-        model._raw_predict(X),
-    )
-
-
-@lru_cache
-def get_sklearn_gbm_regressor(num_features):
-    rng = np.random.RandomState(1162)
-    model = sklearn.ensemble.GradientBoostingRegressor(n_estimators=20, init="zero")
-    return model.fit(rng.random((1000, num_features)), rng.random(1000))
-
-
-@pytest.mark.parametrize("use_experimental_optimizations", [True, False])
-@pytest.mark.parametrize("instance_kind", available_instance_types)
-def test_sklearn_gbm_regression_model(
-    client, model_repo, instance_kind, use_experimental_optimizations
-):
-    num_features = 50
-    model = get_sklearn_gbm_regressor(num_features)
-    base_name = "sklearn_gbm_regressor_{}".format(instance_kind)
-    model_dir = get_model_directory(model_repo, base_name)
-    save_sklearn_as_tl(model_dir, model)
-    rng = np.random.RandomState(1133)
-    X = rng.random((100, num_features)).astype(np.float32)
-    run_regression_model(
-        client,
-        base_name,
-        model_repo,
-        "treelite_checkpoint",
-        X,
-        instance_kind,
-        num_features,
-        use_experimental_optimizations,
-        model.predict(X),
-    )
+    def test_sklearn_gbm(
+        self, client, memory, model_repo, instance_kind, use_experimental_optimizations
+    ):
+        num_features = 50
+        X, y = memory.cache(generate_example_model.generate_regression_data)(
+            1000, cols=num_features
+        )
+        model = memory.cache(generate_example_model.train_sklearn_gbm_regressor)(
+            X, y, depth=25, trees=100
+        )
+        base_name = "sklearn_gbm_regressor_{}".format(instance_kind)
+        model_dir = get_model_directory(model_repo, base_name)
+        save_sklearn_as_tl(model_dir, model)
+        run_regression_model(
+            client,
+            base_name,
+            model_repo,
+            "treelite_checkpoint",
+            X,
+            instance_kind,
+            num_features,
+            use_experimental_optimizations,
+            model.predict(X),
+        )

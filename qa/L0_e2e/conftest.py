@@ -9,10 +9,19 @@ def pytest_addoption(parser):
         os.path.dirname(os.path.abspath(__file__)),
         'model_repository'
     )
+    default_cache_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '.model_cache'
+    )
     parser.addoption(
         "--repo",
         action="store",
         default=default_repo_path
+    )
+    parser.addoption(
+        "--model_cache_dir",
+        action="store",
+        default=default_cache_path
     )
     # option to skip treeshap tests for CPU only
     parser.addoption(

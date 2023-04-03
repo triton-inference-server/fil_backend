@@ -18,6 +18,7 @@ set -e
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
 QA_DIR="${REPO_DIR}/qa"
 MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
+MODEL_CACHE_DIR="${QA_DIR}/L0_e2e/.model_cache"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${NO_CACHE:-1}
@@ -112,8 +113,10 @@ else
 fi
 
 echo "Running tests..."
+mkdir -p "${MODEL_CACHE_DIR}"
 docker run \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
   -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
+  -v "${MODEL_CACHE_DIR}:/qa/L0_e2e/.model_cache" \
   --rm $TEST_TAG

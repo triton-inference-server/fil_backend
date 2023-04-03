@@ -15,6 +15,7 @@
 import argparse
 import os
 import pickle
+import numpy as np
 
 import cuml
 from cuml.ensemble import RandomForestClassifier as cuRFC
@@ -24,6 +25,7 @@ try:
 except ImportError:
     lgb = None
 try:
+    import sklearn
     from sklearn.ensemble import RandomForestClassifier as skRFC
     from sklearn.ensemble import RandomForestRegressor as skRFR
 except ImportError:
@@ -34,7 +36,7 @@ except ImportError:
     xgb = None
 
 
-def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
+def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0, seed=0, add_nans=False):
     """Generate classification training set"""
     if cat_cols > 0:
         output_type = 'cudf'
@@ -47,16 +49,26 @@ def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
             n_features=cols,
             n_informative=cols // 3,
             n_classes=classes,
-            random_state=0
+            random_state=seed
         )
+    if add_nans:
+        if output_type == 'cudf':
+            for i, col in enumerate(data.columns):
+                data.loc[data.sample(frac=0.1, random_state=seed+i).index, col] = np.nan
+            assert data.isnull().any().any()
+        else:
+            data.flat[np.random.RandomState(seed).choice(data.size, int(data.size * 0.5), replace=False)] = np.nan
+            assert np.isnan(data).any()
+
 
     if cat_cols > 0:
-        selected_cols = data.sample(n=min(cat_cols, cols), axis='columns')
+        selected_cols = data.sample(n=min(cat_cols, cols), axis='columns', random_state=seed)
+        data[selected_cols.columns].fillna(0, inplace=True)
         negatives = (selected_cols < 0)
         positives = (selected_cols >= 0)
         selected_cols = selected_cols.astype('object')
-        selected_cols[negatives] = 'negative'
-        selected_cols[positives] = 'positive'
+        selected_cols[negatives] = 0
+        selected_cols[positives] = 1
         data[selected_cols.columns] = selected_cols.astype('category')
         data = data.to_pandas()
         labels = labels.to_pandas()
@@ -74,7 +86,8 @@ def train_xgboost_classifier(data, labels, depth=25, trees=100):
         'max_depth': depth,
         'n_estimators': trees,
         'use_label_encoder': False,
-        'predictor': 'gpu_predictor'
+        'predictor': 'gpu_predictor',
+        'enable_categorical':True
     }
     model = xgb.XGBClassifier(**training_params)
 
@@ -85,26 +98,13 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     """Train LightGBM classification model"""
     if lgb is None:
         raise RuntimeError('LightGBM could not be imported')
-    lgb_data = lgb.Dataset(data, label=labels)
-
-    if classes <= 2:
-        classes = 1
-        objective = 'binary'
-        metric = 'binary_logloss'
-    else:
-        objective = 'multiclass'
-        metric = 'multi_logloss'
-
+    
     training_params = {
-        'metric': metric,
-        'objective': objective,
-        'num_class': classes,
         'max_depth': depth,
+        'num_estimators':trees,
         'verbose': -1
     }
-    model = lgb.train(training_params, lgb_data, trees)
-
-    return model
+    return lgb.LGBMClassifier(**training_params).fit(data,labels)
 
 
 def train_lightgbm_rf_classifier(data, labels, depth=25, trees=100, classes=2):
@@ -144,6 +144,12 @@ def train_sklearn_classifier(data, labels, depth=25, trees=100):
         max_depth=depth, n_estimators=trees, random_state=0
     )
 
+    return model.fit(data, labels)
+
+def train_sklearn_gbm_classifier(data, labels, depth=25, trees=100):
+    if sklearn is None:
+        raise RuntimeError('SKLearn could not be imported')
+    model = sklearn.ensemble.GradientBoostingClassifier(n_estimators=trees,max_depth=depth, init="zero")
     return model.fit(data, labels)
 
 
@@ -199,7 +205,7 @@ def generate_regression_data(rows=1000, cols=32):
 
 
 def train_xgboost_regressor(data, targets, depth=25, trees=100):
-    """Train XGBoost regression model"""
+    """Train XGBoost regresscion model"""
 
     if xgb is None:
         raise RuntimeError('XGBoost could not be imported')
@@ -220,17 +226,14 @@ def train_lightgbm_regressor(data, targets, depth=25, trees=100):
     """Train LightGBM regression model"""
     if lgb is None:
         raise RuntimeError('LightGBM could not be imported')
-    lgb_data = lgb.Dataset(data, targets)
 
     training_params = {
-        'metric': 'l2',
-        'objective': 'regression',
+        'num_estimators': trees,
         'max_depth': depth,
         'verbose': -1
     }
-    model = lgb.train(training_params, lgb_data, trees)
 
-    return model
+    return lgb.LGBMRegressor(**training_params).fit(data,targets)
 
 
 def train_lightgbm_rf_regressor(data, targets, depth=25, trees=100):
@@ -261,6 +264,10 @@ def train_sklearn_regressor(data, targets, depth=25, trees=100):
 
     return model.fit(data, targets)
 
+
+def train_sklearn_gbm_regressor(data, targets, depth=25, trees=100):
+    model = sklearn.ensemble.GradientBoostingRegressor(n_estimators=trees,max_depth=depth, init="zero")
+    return model.fit(data, targets)
 
 def train_cuml_regressor(data, targets, depth=25, trees=100):
     """Train cuML regression model"""
@@ -346,7 +353,7 @@ def serialize_model(model, directory, output_format='xgboost'):
         return model_path
     if output_format == 'lightgbm':
         model_path = os.path.join(directory, 'model.txt')
-        model.save_model(model_path)
+        model.booster_.save_model(model_path)
         return model_path
     if output_format == 'pickle':
         model_path = os.path.join(directory, 'model.pkl')
@@ -360,6 +367,7 @@ def serialize_model(model, directory, output_format='xgboost'):
 
 def generate_config(
         model_name,
+        model_repo,
         *,
         instance_kind='gpu',
         model_format='xgboost',
@@ -370,15 +378,8 @@ def generate_config(
         task='classification',
         threshold=0.5,
         max_batch_size=8192,
-        storage_type="AUTO"):
-    """Return a string with the full Triton config.pbtxt for this model
-    """
-    if instance_kind == 'gpu':
-        instance_kind = 'KIND_GPU'
-    elif instance_kind == 'cpu':
-        instance_kind = 'KIND_CPU'
-    else:
-        raise ValueError("instance_kind must be either 'gpu' or 'cpu'")
+        storage_type="AUTO",
+        generate_shap=False):
     if predict_proba:
         output_dim = num_classes
     else:
@@ -391,13 +392,13 @@ def generate_config(
         model_format = 'treelite_checkpoint'
 
     # Add treeshap output to xgboost_shap model
-    treeshap_output_dim = num_classes if num_classes > 2 else 1
+    treeshap_output_dim = num_classes if num_classes > 2 or 'cuml' in model_name else 1
     if treeshap_output_dim == 1:
         treeshap_output_str = f"{features + 1}"
     else:
         treeshap_output_str = f"{treeshap_output_dim}, {features + 1}"
     treeshap_output = ""
-    if model_name == 'xgboost_shap':
+    if generate_shap:
         treeshap_output = f"""
         ,{{
             name: "treeshap_output"
@@ -406,7 +407,7 @@ def generate_config(
         }}
         """
 
-    return f"""name: "{model_name}"
+    config = f"""name: "{model_name}"
 backend: "fil"
 max_batch_size: {max_batch_size}
 input [
@@ -461,6 +462,11 @@ parameters [
 ]
 
 dynamic_batching {{ }}"""
+    config_dir = os.path.abspath(os.path.join(model_repo, model_name))
+    config_path = os.path.join(config_dir, 'config.pbtxt')
+    with open(config_path, 'w') as config_file:
+        config_file.write(config)
+
 
 
 def build_model(
@@ -483,6 +489,13 @@ def build_model(
         storage_type="AUTO"):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
+
+    if instance_kind == 'gpu':
+        instance_kind = 'KIND_GPU'
+    elif instance_kind == 'cpu':
+        instance_kind = 'KIND_CPU'
+    else:
+        raise ValueError("instance_kind must be either 'gpu' or 'cpu'")
 
     if model_repo is None:
         model_repo = os.path.join(
@@ -540,8 +553,9 @@ def build_model(
 
     serialize_model(model, model_dir, output_format=output_format)
 
-    config = generate_config(
+    generate_config(
         model_name,
+        model_repo,
         instance_kind=instance_kind,
         model_format=output_format,
         features=features,
@@ -551,12 +565,9 @@ def build_model(
         task=task,
         threshold=classification_threshold,
         max_batch_size=max_batch_size,
-        storage_type=storage_type
+        storage_type=storage_type,
+        generate_shap='shap' in model_name
     )
-    config_path = os.path.join(config_dir, 'config.pbtxt')
-
-    with open(config_path, 'w') as config_file:
-        config_file.write(config)
 
     return model_name
 
