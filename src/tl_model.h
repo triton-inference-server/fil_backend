@@ -125,11 +125,15 @@ struct TreeliteModel {
             rapids::Buffer<float>{gtil_output_size, rapids::HostMemory};
       }
 
+      auto gtil_config = treelite::gtil::Configuration{};
+      gtil_config.nthread = tl_config_->cpu_nthread;
+      auto gtil_output_shape = std::vector<std::size_t>{samples, output.size() / samples};
+
       // Actually perform inference
       try {
         treelite::gtil::Predict(
           base_tl_model_.get(), input.data(), samples, output_buffer.data(),
-          tl_config_->cpu_nthread, true);
+          gtil_config, gtil_output_shape);
       } catch (treelite::Error const& tl_err) {
         throw rapids::TritonException(rapids::Error::Internal, tl_err.what());
       }
