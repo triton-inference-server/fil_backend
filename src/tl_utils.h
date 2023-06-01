@@ -40,9 +40,11 @@ inline auto load_tl_base_model(
       case SerializationFormat::xgboost:
         result = treelite::frontend::LoadXGBoostModel(model_file.c_str());
         break;
-      case SerializationFormat::xgboost_json:
-        result = treelite::frontend::LoadXGBoostJSONModel(model_file.c_str());
+      case SerializationFormat::xgboost_json: {
+        auto config_str = "{}";
+        result = treelite::frontend::LoadXGBoostJSONModel(model_file.c_str(), config_str);
         break;
+      }
       case SerializationFormat::lightgbm:
         result = treelite::frontend::LoadLightGBMModel(model_file.c_str());
         break;
