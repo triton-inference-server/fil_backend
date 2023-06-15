@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 '''cuML RF to Treelite checkpoint converter
 
 Given a path to a pickle file containing a cuML random forest model, this
@@ -26,9 +25,8 @@ import pickle
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'pickle_file', help='Path to the pickle file to convert'
-    )
+    parser.add_argument('pickle_file',
+                        help='Path to the pickle file to convert')
     args = parser.parse_args()
 
     with open(args.pickle_file, 'rb') as file_:
