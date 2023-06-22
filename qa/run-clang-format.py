@@ -24,7 +24,6 @@ import subprocess
 import argparse
 import tempfile
 
-
 EXPECTED_VERSION = "11.1.0"
 VERSION_REGEX = re.compile(r"clang-format version ([0-9.]+)")
 # NOTE: populate this list with more top-level dirs as we add more of them to
@@ -34,22 +33,35 @@ DEFAULT_DIRS = ["src", "src/triton_fil"]
 
 def parse_args():
     argparser = argparse.ArgumentParser("Runs clang-format on a project")
-    argparser.add_argument("-dstdir", type=str, default=None,
+    argparser.add_argument("-dstdir",
+                           type=str,
+                           default=None,
                            help="Directory to store the temporary outputs of"
                            " clang-format. If nothing is passed for this, then"
                            " a temporary dir will be created using `mkdtemp`")
-    argparser.add_argument("-exe", type=str, default="clang-format",
+    argparser.add_argument("-exe",
+                           type=str,
+                           default="clang-format",
                            help="Path to clang-format exe")
-    argparser.add_argument("-inplace", default=False, action="store_true",
+    argparser.add_argument("-inplace",
+                           default=False,
+                           action="store_true",
                            help="Replace the source files itself.")
-    argparser.add_argument("-regex", type=str,
+    argparser.add_argument("-regex",
+                           type=str,
                            default=r"[.](cu|cuh|h|hpp|cpp)$",
                            help="Regex string to filter in sources")
-    argparser.add_argument("-ignore", type=str, default=r"cannylab/bh[.]cu$",
+    argparser.add_argument("-ignore",
+                           type=str,
+                           default=r"cannylab/bh[.]cu$",
                            help="Regex used to ignore files from matched list")
-    argparser.add_argument("-v", dest="verbose", action="store_true",
+    argparser.add_argument("-v",
+                           dest="verbose",
+                           action="store_true",
                            help="Print verbose messages")
-    argparser.add_argument("dirs", type=str, nargs="*",
+    argparser.add_argument("dirs",
+                           type=str,
+                           nargs="*",
                            help="List of dirs where to find sources")
     args = argparser.parse_args()
     args.regex_compiled = re.compile(args.regex)
@@ -64,8 +76,7 @@ def parse_args():
     version = version.group(1)
     if version != EXPECTED_VERSION:
         raise Exception(
-            f"clang-format exe must be v{EXPECTED_VERSION} found '{version}'"
-        )
+            f"clang-format exe must be v{EXPECTED_VERSION} found '{version}'")
     if len(args.dirs) == 0:
         args.dirs = DEFAULT_DIRS
     return args
@@ -110,11 +121,8 @@ def run_clang_format(src, dst, exe, verbose):
         if verbose:
             print("%s passed" % os.path.basename(src))
     except subprocess.CalledProcessError:
-        print(
-            "{} failed! 'diff {} {}' will show formatting violations!".format(
-                os.path.basename(src), src, dst
-            )
-        )
+        print("{} failed! 'diff {} {}' will show formatting violations!".format(
+            os.path.basename(src), src, dst))
         return False
     return True
 
@@ -137,11 +145,8 @@ def main():
         print(" 1. Look at formatting differences above and fix them manually")
         print(" 2. Or run the below command to bulk-fix all these at once")
         print("Bulk-fix command: ")
-        print(
-            "  python qa/run-clang-format.py {} -inplace".format(
-                " ".join(sys.argv[1:])
-            )
-        )
+        print("  python qa/run-clang-format.py {} -inplace".format(" ".join(
+            sys.argv[1:])))
         sys.exit(-1)
     return
 

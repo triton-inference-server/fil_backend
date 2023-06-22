@@ -42,13 +42,12 @@ def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
         output_type = 'numpy'
 
     with cuml.using_output_type(output_type):
-        data, labels = cuml.datasets.make_classification(
-            n_samples=rows,
-            n_features=cols,
-            n_informative=cols // 3,
-            n_classes=classes,
-            random_state=0
-        )
+        data, labels = cuml.datasets.make_classification(n_samples=rows,
+                                                         n_features=cols,
+                                                         n_informative=cols //
+                                                         3,
+                                                         n_classes=classes,
+                                                         random_state=0)
 
     if cat_cols > 0:
         selected_cols = data.sample(n=min(cat_cols, cols), axis='columns')
@@ -140,61 +139,53 @@ def train_sklearn_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
     if skRFC is None:
         raise RuntimeError('SKLearn could not be imported')
-    model = skRFC(
-        max_depth=depth, n_estimators=trees, random_state=0
-    )
+    model = skRFC(max_depth=depth, n_estimators=trees, random_state=0)
 
     return model.fit(data, labels)
 
 
 def train_cuml_classifier(data, labels, depth=25, trees=100):
     """Train SKLearn classification model"""
-    model = cuRFC(
-        max_depth=depth, n_estimators=trees, random_state=0
-    )
+    model = cuRFC(max_depth=depth, n_estimators=trees, random_state=0)
 
     return model.fit(data, labels)
 
 
-def train_classifier(
-        data,
-        labels,
-        model_type='xgboost',
-        depth=25,
-        trees=100,
-        classes=2):
+def train_classifier(data,
+                     labels,
+                     model_type='xgboost',
+                     depth=25,
+                     trees=100,
+                     classes=2):
     """Train classification model"""
     if model_type == 'xgboost':
-        return train_xgboost_classifier(
-            data, labels, depth=depth, trees=trees
-        )
+        return train_xgboost_classifier(data, labels, depth=depth, trees=trees)
     if model_type == 'lightgbm':
-        return train_lightgbm_classifier(
-            data, labels, depth=depth, trees=trees, classes=classes
-        )
+        return train_lightgbm_classifier(data,
+                                         labels,
+                                         depth=depth,
+                                         trees=trees,
+                                         classes=classes)
     if model_type == 'lightgbm_rf':
-        return train_lightgbm_rf_classifier(
-            data, labels, depth=depth, trees=trees, classes=classes
-        )
+        return train_lightgbm_rf_classifier(data,
+                                            labels,
+                                            depth=depth,
+                                            trees=trees,
+                                            classes=classes)
     if model_type == 'cuml':
-        return train_cuml_classifier(
-            data, labels, depth=depth, trees=trees
-        )
+        return train_cuml_classifier(data, labels, depth=depth, trees=trees)
     if model_type == 'sklearn':
-        return train_sklearn_classifier(
-            data, labels, depth=depth, trees=trees
-        )
+        return train_sklearn_classifier(data, labels, depth=depth, trees=trees)
 
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
 
 def generate_regression_data(rows=1000, cols=32):
     with cuml.using_output_type('numpy'):
-        data, labels = cuml.datasets.make_regression(
-            n_samples=rows,
-            n_features=cols,
-            n_informative=cols // 3,
-            random_state=0)
+        data, labels = cuml.datasets.make_regression(n_samples=rows,
+                                                     n_features=cols,
+                                                     n_informative=cols // 3,
+                                                     random_state=0)
     return data, labels
 
 
@@ -255,83 +246,68 @@ def train_sklearn_regressor(data, targets, depth=25, trees=100):
     """Train SKLearn regression model"""
     if skRFR is None:
         raise RuntimeError('SKLearn could not be imported')
-    model = skRFR(
-        max_depth=depth, n_estimators=trees, random_state=0
-    )
+    model = skRFR(max_depth=depth, n_estimators=trees, random_state=0)
 
     return model.fit(data, targets)
 
 
 def train_cuml_regressor(data, targets, depth=25, trees=100):
     """Train cuML regression model"""
-    model = cuRFR(
-        max_depth=depth, n_estimators=trees, random_state=0
-    )
+    model = cuRFR(max_depth=depth, n_estimators=trees, random_state=0)
 
     return model.fit(data, targets)
 
 
-def train_regressor(
-        data,
-        targets,
-        model_type='xgboost',
-        depth=25,
-        trees=100):
+def train_regressor(data, targets, model_type='xgboost', depth=25, trees=100):
     """Train regression model"""
     if model_type == 'xgboost':
-        return train_xgboost_regressor(
-            data, targets, depth=depth, trees=trees
-        )
+        return train_xgboost_regressor(data, targets, depth=depth, trees=trees)
     if model_type == 'lightgbm':
-        return train_lightgbm_regressor(
-            data, targets, depth=depth, trees=trees
-        )
+        return train_lightgbm_regressor(data, targets, depth=depth, trees=trees)
     if model_type == 'lightgbm_rf':
-        return train_lightgbm_rf_regressor(
-            data, labels, depth=depth, trees=trees
-        )
+        return train_lightgbm_rf_regressor(data,
+                                           labels,
+                                           depth=depth,
+                                           trees=trees)
     if model_type == 'sklearn':
-        return train_sklearn_regressor(
-            data, targets, depth=depth, trees=trees
-        )
+        return train_sklearn_regressor(data, targets, depth=depth, trees=trees)
     if model_type == 'cuml':
-        return train_cuml_regressor(
-            data, targets, depth=depth, trees=trees
-        )
+        return train_cuml_regressor(data, targets, depth=depth, trees=trees)
 
     raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
 
-def generate_model(
-        task='classification',
-        model_type='xgboost',
-        depth=25,
-        trees=100,
-        classes=2,
-        samples=1000,
-        features=32,
-        cat_features=0):
+def generate_model(task='classification',
+                   model_type='xgboost',
+                   depth=25,
+                   trees=100,
+                   classes=2,
+                   samples=1000,
+                   features=32,
+                   cat_features=0):
     """Generate a model with the given properties"""
     if cat_features != 0 and model_type != 'lightgbm':
         raise NotImplementedError(
             'Categorical feature generation has not yet been implemented for'
-            ' non-LightGBM models'
-        )
+            ' non-LightGBM models')
     if task == 'classification':
-        data, labels = generate_classification_data(
-            classes=classes, rows=samples, cols=features, cat_cols=cat_features
-        )
-        return train_classifier(
-            data, labels, model_type=model_type, depth=depth, trees=trees,
-            classes=classes
-        )
+        data, labels = generate_classification_data(classes=classes,
+                                                    rows=samples,
+                                                    cols=features,
+                                                    cat_cols=cat_features)
+        return train_classifier(data,
+                                labels,
+                                model_type=model_type,
+                                depth=depth,
+                                trees=trees,
+                                classes=classes)
     if task == 'regression':
-        data, labels = generate_regression_data(
-            rows=samples, cols=features
-        )
-        return train_regressor(
-            data, labels, model_type=model_type, depth=depth, trees=trees
-        )
+        data, labels = generate_regression_data(rows=samples, cols=features)
+        return train_regressor(data,
+                               labels,
+                               model_type=model_type,
+                               depth=depth,
+                               trees=trees)
     raise RuntimeError('Unknown model task "{}"'.format(task))
 
 
@@ -353,24 +329,21 @@ def serialize_model(model, directory, output_format='xgboost'):
         with open(model_path, 'wb') as model_file:
             pickle.dump(model, model_file)
         return model_path
-    raise RuntimeError(
-        f'Unknown serialization format "{output_format}"'
-    )
+    raise RuntimeError(f'Unknown serialization format "{output_format}"')
 
 
-def generate_config(
-        model_name,
-        *,
-        instance_kind='gpu',
-        model_format='xgboost',
-        features=32,
-        num_classes=2,
-        predict_proba=False,
-        use_experimental_optimizations=True,
-        task='classification',
-        threshold=0.5,
-        max_batch_size=8192,
-        storage_type="AUTO"):
+def generate_config(model_name,
+                    *,
+                    instance_kind='gpu',
+                    model_format='xgboost',
+                    features=32,
+                    num_classes=2,
+                    predict_proba=False,
+                    use_experimental_optimizations=True,
+                    task='classification',
+                    threshold=0.5,
+                    max_batch_size=8192,
+                    storage_type="AUTO"):
     """Return a string with the full Triton config.pbtxt for this model
     """
     if instance_kind == 'gpu':
@@ -384,7 +357,8 @@ def generate_config(
     else:
         output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
-    use_experimental_optimizations = str(bool(use_experimental_optimizations)).lower()
+    use_experimental_optimizations = str(
+        bool(use_experimental_optimizations)).lower()
     output_class = str(task == 'classification').lower()
 
     if model_format == 'pickle':
@@ -463,32 +437,28 @@ parameters [
 dynamic_batching {{ }}"""
 
 
-def build_model(
-        task='classification',
-        model_type='xgboost',
-        instance_kind='gpu',
-        output_format=None,
-        depth=25,
-        trees=100,
-        classes=2,
-        samples=1000,
-        features=32,
-        cat_features=0,
-        model_repo=os.path.dirname(__file__),
-        model_name=None,
-        classification_threshold=0.5,
-        predict_proba=False,
-        use_experimental_optimizations=True,
-        max_batch_size=8192,
-        storage_type="AUTO"):
+def build_model(task='classification',
+                model_type='xgboost',
+                instance_kind='gpu',
+                output_format=None,
+                depth=25,
+                trees=100,
+                classes=2,
+                samples=1000,
+                features=32,
+                cat_features=0,
+                model_repo=os.path.dirname(__file__),
+                model_name=None,
+                classification_threshold=0.5,
+                predict_proba=False,
+                use_experimental_optimizations=True,
+                max_batch_size=8192,
+                storage_type="AUTO"):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
 
     if model_repo is None:
-        model_repo = os.path.join(
-            os.path.dirname(__file__),
-            'model_repository'
-        )
+        model_repo = os.path.join(os.path.dirname(__file__), 'model_repository')
 
     if output_format is None:
         if model_type == 'xgboost':
@@ -500,25 +470,14 @@ def build_model(
         else:
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
-    if (
-        (
-            model_type == 'xgboost' and
-            output_format not in {'xgboost', 'xgboost_json'}
-        ) or (
-            model_type == 'lightgbm' and
-            output_format not in {'lightgbm'}
-        ) or (
-            model_type == 'sklearn' and
-            output_format not in {'pickle'}
-        ) or (
-            model_type == 'cuml' and
-            output_format not in {'pickle'}
-        )
-    ):
+    if ((model_type == 'xgboost' and
+         output_format not in {'xgboost', 'xgboost_json'}) or
+        (model_type == 'lightgbm' and output_format not in {'lightgbm'}) or
+        (model_type == 'sklearn' and output_format not in {'pickle'}) or
+        (model_type == 'cuml' and output_format not in {'pickle'})):
         raise RuntimeError(
             f'Output format "{output_format}" inconsistent with model type'
-            f' "{model_type}"'
-        )
+            f' "{model_type}"')
 
     if model_name is None:
         model_name = f"{model_type}_{task}_{output_format}"
@@ -527,16 +486,14 @@ def build_model(
     model_dir = os.path.join(config_dir, '1')
     os.makedirs(model_dir, exist_ok=True)
 
-    model = generate_model(
-        task=task,
-        model_type=model_type,
-        depth=depth,
-        trees=trees,
-        classes=classes,
-        samples=samples,
-        features=features,
-        cat_features=cat_features
-    )
+    model = generate_model(task=task,
+                           model_type=model_type,
+                           depth=depth,
+                           trees=trees,
+                           classes=classes,
+                           samples=samples,
+                           features=features,
+                           cat_features=cat_features)
 
     serialize_model(model, model_dir, output_format=output_format)
 
@@ -551,8 +508,7 @@ def build_model(
         task=task,
         threshold=classification_threshold,
         max_batch_size=max_batch_size,
-        storage_type=storage_type
-    )
+        storage_type=storage_type)
     config_path = os.path.join(config_dir, 'config.pbtxt')
 
     with open(config_path, 'w') as config_file:
@@ -588,58 +544,37 @@ def parse_args():
         default=None,
         help='serialization format for model',
     )
-    parser.add_argument(
-        '--depth',
-        type=int,
-        help='maximum model depth',
-        default=25
-    )
-    parser.add_argument(
-        '--trees',
-        type=int,
-        help='number of trees in model',
-        default=100
-    )
-    parser.add_argument(
-        '--classes',
-        type=int,
-        help='for classifiers, the number of classes',
-        default=2
-    )
-    parser.add_argument(
-        '--features',
-        type=int,
-        help='number of features in data',
-        default=32
-    )
+    parser.add_argument('--depth',
+                        type=int,
+                        help='maximum model depth',
+                        default=25)
+    parser.add_argument('--trees',
+                        type=int,
+                        help='number of trees in model',
+                        default=100)
+    parser.add_argument('--classes',
+                        type=int,
+                        help='for classifiers, the number of classes',
+                        default=2)
+    parser.add_argument('--features',
+                        type=int,
+                        help='number of features in data',
+                        default=32)
     parser.add_argument(
         '--cat_features',
         type=int,
         help='number of categorical features (must be <= features)',
-        default=0
-    )
-    parser.add_argument(
-        '--samples',
-        type=int,
-        help='number of training samples',
-        default=1000
-    )
-    parser.add_argument(
-        '--repo',
-        help='path to model repository',
-        default=None
-    )
-    parser.add_argument(
-        '--name',
-        help='name for model',
-        default=None
-    )
-    parser.add_argument(
-        '--threshold',
-        type=float,
-        help='for classifiers, the classification threshold',
-        default=0.5
-    )
+        default=0)
+    parser.add_argument('--samples',
+                        type=int,
+                        help='number of training samples',
+                        default=1000)
+    parser.add_argument('--repo', help='path to model repository', default=None)
+    parser.add_argument('--name', help='name for model', default=None)
+    parser.add_argument('--threshold',
+                        type=float,
+                        help='for classifiers, the classification threshold',
+                        default=0.5)
     parser.add_argument(
         '--predict_proba',
         action='store_true',
@@ -650,18 +585,14 @@ def parse_args():
         action='store_true',
         help='for classifiers, output class scores',
     )
-    parser.add_argument(
-        '--max_batch_size',
-        type=int,
-        help='largest batch size allowed for this model',
-        default=8192
-    )
-    parser.add_argument(
-        '--storage_type',
-        choices=['AUTO', 'DENSE', 'SPARSE', 'SPARSE8'],
-        help='storage type used to load this model in FIL',
-        default='AUTO'
-    )
+    parser.add_argument('--max_batch_size',
+                        type=int,
+                        help='largest batch size allowed for this model',
+                        default=8192)
+    parser.add_argument('--storage_type',
+                        choices=['AUTO', 'DENSE', 'SPARSE', 'SPARSE8'],
+                        help='storage type used to load this model in FIL',
+                        default='AUTO')
 
     return parser.parse_args()
 
@@ -669,24 +600,22 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
 
-    print(build_model(
-        task=args.task,
-        model_type=args.type,
-        instance_kind=args.instance_kind,
-        output_format=args.format,
-        depth=args.depth,
-        trees=args.trees,
-        classes=args.classes,
-        samples=args.samples,
-        features=args.features,
-        cat_features=args.cat_features,
-        model_repo=args.repo,
-        model_name=args.name,
-        classification_threshold=args.threshold,
-        predict_proba=args.predict_proba,
-        use_experimental_optimizations=(
-            not args.disable_experimental_optimizations
-        ),
-        max_batch_size=args.max_batch_size,
-        storage_type=args.storage_type
-    ))
+    print(
+        build_model(task=args.task,
+                    model_type=args.type,
+                    instance_kind=args.instance_kind,
+                    output_format=args.format,
+                    depth=args.depth,
+                    trees=args.trees,
+                    classes=args.classes,
+                    samples=args.samples,
+                    features=args.features,
+                    cat_features=args.cat_features,
+                    model_repo=args.repo,
+                    model_name=args.name,
+                    classification_threshold=args.threshold,
+                    predict_proba=args.predict_proba,
+                    use_experimental_optimizations=(
+                        not args.disable_experimental_optimizations),
+                    max_batch_size=args.max_batch_size,
+                    storage_type=args.storage_type))
