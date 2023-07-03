@@ -10,7 +10,7 @@ dependencies:
   - libcusparse<=12.0
   - matplotlib
   - pip
-  - python=3.8
+  - python=3.10
   - scipy
   - pip:
       - tritonclient[all]
