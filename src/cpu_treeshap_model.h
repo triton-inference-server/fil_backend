@@ -349,32 +349,35 @@ struct TreeShapModel<rapids::HostMemory> {
       std::size_t n_rows, std::size_t n_cols) const
   {
     thread_count<int> nthread(tl_model_->config().cpu_nthread);
-    std::visit([&](const auto& info) {
+    std::visit(
+        [&](const auto& info) {
 #pragma omp parallel for num_threads(static_cast<int>(nthread))
-      for (auto i = 0; i < n_rows; i++) {
-        for (auto info_idx = 0; info_idx < info.size(); info_idx++) {
-          // One class per tree
-          auto output_offset =
-              output.data() +
-              (i * num_class_ + info[info_idx].class_idx) * (n_cols + 1);
-          linear_treeshap(
-              info[info_idx], output_offset, input.data() + i * n_cols, n_cols);
-        }
-      }
-      // Scale output
-      auto scale = 1.0f / average_factor_;
-      for (auto i = 0; i < output.size(); i++) {
-        output.data()[i] = output.data()[i] * scale;
-      }
-      // Add global bias to bias column
-      for (auto i = 0; i < n_rows; i++) {
-        for (auto class_idx = 0; class_idx < num_class_; class_idx++) {
-          auto output_offset =
-              (i * num_class_ + class_idx) * (n_cols + 1) + n_cols;
-          output.data()[output_offset] += global_bias_;
-        }
-      }
-    }, meta_infos_);
+          for (auto i = 0; i < n_rows; i++) {
+            for (auto info_idx = 0; info_idx < info.size(); info_idx++) {
+              // One class per tree
+              auto output_offset =
+                  output.data() +
+                  (i * num_class_ + info[info_idx].class_idx) * (n_cols + 1);
+              linear_treeshap(
+                  info[info_idx], output_offset, input.data() + i * n_cols,
+                  n_cols);
+            }
+          }
+          // Scale output
+          auto scale = 1.0f / average_factor_;
+          for (auto i = 0; i < output.size(); i++) {
+            output.data()[i] = output.data()[i] * scale;
+          }
+          // Add global bias to bias column
+          for (auto i = 0; i < n_rows; i++) {
+            for (auto class_idx = 0; class_idx < num_class_; class_idx++) {
+              auto output_offset =
+                  (i * num_class_ + class_idx) * (n_cols + 1) + n_cols;
+              output.data()[output_offset] += global_bias_;
+            }
+          }
+        },
+        meta_infos_);
   }
   std::shared_ptr<TreeliteModel> tl_model_;
   int num_class_;

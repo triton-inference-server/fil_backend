@@ -48,11 +48,11 @@ struct ForestModel<rapids::DeviceMemory> {
               raft_handle_, &variant_result, tl_model_->handle(), &config);
           try {
             result = std::get<fil_forest_t>(variant_result);
-          } catch (std::bad_variant_access const& err) {
+          }
+          catch (std::bad_variant_access const& err) {
             throw rapids::TritonException(
-              rapids::Error::Internal,
-              "Model did not load with expected precision"
-            );
+                rapids::Error::Internal,
+                "Model did not load with expected precision");
           }
           return result;
         }()}

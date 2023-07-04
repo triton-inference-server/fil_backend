@@ -104,7 +104,7 @@ then
   pytest \
     --repo "${MODEL_REPO}" \
     --hypothesis-profile "$TEST_PROFILE" \
-    "$QA_DIR" 
+    "$QA_DIR"
 else
   pytest --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
 fi

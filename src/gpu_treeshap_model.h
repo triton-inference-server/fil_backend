@@ -53,13 +53,9 @@ struct TreeShapModel<rapids::DeviceMemory> {
     // take a stream on its API
     input.stream_synchronize();
     ML::Explainer::gpu_treeshap(
-      path_info_,
-      ML::Explainer::FloatPointer(const_cast<float*>(input.data())),
-      n_rows,
-      n_cols,
-      ML::Explainer::FloatPointer(output.data()),
-      output.size()
-    );
+        path_info_,
+        ML::Explainer::FloatPointer(const_cast<float*>(input.data())), n_rows,
+        n_cols, ML::Explainer::FloatPointer(output.data()), output.size());
     output.stream_synchronize();
   }
 
