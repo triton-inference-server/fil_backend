@@ -52,12 +52,12 @@ A typical `config.pbtxt` file might look something like this:
 ```protobuf
 backend: "fil"
 max_batch_size: 32768
-input [                                 
- {  
+input [
+ {
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ 32 ]                    
-  } 
+    dims: [ 32 ]
+  }
 ]
 output [
  {
@@ -129,11 +129,11 @@ Below, we see an example I/O specification for a model with 32 input
 features and 3 output classes with the `predict_proba` flag enabled:
 ```
 input [
- {  
+ {
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ 32 ]                    
-  } 
+    dims: [ 32 ]
+  }
 ]
 output [
  {
