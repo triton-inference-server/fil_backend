@@ -31,9 +31,7 @@
 #include <rapids_triton/triton/model_instance_state.hpp>
 #include <rapids_triton/triton/model_state.hpp>
 
-namespace triton {
-namespace backend {
-namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE {
 
 using ModelState = rapids::TritonModelState<RapidsSharedState>;
 using ModelInstanceState =
@@ -43,38 +41,46 @@ extern "C" {
 
 /** Confirm that backend is compatible with Triton's backend API version
  */
-TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
+TRITONSERVER_Error*
+TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
+{
   return rapids::triton_api::initialize(backend);
 }
 
-TRITONSERVER_Error* TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
+{
   return rapids::triton_api::model_initialize<ModelState>(model);
 }
 
-TRITONSERVER_Error* TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
+{
   return rapids::triton_api::model_finalize<ModelState>(model);
 }
 
-TRITONSERVER_Error* TRITONBACKEND_ModelInstanceInitialize(
-    TRITONBACKEND_ModelInstance* instance) {
-  return rapids::triton_api::instance_initialize<ModelState,
-                                                 ModelInstanceState>(instance);
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
+{
+  return rapids::triton_api::instance_initialize<
+      ModelState, ModelInstanceState>(instance);
 }
 
-TRITONSERVER_Error* TRITONBACKEND_ModelInstanceFinalize(
-    TRITONBACKEND_ModelInstance* instance) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
+{
   return rapids::triton_api::instance_finalize<ModelInstanceState>(instance);
 }
 
-TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInstanceExecute(
     TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
-    uint32_t const request_count) {
+    uint32_t const request_count)
+{
   return rapids::triton_api::execute<ModelState, ModelInstanceState>(
       instance, raw_requests, static_cast<std::size_t>(request_count));
 }
 
 }  // extern "C"
 
-}  // namespace NAMESPACE
-}  // namespace backend
-}  // namespace triton
+}}}  // namespace triton::backend::NAMESPACE

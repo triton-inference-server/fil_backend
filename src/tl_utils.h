@@ -30,7 +30,8 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-inline auto load_tl_base_model(
+inline auto
+load_tl_base_model(
     std::filesystem::path const& model_file, SerializationFormat format)
 {
   auto result = std::unique_ptr<treelite::Model>{};
@@ -42,7 +43,8 @@ inline auto load_tl_base_model(
         break;
       case SerializationFormat::xgboost_json: {
         auto config_str = "{}";
-        result = treelite::frontend::LoadXGBoostJSONModel(model_file.c_str(), config_str);
+        result = treelite::frontend::LoadXGBoostJSONModel(
+            model_file.c_str(), config_str);
         break;
       }
       case SerializationFormat::lightgbm:
@@ -53,11 +55,13 @@ inline auto load_tl_base_model(
         if (file == nullptr) {
           auto log_stream = std::stringstream{};
           log_stream << "Could not open model file " << model_file;
-          throw rapids::TritonException(rapids::Error::Unavailable, log_stream.str());
+          throw rapids::TritonException(
+              rapids::Error::Unavailable, log_stream.str());
         }
         try {
           result = treelite::Model::DeserializeFromFile(file);
-        } catch (treelite::Error const& err) {
+        }
+        catch (treelite::Error const& err) {
           std::fclose(file);
           throw;
         }
@@ -65,10 +69,13 @@ inline auto load_tl_base_model(
         break;
       }
     }
-  } catch (treelite::Error const& err) {
+  }
+  catch (treelite::Error const& err) {
     throw rapids::TritonException(rapids::Error::Unknown, err.what());
-  } catch (std::runtime_error const& err) {
-    // This block is needed because Treelite sometimes throws a generic exception
+  }
+  catch (std::runtime_error const& err) {
+    // This block is needed because Treelite sometimes throws a generic
+    // exception
     // TODO(hcho3): Revise Treelite so that it only throws treelite::Error
     throw rapids::TritonException(rapids::Error::Unknown, err.what());
   }

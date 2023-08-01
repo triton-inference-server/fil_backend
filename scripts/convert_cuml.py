@@ -13,28 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''cuML RF to Treelite checkpoint converter
+"""cuML RF to Treelite checkpoint converter
 
 Given a path to a pickle file containing a cuML random forest model, this
 script will generate a Treelite checkpoint file representation of the model in
 the same directory.
-'''
+"""
 
 import argparse
 import os
 import pickle
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'pickle_file', help='Path to the pickle file to convert'
-    )
+    parser.add_argument("pickle_file", help="Path to the pickle file to convert")
     args = parser.parse_args()
 
-    with open(args.pickle_file, 'rb') as file_:
+    with open(args.pickle_file, "rb") as file_:
         model = pickle.load(file_)
 
     model_dir = os.path.dirname(args.pickle_file)
-    out_path = os.path.join(model_dir, 'checkpoint.tl')
+    out_path = os.path.join(model_dir, "checkpoint.tl")
 
     model.convert_to_treelite_model().to_treelite_checkpoint(out_path)

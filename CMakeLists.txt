@@ -179,7 +179,7 @@ else()
 
   ##############################################################################
   # - install targets-----------------------------------------------------------
-  
+
   add_library(
     ${BACKEND_TARGET} SHARED
     src/api.cc
@@ -208,12 +208,12 @@ else()
                INTERFACE_POSITION_INDEPENDENT_CODE ON
     )
   endif()
-  
+
   target_compile_options(${BACKEND_TARGET}
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
     "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
   )
-  
+
   target_include_directories(${BACKEND_TARGET}
     PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include>"
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -246,15 +246,15 @@ else()
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})
   endif()
-  
+
   install(
     TARGETS ${BACKEND_TARGET}
     LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
-  
+
   ##############################################################################
   # - build test executable ----------------------------------------------------
-  
+
   # TODO (wphicks)
   # if(BUILD_TESTS)
   #   include(test/CMakeLists.txt)

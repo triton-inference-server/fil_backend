@@ -121,11 +121,11 @@ model_repository/
 backend: "fil"
 max_batch_size: 32768
 input [
- {  
+ {
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ $NUM_FEATURES ]                    
-  } 
+    dims: [ $NUM_FEATURES ]
+  }
 ]
 output [
  {

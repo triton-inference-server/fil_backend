@@ -1,4 +1,5 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+#!/usr/bin/env python3
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -9,7 +10,7 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+# See the License for the specific languapge governing permissions and
 # limitations under the License.
 #
 # Note: This file was taken directly from
@@ -17,13 +18,13 @@
 # with minor modifications.
 
 from __future__ import print_function
-import sys
-import re
-import os
-import subprocess
-import argparse
-import tempfile
 
+import argparse
+import os
+import re
+import subprocess
+import sys
+import tempfile
 
 EXPECTED_VERSION = "11.1.0"
 VERSION_REGEX = re.compile(r"clang-format version ([0-9.]+)")
@@ -34,23 +35,41 @@ DEFAULT_DIRS = ["src", "src/triton_fil"]
 
 def parse_args():
     argparser = argparse.ArgumentParser("Runs clang-format on a project")
-    argparser.add_argument("-dstdir", type=str, default=None,
-                           help="Directory to store the temporary outputs of"
-                           " clang-format. If nothing is passed for this, then"
-                           " a temporary dir will be created using `mkdtemp`")
-    argparser.add_argument("-exe", type=str, default="clang-format",
-                           help="Path to clang-format exe")
-    argparser.add_argument("-inplace", default=False, action="store_true",
-                           help="Replace the source files itself.")
-    argparser.add_argument("-regex", type=str,
-                           default=r"[.](cu|cuh|h|hpp|cpp)$",
-                           help="Regex string to filter in sources")
-    argparser.add_argument("-ignore", type=str, default=r"cannylab/bh[.]cu$",
-                           help="Regex used to ignore files from matched list")
-    argparser.add_argument("-v", dest="verbose", action="store_true",
-                           help="Print verbose messages")
-    argparser.add_argument("dirs", type=str, nargs="*",
-                           help="List of dirs where to find sources")
+    argparser.add_argument(
+        "-dstdir",
+        type=str,
+        default=None,
+        help="Directory to store the temporary outputs of"
+        " clang-format. If nothing is passed for this, then"
+        " a temporary dir will be created using `mkdtemp`",
+    )
+    argparser.add_argument(
+        "-exe", type=str, default="clang-format", help="Path to clang-format exe"
+    )
+    argparser.add_argument(
+        "-inplace",
+        default=False,
+        action="store_true",
+        help="Replace the source files itself.",
+    )
+    argparser.add_argument(
+        "-regex",
+        type=str,
+        default=r"[.](cu|cuh|h|hpp|cpp)$",
+        help="Regex string to filter in sources",
+    )
+    argparser.add_argument(
+        "-ignore",
+        type=str,
+        default=r"cannylab/bh[.]cu$",
+        help="Regex used to ignore files from matched list",
+    )
+    argparser.add_argument(
+        "-v", dest="verbose", action="store_true", help="Print verbose messages"
+    )
+    argparser.add_argument(
+        "dirs", type=str, nargs="*", help="List of dirs where to find sources"
+    )
     args = argparser.parse_args()
     args.regex_compiled = re.compile(args.regex)
     args.ignore_compiled = re.compile(args.ignore)
@@ -125,8 +144,9 @@ def main():
     if not os.path.exists(".git"):
         print("Error!! This needs to always be run from the root of repo")
         sys.exit(-1)
-    all_files = list_all_src_files(args.regex_compiled, args.ignore_compiled,
-                                   args.dirs, args.dstdir, args.inplace)
+    all_files = list_all_src_files(
+        args.regex_compiled, args.ignore_compiled, args.dirs, args.dstdir, args.inplace
+    )
     # actual format checker
     status = True
     for src, dst in all_files:
@@ -138,9 +158,7 @@ def main():
         print(" 2. Or run the below command to bulk-fix all these at once")
         print("Bulk-fix command: ")
         print(
-            "  python qa/run-clang-format.py {} -inplace".format(
-                " ".join(sys.argv[1:])
-            )
+            "  python qa/run-clang-format.py {} -inplace".format(" ".join(sys.argv[1:]))
         )
         sys.exit(-1)
     return
