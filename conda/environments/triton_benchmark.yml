@@ -4,7 +4,7 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cudatoolkit=11.5
+  - cuda-version=11.8
   - cudf=23.08
   - libcusolver<=11.4.1.48
   - libcusparse<=12.0
