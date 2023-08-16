@@ -12,7 +12,7 @@ This notebook is a reference for deploying an XGBoost model on Triton with the F
 * [Docker](https://docs.docker.com/get-docker/)
 * [The NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)
 
-## Run the Triton Inference Server container 
+## Run the Triton Inference Server container
 
 **Note:** Due to a bug in release 21.07, Triton's `model_analyzer` cannot be used with the FIL backend. If you wish to use the model analyzer, please use release 21.08 or later.
 
@@ -28,7 +28,7 @@ docker run \
   --rm \
   --net=host \
   --name triton_fil \
-  nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.  
+  nvcr.io/nvidia/tritonserver:<tag>  # Put the appropriate tag here.
 ```
 
 **Note:** The artifacts created by scripts inside the container are created with root permission. The user on host machine might not be able to modify the artifacts once the container exists. To avoid this issue, copy the notebook `docker cp simple_xgboost_example.ipynb <docker_ID>` and create the artifacts inside the container.

@@ -121,11 +121,11 @@ model_repository/
 backend: "fil"
 max_batch_size: 32768
 input [
- {  
+ {
     name: "input__0"
     data_type: TYPE_FP32
-    dims: [ $NUM_FEATURES ]                    
-  } 
+    dims: [ $NUM_FEATURES ]
+  }
 ]
 output [
  {
@@ -152,7 +152,7 @@ dynamic_batching {}
 ```
 docker run -p 8000:8000 -p 8001:8001 --gpus all \
   -v ${PWD}/model_repository:/models \
-  nvcr.io/nvidia/tritonserver:23.05-py3 \
+  nvcr.io/nvidia/tritonserver:23.07-py3 \
   tritonserver --model-repository=/models
 ```
 

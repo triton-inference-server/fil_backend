@@ -22,11 +22,12 @@
 #include <gpu_treeshap_model.h>
 #else
 #include <forest_model.h>
+
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 
-#include <cpu_treeshap_model.h>
 #include <cpu_forest_model.h>
+#include <cpu_treeshap_model.h>
 #include <names.h>
 #include <shared_state.h>
 #include <tl_model.h>
@@ -114,8 +115,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     output.finalize();
 
     // boolean to check whether gpu treeshap will be executed
-    auto run_treeshap =
-        shared_state->check_output_name("treeshap_output");
+    auto run_treeshap = shared_state->check_output_name("treeshap_output");
     if (run_treeshap) {
       auto treeshap_output = get_output<float>(batch, "treeshap_output");
       auto treeshap_output_buffer = rapids::Buffer<float>(
@@ -130,10 +130,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
           gpu_treeshap_model->predict(
               treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
         }
-      }
-      else if (cpu_treeshap_model.has_value()){
-          cpu_treeshap_model->predict(
-              treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
+      } else if (cpu_treeshap_model.has_value()) {
+        cpu_treeshap_model->predict(
+            treeshap_output_buffer, input_buffer, samples, input.shape()[1]);
       }
 
       treeshap_output.finalize();

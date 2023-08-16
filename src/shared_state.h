@@ -58,7 +58,8 @@ struct RapidsSharedState : rapids::SharedModelState {
     tl_config_->threads_per_tree =
         std::max(1, get_config_param<int>("threads_per_tree", 1));
     tl_config_->cpu_nthread = get_config_param<int>("cpu_nthread", -1);
-    use_herring_ = get_config_param<bool>("use_experimental_optimizations", false);
+    use_herring_ =
+        get_config_param<bool>("use_experimental_optimizations", false);
   }
 
   auto predict_proba() const { return predict_proba_; }

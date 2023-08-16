@@ -24,8 +24,8 @@ set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/co
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:23.05-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "23.05" CACHE STRING "Triton version for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:23.07-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "23.07" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
@@ -70,7 +70,7 @@ else()
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-23.04/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-23.06/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -89,7 +89,7 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  set(RAPIDS_DEPENDENCIES_VERSION "23.04" CACHE STRING "RAPIDS projects dependencies version")
+  set(RAPIDS_DEPENDENCIES_VERSION "23.06" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
 
 
@@ -179,7 +179,7 @@ else()
 
   ##############################################################################
   # - install targets-----------------------------------------------------------
-  
+
   add_library(
     ${BACKEND_TARGET} SHARED
     src/api.cc
@@ -208,12 +208,12 @@ else()
                INTERFACE_POSITION_INDEPENDENT_CODE ON
     )
   endif()
-  
+
   target_compile_options(${BACKEND_TARGET}
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
     "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
   )
-  
+
   target_include_directories(${BACKEND_TARGET}
     PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include>"
              "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -246,15 +246,15 @@ else()
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})
   endif()
-  
+
   install(
     TARGETS ${BACKEND_TARGET}
     LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
-  
+
   ##############################################################################
   # - build test executable ----------------------------------------------------
-  
+
   # TODO (wphicks)
   # if(BUILD_TESTS)
   #   include(test/CMakeLists.txt)
