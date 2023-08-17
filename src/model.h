@@ -195,7 +195,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     if (get_deployment_type() == rapids::GPUDeployment) {
       if constexpr (rapids::IS_GPU_BUILD) {
-        gpu_model.emplace(get_device_id(), get_stream(), tl_model);
+        gpu_model.emplace(
+            get_device_id(), get_stream(), tl_model,
+            shared_state->use_new_fil());
 
         if (shared_state->check_output_name("treeshap_output")) {
           gpu_treeshap_model.emplace(get_device_id(), get_stream(), tl_model);
@@ -206,7 +208,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         cpu_treeshap_model.emplace(tl_model);
       }
     }
-    cpu_model = ForestModel<rapids::HostMemory>(tl_model);
+    cpu_model =
+        ForestModel<rapids::HostMemory>(tl_model, shared_state->use_new_fil());
   }
 
   std::optional<rapids::MemoryType> preferred_mem_type(

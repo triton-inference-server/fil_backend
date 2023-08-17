@@ -24,6 +24,7 @@
 #include <tl_model.h>
 
 #include <cstddef>
+#include <cuml/experimental/fil/detail/raft_proto/device_type.hpp>
 #include <memory>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
@@ -38,7 +39,7 @@ template <rapids::MemoryType M>
 struct ForestModel {
   using device_id_t = int;
 
-  ForestModel(std::shared_ptr<TreeliteModel> tl_model)
+  ForestModel(std::shared_ptr<TreeliteModel> tl_model, bool use_new_fil)
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,
@@ -47,7 +48,7 @@ struct ForestModel {
 
   ForestModel(
       device_id_t device_id, cudaStream_t stream,
-      std::shared_ptr<TreeliteModel> tl_model)
+      std::shared_ptr<TreeliteModel> tl_model, bool use_new_fil)
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,
@@ -63,4 +64,17 @@ struct ForestModel {
         "ForestModel invoked with a memory type unsupported by this build");
   }
 };
+
+// TODO(hcho3): Remove this once raft_proto becomes part of RAFT or
+// Rapids-Triton
+raft_proto::device_type
+get_raft_proto_device_type(rapids::MemoryType mem_type)
+{
+  if (mem_type == rapids::DeviceMemory) {
+    return raft_proto::device_type::gpu;
+  } else {
+    return raft_proto::device_type::cpu;
+  }
+}
+
 }}}  // namespace triton::backend::NAMESPACE
