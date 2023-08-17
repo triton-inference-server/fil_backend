@@ -5,7 +5,5 @@ channels:
 dependencies:
   - ccache
   - cmake>=3.26.4
-  - libstdcxx-ng<=11.2.0
-  - libgcc-ng<=11.2.0
   - ninja
   - rapidjson
