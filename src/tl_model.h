@@ -36,8 +36,7 @@ namespace triton { namespace backend { namespace NAMESPACE {
 struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
-      std::shared_ptr<treelite_config> tl_config, bool predict_proba,
-      bool use_herring)
+      std::shared_ptr<treelite_config> tl_config, bool predict_proba)
       : tl_config_{tl_config},
         base_tl_model_{[&model_file, &format, predict_proba, this]() {
           auto result = load_tl_base_model(model_file, format);
@@ -57,23 +56,21 @@ struct TreeliteModel {
           return result;
         }()},
         num_classes_{tl_get_num_classes(*base_tl_model_)},
-        base_herring_model_{[this, use_herring]() {
+        base_herring_model_{[this]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
-          if (use_herring) {
-            try {
-              result = base_tl_model_->Dispatch([](auto const& concrete_model) {
-                return herring::convert_model(concrete_model);
-              });
-              rapids::log_info(__FILE__, __LINE__)
-                  << "Loaded model to Herring format";
-            }
-            catch (herring::unconvertible_model_exception const& herring_err) {
-              result = std::nullopt;
-              auto log_stream = rapids::log_info(__FILE__, __LINE__);
-              log_stream << "Herring load failed with error \"";
-              log_stream << herring_err.what();
-              log_stream << "\"; falling back to GTIL";
-            }
+          try {
+            result = base_tl_model_->Dispatch([](auto const& concrete_model) {
+              return herring::convert_model(concrete_model);
+            });
+            rapids::log_info(__FILE__, __LINE__)
+                << "Loaded model to Herring format";
+          }
+          catch (herring::unconvertible_model_exception const& herring_err) {
+            result = std::nullopt;
+            auto log_stream = rapids::log_info(__FILE__, __LINE__);
+            log_stream << "Herring load failed with error \"";
+            log_stream << herring_err.what();
+            log_stream << "\"; falling back to GTIL";
           }
           return result;
         }()}

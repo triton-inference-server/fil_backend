@@ -58,7 +58,7 @@ struct RapidsSharedState : rapids::SharedModelState {
     tl_config_->threads_per_tree =
         std::max(1, get_config_param<int>("threads_per_tree", 1));
     tl_config_->cpu_nthread = get_config_param<int>("cpu_nthread", -1);
-    use_herring_ =
+    use_new_fil_ =
         get_config_param<bool>("use_experimental_optimizations", false);
   }
 
@@ -66,7 +66,7 @@ struct RapidsSharedState : rapids::SharedModelState {
   auto model_format() const { return model_format_; }
   auto transfer_threshold() const { return transfer_threshold_; }
   auto config() const { return tl_config_; }
-  auto use_herring() const { return use_herring_; }
+  auto use_new_fil() const { return use_new_fil_; }
 
  private:
   bool predict_proba_{};
@@ -74,7 +74,7 @@ struct RapidsSharedState : rapids::SharedModelState {
   std::size_t transfer_threshold_{};
   std::shared_ptr<treelite_config> tl_config_ =
       std::make_shared<treelite_config>();
-  bool use_herring_{};
+  bool use_new_fil_{};
 };
 
 }}}  // namespace triton::backend::NAMESPACE
