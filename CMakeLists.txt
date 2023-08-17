@@ -59,7 +59,7 @@ if(TRITON_FIL_DOCKER_BUILD)
   )
 
 else()
-  cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+  cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
   ##############################################################################
   # - Target names -------------------------------------------------------------
