@@ -4,8 +4,8 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cudatoolkit=11.5
-  - cuml=23.06
-  - python=3.8
+  - cuda-version=11.8
+  - cuml=23.08
+  - python
   - scikit-learn
   - treelite

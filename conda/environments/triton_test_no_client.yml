@@ -6,15 +6,15 @@ channels:
 dependencies:
   - aws-sdk-cpp
   - clang-tools=11.1.0
-  - cudatoolkit=11.5
-  - cudf=23.06
-  - cuml=23.06
+  - cuda-version=11.8
+  - cudf=23.08
+  - cuml=23.08
   - flake8
   - hypothesis<6.46.8
   - lightgbm
   - pip
   - pytest
-  - python=3.10
+  - python
   - python-rapidjson
   - rapidsai::xgboost>=1.7
   - scikit-learn=1.2.0
