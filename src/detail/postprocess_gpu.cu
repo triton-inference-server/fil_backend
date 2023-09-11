@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include <detail/postprocess_gpu.h>
+#include <names.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 
 #include <cstddef>
 #include <cstdint>
-#include <detail/postprocess_gpu.cuh>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 

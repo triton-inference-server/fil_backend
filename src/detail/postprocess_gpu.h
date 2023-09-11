@@ -17,6 +17,7 @@
 #pragma once
 
 #include <detail/postprocess.h>
+#include <names.h>
 
 #include <cstddef>
 #include <rapids_triton/memory/buffer.hpp>

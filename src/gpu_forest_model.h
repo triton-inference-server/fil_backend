@@ -23,7 +23,7 @@
 #include <names.h>
 #include <tl_model.h>
 #ifdef TRITON_ENABLE_GPU
-#include <detail/postprocess_gpu.cuh>
+#include <detail/postprocess_gpu.h>
 #endif
 
 #include <cstddef>

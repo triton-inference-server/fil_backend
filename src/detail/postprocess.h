@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <names.h>
+
 #include <cstddef>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
