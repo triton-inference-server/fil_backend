@@ -28,7 +28,7 @@ namespace triton { namespace backend { namespace NAMESPACE {
 void
 ClassEncoder<rapids::DeviceMemory>::argmax_for_multiclass(
     rapids::Buffer<float>& output, rapids::Buffer<float>& input,
-    std::size_t samples, std::size_t num_classes)
+    std::size_t samples, std::size_t num_classes) const
 {
   // Perform argmax for multi-class classification
   thrust::counting_iterator<std::size_t> cnt_iter =
@@ -51,7 +51,7 @@ ClassEncoder<rapids::DeviceMemory>::argmax_for_multiclass(
 
 void
 ClassEncoder<rapids::DeviceMemory>::threshold_inplace(
-    rapids::Buffer<float>& output, std::size_t samples, float threshold)
+    rapids::Buffer<float>& output, std::size_t samples, float threshold) const
 {
   // Perform thresholding in-place for binary classification
   thrust::for_each(

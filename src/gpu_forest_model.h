@@ -85,7 +85,8 @@ struct ForestModel<rapids::DeviceMemory> {
             }
           }
           return result;
-        }()}
+        }()},
+        class_encoder_{}
   {
   }
 
@@ -131,12 +132,12 @@ struct ForestModel<rapids::DeviceMemory> {
 
       if (!predict_proba && tl_model_->config().output_class &&
           num_classes > 1) {
-        ClassEncoder<rapids::DeviceMemory>::argmax_for_multiclass(
+        class_encoder_.argmax_for_multiclass(
             output, output_buffer, samples, num_classes);
       } else if (
           !predict_proba && tl_model_->config().output_class &&
           num_classes == 1) {
-        ClassEncoder<rapids::DeviceMemory>::threshold_inplace(
+        class_encoder_.threshold_inplace(
             output, samples, tl_model_->config().threshold);
       }
     } else {
@@ -153,6 +154,7 @@ struct ForestModel<rapids::DeviceMemory> {
   device_id_t device_id_;
   // TODO(hcho3): Make filex::forest_model::predict() a const method
   mutable std::optional<filex::forest_model> new_fil_model_;
+  ClassEncoder<rapids::DeviceMemory> class_encoder_;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

@@ -28,16 +28,17 @@ namespace triton { namespace backend { namespace NAMESPACE {
  * to integer class outputs, on CPU and GPU targets. */
 template <rapids::MemoryType M>
 struct ClassEncoder {
-  static void argmax_for_multiclass(
+  ClassEncoder() = default;
+  void argmax_for_multiclass(
       rapids::Buffer<float>& output, rapids::Buffer<float>& input,
-      std::size_t samples, std::size_t num_classes)
+      std::size_t samples, std::size_t num_classes) const
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,
         "ClassEncoder invoked with a memory type unsupported by this build");
   }
-  static void threshold_inplace(
-      rapids::Buffer<float>& output, std::size_t samples, float threshold)
+  void threshold_inplace(
+      rapids::Buffer<float>& output, std::size_t samples, float threshold) const
   {
     throw rapids::TritonException(
         rapids::Error::Unsupported,

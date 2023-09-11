@@ -27,11 +27,13 @@ namespace triton { namespace backend { namespace NAMESPACE {
 
 template <>
 struct ClassEncoder<rapids::DeviceMemory> {
-  static void argmax_for_multiclass(
+  ClassEncoder() = default;
+  void argmax_for_multiclass(
       rapids::Buffer<float>& output, rapids::Buffer<float>& input,
-      std::size_t samples, std::size_t num_classes);
-  static void threshold_inplace(
-      rapids::Buffer<float>& output, std::size_t samples, float threshold);
+      std::size_t samples, std::size_t num_classes) const;
+  void threshold_inplace(
+      rapids::Buffer<float>& output, std::size_t samples,
+      float threshold) const;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

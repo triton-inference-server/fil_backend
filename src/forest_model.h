@@ -18,13 +18,14 @@
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+
+#include <cuml/experimental/fil/detail/raft_proto/device_type.hpp>
 #endif
 
 #include <names.h>
 #include <tl_model.h>
 
 #include <cstddef>
-#include <cuml/experimental/fil/detail/raft_proto/device_type.hpp>
 #include <memory>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
@@ -65,6 +66,7 @@ struct ForestModel {
   }
 };
 
+#ifdef TRITON_ENABLE_GPU
 // TODO(hcho3): Remove this once raft_proto becomes part of RAFT or
 // Rapids-Triton
 raft_proto::device_type
@@ -76,5 +78,6 @@ get_raft_proto_device_type(rapids::MemoryType mem_type)
     return raft_proto::device_type::cpu;
   }
 }
+#endif
 
 }}}  // namespace triton::backend::NAMESPACE
