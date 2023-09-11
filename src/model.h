@@ -102,7 +102,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
       gpu_model.value().predict(
           output_buffer, input_buffer, samples, shared_state->predict_proba());
     } else {
-      cpu_model.predict(
+      cpu_model->predict(
           output_buffer, input_buffer, samples, shared_state->predict_proba());
     }
 
@@ -195,7 +195,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     if (get_deployment_type() == rapids::GPUDeployment) {
       if constexpr (rapids::IS_GPU_BUILD) {
-        gpu_model.emplace(get_device_id(), get_stream(), tl_model);
+        gpu_model.emplace(
+            get_device_id(), get_stream(), tl_model,
+            shared_state->use_new_fil());
 
         if (shared_state->check_output_name("treeshap_output")) {
           gpu_treeshap_model.emplace(get_device_id(), get_stream(), tl_model);
@@ -206,7 +208,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         cpu_treeshap_model.emplace(tl_model);
       }
     }
-    cpu_model = ForestModel<rapids::HostMemory>(tl_model);
+    cpu_model.emplace(
+        get_device_id(), get_stream(), tl_model, shared_state->use_new_fil());
   }
 
   std::optional<rapids::MemoryType> preferred_mem_type(
@@ -218,7 +221,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
  private:
   std::optional<rapids::MemoryType> preferred_mem_type_{};
   std::size_t num_classes_{};
-  ForestModel<rapids::HostMemory> cpu_model;
+  std::optional<ForestModel<rapids::HostMemory>> cpu_model;
   std::optional<TreeShapModel<rapids::HostMemory>> cpu_treeshap_model;
   std::optional<ForestModel<rapids::DeviceMemory>> gpu_model{};
   std::optional<TreeShapModel<rapids::DeviceMemory>> gpu_treeshap_model{};
