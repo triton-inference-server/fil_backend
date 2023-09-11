@@ -113,7 +113,7 @@ else()
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
     project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX CUDA)
   else()
-    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX)
+    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX CUDA)
   endif()
 
   ##############################################################################
@@ -166,11 +166,7 @@ else()
   set(RAPIDS_TRITON_MIN_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}.00")
   set(RAPIDS_TRITON_BRANCH_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}")
 
-  if(TRITON_ENABLE_GPU)
-    include(cmake/thirdparty/get_cuml.cmake)
-  else()
-    include(cmake/thirdparty/get_treelite.cmake)
-  endif()
+  include(cmake/thirdparty/get_cuml.cmake)
   include(cmake/thirdparty/get_rapids-triton.cmake)
 
   if(BUILD_TESTS)
@@ -230,7 +226,7 @@ else()
 
   target_link_libraries(${BACKEND_TARGET}
   PRIVATE
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
+    cuml++
     ${TREELITE_LIBS}
     rapids_triton::rapids_triton
     triton-core-serverstub
@@ -240,9 +236,7 @@ else()
     OpenMP::OpenMP_CXX
   )
 
-  if(TRITON_ENABLE_GPU)
-    list(APPEND BACKEND_TARGET "cuml++")
-  endif()
+  list(APPEND BACKEND_TARGET "cuml++")
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})

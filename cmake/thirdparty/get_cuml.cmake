@@ -16,7 +16,7 @@
 
 function(find_and_configure_cuml)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG USE_TREELITE_STATIC)
+    set(oneValueArgs VERSION FORK PINNED_TAG USE_TREELITE_STATIC TRITON_ENABLE_GPU)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -43,6 +43,7 @@ function(find_and_configure_cuml)
               "BUILD_CUML_STD_COMMS OFF"
               "BUILD_SHARED_LIBS ON"
               "CUML_USE_TREELITE_STATIC ${PKG_USE_TREELITE_STATIC}"
+              "CUML_ENABLE_GPU ${PKG_TRITON_ENABLE_GPU}"
               "USE_CCACHE ON"
               "RAFT_COMPILE_LIBRARIES OFF"
               "RAFT_ENABLE_NN_DEPENDENCIES OFF"
@@ -56,7 +57,7 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_cuml(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
-                        FORK       rapidsai
-                        PINNED_TAG branch-23.08
+                        FORK       hcho3
+                        PINNED_TAG fix_cpu_fil
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
-                        )
+                        TRITON_ENABLE_GPU ${TRITON_ENABLE_GPU})

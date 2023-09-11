@@ -41,14 +41,11 @@ namespace filex = ML::experimental::fil;
 template <>
 struct ForestModel<rapids::HostMemory> {
   ForestModel() = default;
-  // TODO(hcho3): Add a filex::forest_model::predict() that does not require
-  // a RAFT handle. Currently, we need to pass a RAFT handle, which in turn
-  // requires a working CUDA stream.
   using device_id_t = int;
   ForestModel(
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model, bool use_new_fil)
-      : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
+      : device_id_{device_id}, tl_model_{tl_model},
         new_fil_model_{[this, use_new_fil]() {
           auto result = std::optional<filex::forest_model>{};
           if (use_new_fil) {
@@ -100,7 +97,7 @@ struct ForestModel<rapids::HostMemory> {
       // TODO(hcho3): Revise new FIL so that it takes in (const io_t*) type for
       // input buffer
       new_fil_model_->predict(
-          raft_proto::handle_t{raft_handle_}, output_buffer.data(),
+          raft_proto::handle_t{}, output_buffer.data(),
           const_cast<float*>(input.data()), samples,
           get_raft_proto_device_type(output.mem_type()),
           get_raft_proto_device_type(input.mem_type()),
@@ -123,7 +120,6 @@ struct ForestModel<rapids::HostMemory> {
 
 
  private:
-  raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
   device_id_t device_id_;
   // TODO(hcho3): Make filex::forest_model::predict() a const method
