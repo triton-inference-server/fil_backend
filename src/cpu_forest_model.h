@@ -29,6 +29,7 @@
 #include <cuml/experimental/fil/detail/raft_proto/handle.hpp>
 #include <cuml/experimental/fil/forest_model.hpp>
 #include <cuml/experimental/fil/treelite_importer.hpp>
+#include <herring/omp_helpers.hpp>
 #include <memory>
 #include <optional>
 #include <rapids_triton/memory/buffer.hpp>
@@ -54,6 +55,8 @@ struct ForestModel<rapids::HostMemory> {
                   *tl_model_->base_tl_model(), filex::preferred_tree_layout,
                   filex::index_type{}, std::nullopt,
                   raft_proto::device_type::cpu);
+              rapids::log_info(__FILE__, __LINE__)
+                  << "Loaded model to new FIL format";
             }
             catch (filex::model_import_error const& ex) {
               result = std::nullopt;
@@ -65,7 +68,7 @@ struct ForestModel<rapids::HostMemory> {
           }
           return result;
         }()},
-        class_encoder_{tl_model_->config().cpu_nthread}
+        class_encoder_{int(thread_count(tl_model_->config().cpu_nthread))}
   {
   }
 

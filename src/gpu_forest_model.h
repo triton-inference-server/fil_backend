@@ -75,6 +75,8 @@ struct ForestModel<rapids::DeviceMemory> {
                   *tl_model_->base_tl_model(), filex::preferred_tree_layout,
                   filex::index_type{}, std::nullopt,
                   raft_proto::device_type::gpu);
+              rapids::log_info(__FILE__, __LINE__)
+                  << "Loaded model to new FIL format";
             }
             catch (filex::model_import_error const& ex) {
               result = std::nullopt;
