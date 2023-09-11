@@ -197,6 +197,7 @@ else()
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
     )
+    target_sources(${BACKEND_TARGET} PRIVATE src/detail/postprocess_gpu.cu)
   else()
     set_target_properties(${BACKEND_TARGET}
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"

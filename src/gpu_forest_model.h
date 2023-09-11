@@ -22,6 +22,9 @@
 #include <forest_model.h>
 #include <names.h>
 #include <tl_model.h>
+#ifdef TRITON_ENABLE_GPU
+#include <detail/postprocess_gpu.cuh>
+#endif
 
 #include <cstddef>
 #include <cuml/experimental/fil/constants.hpp>
@@ -98,15 +101,44 @@ struct ForestModel<rapids::DeviceMemory> {
       std::size_t samples, bool predict_proba) const
   {
     if (new_fil_model_) {
+      // Create non-owning Buffer to same memory as `output`
+      auto output_buffer = rapids::Buffer<float>{
+          output.data(), output.size(), output.mem_type(), output.device(),
+          output.stream()};
+      auto output_size = output.size();
+      // New FIL expects buffer of size samples * num_classes for multi-class
+      // classifiers, but output buffer may be smaller, so we need a temporary
+      // buffer
+      auto const num_classes = tl_model_->num_classes();
+      if (!predict_proba && tl_model_->config().output_class &&
+          num_classes > 1) {
+        output_size = samples * num_classes;
+        if (output_size != output.size()) {
+          // If expected output size is not the same as the size of `output`,
+          // create a temporary buffer of the correct size
+          output_buffer =
+              rapids::Buffer<float>{output_size, rapids::DeviceMemory};
+        }
+      }
       // TODO(hcho3): Revise new FIL so that it takes in (const io_t*) type for
       // input buffer
       new_fil_model_->predict(
-          raft_proto::handle_t{raft_handle_}, output.data(),
+          raft_proto::handle_t{raft_handle_}, output_buffer.data(),
           const_cast<float*>(input.data()), samples,
           get_raft_proto_device_type(output.mem_type()),
           get_raft_proto_device_type(input.mem_type()),
           filex::infer_kind::default_kind);
-      // TODO(hcho3): handle predict_proba
+
+      if (!predict_proba && tl_model_->config().output_class &&
+          num_classes > 1) {
+        ClassEncoder<rapids::DeviceMemory>::argmax_for_multiclass(
+            output, output_buffer, samples, num_classes);
+      } else if (
+          !predict_proba && tl_model_->config().output_class &&
+          num_classes == 1) {
+        ClassEncoder<rapids::DeviceMemory>::threshold_inplace(
+            output, samples, tl_model_->config().threshold);
+      }
     } else {
       ML::fil::predict(
           raft_handle_, fil_forest_, output.data(), input.data(), samples,
