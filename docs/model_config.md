@@ -233,6 +233,18 @@ parameters [
 ]
 ```
 
+### Allow unknown fields in XGBoost JSON model (`xgboost_allow_unknown_field`)
+For XGBoost JSON models, ignore unknown fields instead of throwing a validation
+error. This flag is ignored for other kinds of models.
+```
+parameters [
+  {
+    key: "xgboost_allow_unknown_field"
+    value: { string_value: "true" }
+  }
+]
+```
+
 ### Decision Threshold
 For binary classifiers, it is sometimes helpful to set a specific
 confidence threshold for positive decisions. This can be set via the
