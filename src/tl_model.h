@@ -37,10 +37,12 @@ struct TreeliteModel {
   TreeliteModel(
       std::filesystem::path const& model_file, SerializationFormat format,
       std::shared_ptr<treelite_config> tl_config, bool predict_proba,
-      bool use_herring)
+      bool use_herring, bool xgboost_allow_unknown_field)
       : tl_config_{tl_config},
-        base_tl_model_{[&model_file, &format, predict_proba, this]() {
-          auto result = load_tl_base_model(model_file, format);
+        base_tl_model_{[&model_file, &format, predict_proba,
+                        xgboost_allow_unknown_field, this]() {
+          auto result = load_tl_base_model(
+              model_file, format, xgboost_allow_unknown_field);
           auto num_classes = tl_get_num_classes(*base_tl_model_);
           if (!predict_proba && tl_config_->output_class && num_classes > 1) {
             std::strcpy(result->param.pred_transform, "max_index");

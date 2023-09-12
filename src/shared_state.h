@@ -41,6 +41,8 @@ struct RapidsSharedState : rapids::SharedModelState {
     predict_proba_ = get_config_param<bool>("predict_proba", false);
     model_format_ = string_to_serialization(
         get_config_param<std::string>("model_type", std::string{"xgboost"}));
+    xgboost_allow_unknown_field_ =
+        get_config_param<bool>("xgboost_allow_unknown_field", false);
     transfer_threshold_ = get_config_param<std::size_t>(
         "transfer_threshold", DEFAULT_TRANSFER_THRESHOLD);
 
@@ -64,6 +66,10 @@ struct RapidsSharedState : rapids::SharedModelState {
 
   auto predict_proba() const { return predict_proba_; }
   auto model_format() const { return model_format_; }
+  auto xgboost_allow_unknown_field() const
+  {
+    return xgboost_allow_unknown_field_;
+  }
   auto transfer_threshold() const { return transfer_threshold_; }
   auto config() const { return tl_config_; }
   auto use_herring() const { return use_herring_; }
@@ -71,6 +77,7 @@ struct RapidsSharedState : rapids::SharedModelState {
  private:
   bool predict_proba_{};
   SerializationFormat model_format_{};
+  bool xgboost_allow_unknown_field_{};
   std::size_t transfer_threshold_{};
   std::shared_ptr<treelite_config> tl_config_ =
       std::make_shared<treelite_config>();
