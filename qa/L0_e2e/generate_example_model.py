@@ -424,6 +424,10 @@ parameters [
   {{
     key: "use_experimental_optimizations"
     value: {{ string_value: "{use_experimental_optimizations}" }}
+  }},
+  {{
+    key: "xgboost_allow_unknown_field"
+    value: {{ string_value: "true" }}
   }}
 ]
 

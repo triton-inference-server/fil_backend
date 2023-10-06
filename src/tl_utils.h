@@ -32,7 +32,8 @@ namespace triton { namespace backend { namespace NAMESPACE {
 
 inline auto
 load_tl_base_model(
-    std::filesystem::path const& model_file, SerializationFormat format)
+    std::filesystem::path const& model_file, SerializationFormat format,
+    bool xgboost_allow_unknown_field)
 {
   auto result = std::unique_ptr<treelite::Model>{};
 
@@ -42,9 +43,11 @@ load_tl_base_model(
         result = treelite::frontend::LoadXGBoostModel(model_file.c_str());
         break;
       case SerializationFormat::xgboost_json: {
-        auto config_str = "{}";
+        auto config_str =
+            std::string("{\"allow_unknown_field\": ") +
+            std::string(xgboost_allow_unknown_field ? "true" : "false") + "}";
         result = treelite::frontend::LoadXGBoostJSONModel(
-            model_file.c_str(), config_str);
+            model_file.c_str(), config_str.c_str());
         break;
       }
       case SerializationFormat::lightgbm:
