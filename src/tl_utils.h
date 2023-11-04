@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <rapids_triton/exceptions.hpp>
 #include <sstream>
 
@@ -54,21 +55,20 @@ load_tl_base_model(
         result = treelite::frontend::LoadLightGBMModel(model_file.c_str());
         break;
       case SerializationFormat::treelite: {
-        auto* file = std::fopen(model_file.c_str(), "rb");
-        if (file == nullptr) {
-          auto log_stream = std::stringstream{};
-          log_stream << "Could not open model file " << model_file;
-          throw rapids::TritonException(
-              rapids::Error::Unavailable, log_stream.str());
-        }
+        auto file = std::fstream{model_file.c_str()};
         try {
-          result = treelite::Model::DeserializeFromFile(file);
+          if (file.is_open()) {
+            result = treelite::Model::DeserializeFromStream(file);
+          } else {
+            auto log_stream = std::stringstream{};
+            log_stream << "Could not open model file " << model_file;
+            throw rapids::TritonException(
+                rapids::Error::Unavailable, log_stream.str());
+          }
         }
         catch (treelite::Error const& err) {
-          std::fclose(file);
           throw;
         }
-        std::fclose(file);
         break;
       }
     }

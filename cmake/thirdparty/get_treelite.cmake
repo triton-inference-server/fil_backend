@@ -35,7 +35,7 @@ function(find_and_configure_treelite)
             GIT_TAG          ${PKG_PINNED_TAG}
             OPTIONS
               "USE_OPENMP ON"
-              "BUILD_STATIC_LIBS ${PKG_BUILD_STATIC_LIBS}"
+              "Treelite_BUILD_STATIC_LIBS ${PKG_BUILD_STATIC_LIBS}"
     )
 
 
@@ -90,6 +90,6 @@ function(find_and_configure_treelite)
     rapids_export_find_package_root(BUILD Treelite [=[${CMAKE_CURRENT_LIST_DIR}]=] cuml-exports)
 endfunction()
 
-find_and_configure_treelite(VERSION     3.2.0
-                        PINNED_TAG  ee697b3b58d5f51623dd3b308f290581b58dbe5d
+find_and_configure_treelite(VERSION     3.9.1
+                        PINNED_TAG  346d92547295417676f499ce2dd4fff946b9042a
                         BUILD_STATIC_LIBS ${TRITON_FIL_USE_TREELITE_STATIC})
