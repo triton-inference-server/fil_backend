@@ -34,7 +34,7 @@ To quickly get up and running with a Triton Docker image, follow these
 steps.
 
 **Note**: Looking for instructions to *build* the FIL backend yourself? Check out our [build
-guide](docs/build.md).
+guide](build.md).
 
 ## Prerequisites
 - [Docker](https://docs.docker.com/get-docker/)
