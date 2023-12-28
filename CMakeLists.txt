@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
-
+cmake_minimum_required(VERSION 3.17)
+project(tritonfilbackend LANGUAGES C CXX)
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
