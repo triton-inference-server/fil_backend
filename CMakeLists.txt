@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
+cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
+
+project(RAPIDS_TRITON_BACKEND VERSION 22.10.00)
+
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
@@ -23,7 +27,6 @@ set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/co
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  project(RAPIDS_TRITON_BACKEND VERSION 22.10.00)
   set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:23.09-py3" CACHE STRING "Build image for Dockerized builds")
   set(TRITON_BUILD_CONTAINER_VERSION "23.09" CACHE STRING "Triton version for Dockerized builds")
 
@@ -59,7 +62,6 @@ if(TRITON_FIL_DOCKER_BUILD)
   )
 
 else()
-  cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
   ##############################################################################
   # - Target names -------------------------------------------------------------
@@ -111,9 +113,7 @@ else()
 
   if(TRITON_ENABLE_GPU)
     rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
-    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX CUDA)
-  else()
-    project(RAPIDS_TRITON_BACKEND VERSION 22.10.00 LANGUAGES CXX)
+    enable_language(CUDA)
   endif()
 
   ##############################################################################
