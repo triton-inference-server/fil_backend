@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
+cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
+
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
@@ -59,8 +61,6 @@ if(TRITON_FIL_DOCKER_BUILD)
   )
 
 else()
-  cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
-
   ##############################################################################
   # - Target names -------------------------------------------------------------
   set(BACKEND_NAME "fil")
