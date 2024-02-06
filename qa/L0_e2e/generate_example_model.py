@@ -18,7 +18,7 @@ import pickle
 
 import cuml
 import pandas as pd
-import sklearn
+import sklearn.datasets
 from cuml.ensemble import RandomForestClassifier as cuRFC
 from cuml.ensemble import RandomForestRegressor as cuRFR
 
