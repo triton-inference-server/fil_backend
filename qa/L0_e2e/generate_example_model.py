@@ -17,6 +17,8 @@ import os
 import pickle
 
 import cuml
+import pandas as pd
+import sklearn.datasets
 from cuml.ensemble import RandomForestClassifier as cuRFC
 from cuml.ensemble import RandomForestRegressor as cuRFR
 
@@ -37,21 +39,17 @@ except ImportError:
 
 def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
     """Generate classification training set"""
-    if cat_cols > 0:
-        output_type = "cudf"
-    else:
-        output_type = "numpy"
 
-    with cuml.using_output_type(output_type):
-        data, labels = cuml.datasets.make_classification(
-            n_samples=rows,
-            n_features=cols,
-            n_informative=cols // 3,
-            n_classes=classes,
-            random_state=0,
-        )
+    data, labels = sklearn.datasets.make_classification(
+        n_samples=rows,
+        n_features=cols,
+        n_informative=cols // 3,
+        n_classes=classes,
+        random_state=0,
+    )
 
     if cat_cols > 0:
+        data, labels = pd.DataFrame(data), pd.DataFrame(labels)
         selected_cols = data.sample(n=min(cat_cols, cols), axis="columns")
         negatives = selected_cols < 0
         positives = selected_cols >= 0
@@ -59,8 +57,6 @@ def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
         selected_cols[negatives] = "negative"
         selected_cols[positives] = "positive"
         data[selected_cols.columns] = selected_cols.astype("category")
-        data = data.to_pandas()
-        labels = labels.to_pandas()
     return data, labels
 
 
