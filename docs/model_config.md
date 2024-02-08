@@ -87,7 +87,7 @@ and should be formatted accordingly.
 If you wish to use the FIL backend, you must indicate this in the
 configuration file with the top-level `backend: "fil"` option. For
 information on models supported by the FIL backend, see [Model
-Support](https://developers.google.com/protocol-buffers/docs/text-format-spec)
+Support](https://github.com/triton-inference-server/fil_backend/blob/main/docs/model_support.md)
 or the [FAQ
 notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?).
 
