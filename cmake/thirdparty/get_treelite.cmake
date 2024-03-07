@@ -22,9 +22,9 @@ function(find_and_configure_treelite)
 
     message(VERBOSE "CUML: In treelite func, static: ${PKG_BUILD_STATIC_LIBS}")
     if(NOT PKG_BUILD_STATIC_LIBS)
-        list(APPEND TREELITE_LIBS treelite::treelite treelite::treelite_runtime)
+        list(APPEND TREELITE_LIBS treelite::treelite)
     else()
-        list(APPEND TREELITE_LIBS treelite::treelite_static treelite::treelite_runtime_static)
+        list(APPEND TREELITE_LIBS treelite::treelite_static)
     endif()
 
     rapids_cpm_find(Treelite ${PKG_VERSION}
@@ -39,9 +39,9 @@ function(find_and_configure_treelite)
     )
 
 
-    list(APPEND TREELITE_LIBS_NO_PREFIX treelite treelite_runtime)
+    list(APPEND TREELITE_LIBS_NO_PREFIX treelite)
     if(Treelite_ADDED AND PKG_BUILD_STATIC_LIBS)
-        list(APPEND TREELITE_LIBS_NO_PREFIX treelite_static treelite_runtime_static)
+        list(APPEND TREELITE_LIBS_NO_PREFIX treelite_static)
     endif()
 
     set(Treelite_ADDED ${Treelite_ADDED} PARENT_SCOPE)
@@ -52,27 +52,15 @@ function(find_and_configure_treelite)
             target_include_directories(treelite
                 PUBLIC $<BUILD_INTERFACE:${Treelite_SOURCE_DIR}/include>
                        $<BUILD_INTERFACE:${Treelite_BINARY_DIR}/include>)
-            target_include_directories(treelite_runtime
-                PUBLIC $<BUILD_INTERFACE:${Treelite_SOURCE_DIR}/include>
-                       $<BUILD_INTERFACE:${Treelite_BINARY_DIR}/include>)
             if(NOT TARGET treelite::treelite)
                 add_library(treelite::treelite ALIAS treelite)
-            endif()
-            if(NOT TARGET treelite::treelite_runtime)
-                add_library(treelite::treelite_runtime ALIAS treelite_runtime)
             endif()
         else()
             target_include_directories(treelite_static
                 PUBLIC $<BUILD_INTERFACE:${Treelite_SOURCE_DIR}/include>
                        $<BUILD_INTERFACE:${Treelite_BINARY_DIR}/include>)
-            target_include_directories(treelite_runtime_static
-                PUBLIC $<BUILD_INTERFACE:${Treelite_SOURCE_DIR}/include>
-                       $<BUILD_INTERFACE:${Treelite_BINARY_DIR}/include>)
             if(NOT TARGET treelite::treelite_static)
                 add_library(treelite::treelite_static ALIAS treelite_static)
-            endif()
-            if(NOT TARGET treelite::treelite_runtime_static)
-                add_library(treelite::treelite_runtime_static ALIAS treelite_runtime_static)
             endif()
         endif()
 
@@ -90,6 +78,6 @@ function(find_and_configure_treelite)
     rapids_export_find_package_root(BUILD Treelite [=[${CMAKE_CURRENT_LIST_DIR}]=] cuml-exports)
 endfunction()
 
-find_and_configure_treelite(VERSION     3.9.1
-                        PINNED_TAG  346d92547295417676f499ce2dd4fff946b9042a
+find_and_configure_treelite(VERSION     4.0.0
+                        PINNED_TAG  e878556d29336d2242fd926beb659b9dec41be3a
                         BUILD_STATIC_LIBS ${TRITON_FIL_USE_TREELITE_STATIC})
