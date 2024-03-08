@@ -28,6 +28,7 @@
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
+#include <variant>
 
 #include "herring/tl_helpers.hpp"
 
@@ -123,7 +124,7 @@ struct TreeMetaInfo {
 template <typename tl_threshold_t, typename tl_output_t>
 auto
 get_tree_meta_info_vector(
-    const treelite::ModelImpl<tl_threshold_t, tl_output_t>&)
+    const treelite::ModelPreset<tl_threshold_t, tl_output_t>&)
 {
   return std::vector<TreeMetaInfo<tl_threshold_t, tl_output_t>>{};
 }
@@ -164,8 +165,8 @@ decision_non_categorical(
 
 inline bool
 decision_categorical(
-    float fvalue, const std::vector<std::uint32_t>& matching_categories,
-    bool categories_list_right_child)
+    float fvalue, const std::vector<std::uint32_t>& category_list,
+    bool category_list_right_child)
 {
   bool is_matching_category;
   auto max_representable_int =
@@ -176,10 +177,10 @@ decision_categorical(
     const auto category_value = static_cast<std::uint32_t>(fvalue);
     is_matching_category =
         (std::find(
-             matching_categories.begin(), matching_categories.end(),
-             category_value) != matching_categories.end());
+             category_list.begin(), category_list.end(), category_value) !=
+         category_list.end());
   }
-  if (categories_list_right_child) {
+  if (category_list_right_child) {
     return !is_matching_category;
   } else {
     return is_matching_category;
@@ -197,10 +198,9 @@ decision(
     return tree.DefaultChild(node) == tree.LeftChild(node);
   }
 
-  if (tree.SplitType(node) == treelite::SplitFeatureType::kCategorical) {
+  if (tree.NodeType(node) == treelite::TreeNodeType::kCategoricalTestNode) {
     return decision_categorical(
-        fvalue, tree.MatchingCategories(node),
-        tree.CategoriesListRightChild(node));
+        fvalue, tree.CategoryList(node), tree.CategoryListRightChild(node));
   } else {
     return decision_non_categorical(
         fvalue, tree.Threshold(node), tree.ComparisonOp(node));
@@ -319,29 +319,39 @@ struct TreeShapModel<rapids::HostMemory> {
   TreeShapModel() = default;
   TreeShapModel(std::shared_ptr<TreeliteModel> tl_model) : tl_model_(tl_model)
   {
-    tl_model_->base_tl_model()->Dispatch([&](const auto& model) {
-      meta_infos_ = get_tree_meta_info_vector(model);
-      auto& info =
-          std::get<decltype(get_tree_meta_info_vector(model))>(meta_infos_);
+    const auto& model = *tl_model_->base_tl_model();
+    std::visit(
+        [&](auto&& model_preset) {
+          meta_infos_ = get_tree_meta_info_vector(model_preset);
+          auto& info =
+              std::get<decltype(get_tree_meta_info_vector(model_preset))>(
+                  meta_infos_);
 
-      num_class_ = std::max(
-          model.task_param.num_class, model.task_param.leaf_vector_size);
-      bool is_vector_leaf = model.task_param.leaf_vector_size > 1;
-      int num_info =
-          is_vector_leaf ? model.trees.size() * num_class_ : model.trees.size();
-      info.reserve(num_info);
-      // Deal with vector leaf models by duplicating the meta info structs once
-      // for each class of a tree
-      for (auto info_idx = 0; info_idx < num_info; info_idx++) {
-        auto class_idx = info_idx % num_class_;
-        auto tree_idx = is_vector_leaf ? info_idx / num_class_ : info_idx;
-        info.push_back(
-            typename std::remove_reference<decltype(info)>::type::value_type(
-                model.trees.at(tree_idx), class_idx));
-      }
-      average_factor_ = herring::get_average_factor(model);
-      global_bias_ = model.param.global_bias;
-    });
+          TREELITE_CHECK_EQ(model.num_target, 1)
+              << "Multi-target model not yet supported";
+          for (int i = 1; i < model.num_class[0]; ++i) {
+            TREELITE_CHECK_EQ(model.base_scores[0], model.base_scores[i])
+                << "Vector base_scores not supported";
+          }
+
+          num_class_ = model.num_class[0];
+          bool is_vector_leaf = model.leaf_vector_shape[1] > 1;
+          int num_info = is_vector_leaf ? model_preset.trees.size() * num_class_
+                                        : model_preset.trees.size();
+          info.reserve(num_info);
+          // Deal with vector leaf models by duplicating the meta info structs
+          // once for each class of a tree
+          for (auto info_idx = 0; info_idx < num_info; info_idx++) {
+            auto class_idx = info_idx % num_class_;
+            auto tree_idx = is_vector_leaf ? info_idx / num_class_ : info_idx;
+            info.push_back(
+                typename std::remove_reference<decltype(info)>::type::
+                    value_type(model_preset.trees.at(tree_idx), class_idx));
+          }
+          average_factor_ = herring::get_average_factor(model);
+          global_bias_ = model.base_scores[0];
+        },
+        model.variant_);
   }
 
   void predict(
@@ -387,8 +397,6 @@ struct TreeShapModel<rapids::HostMemory> {
   // Contains precomputed data necessary for linear treeshap algorithm
   std::variant<
       std::vector<TreeMetaInfo<float, float>>,
-      std::vector<TreeMetaInfo<float, uint32_t>>,
-      std::vector<TreeMetaInfo<double, uint32_t>>,
       std::vector<TreeMetaInfo<double, double>>>
       meta_infos_;
 };

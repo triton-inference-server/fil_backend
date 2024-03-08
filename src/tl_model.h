@@ -19,11 +19,10 @@
 #include <serialization.h>
 #include <tl_config.h>
 #include <tl_utils.h>
-#include <treelite/frontend.h>
 #include <treelite/gtil.h>
+#include <treelite/model_loader.h>
 #include <treelite/tree.h>
 
-#include <cstring>
 #include <filesystem>
 #include <herring/tl_helpers.hpp>
 #include <memory>
@@ -31,6 +30,8 @@
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
+#include <string>
+#include <variant>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 struct TreeliteModel {
@@ -45,27 +46,32 @@ struct TreeliteModel {
               model_file, format, xgboost_allow_unknown_field);
           auto num_classes = tl_get_num_classes(*base_tl_model_);
           if (!predict_proba && tl_config_->output_class && num_classes > 1) {
-            std::strcpy(result->param.pred_transform, "max_index");
+            result->postprocessor = "max_index";
           }
           if (predict_proba &&
-              result->task_type == treelite::TaskType::kMultiClfGrovePerClass) {
-            std::strcpy(result->param.pred_transform, "softmax");
+              result->task_type == treelite::TaskType::kMultiClf &&
+              result->leaf_vector_shape[1] == 1) {
+            result->postprocessor = "softmax";
           }
           if (predict_proba &&
-              result->task_type == treelite::TaskType::kMultiClfProbDistLeaf) {
-            std::strcpy(result->param.pred_transform, "identity_multiclass");
+              result->task_type == treelite::TaskType::kMultiClf &&
+              result->leaf_vector_shape[1] > 1) {
+            result->postprocessor = "identity_multiclass";
           }
 
           return result;
         }()},
-        num_classes_{tl_get_num_classes(*base_tl_model_)},
+        num_classes_{static_cast<size_t>(tl_get_num_classes(*base_tl_model_))},
         base_herring_model_{[this, use_herring]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
           if (use_herring) {
             try {
-              result = base_tl_model_->Dispatch([](auto const& concrete_model) {
-                return herring::convert_model(concrete_model);
-              });
+              result = std::visit(
+                  [&](auto&& concrete_model) {
+                    return herring::convert_model(
+                        *base_tl_model_, concrete_model);
+                  },
+                  base_tl_model_->variant_);
               rapids::log_info(__FILE__, __LINE__)
                   << "Loaded model to Herring format";
             }
@@ -127,14 +133,12 @@ struct TreeliteModel {
 
       auto gtil_config = treelite::gtil::Configuration{};
       gtil_config.nthread = tl_config_->cpu_nthread;
-      auto gtil_output_shape =
-          std::vector<std::size_t>{samples, output.size() / samples};
 
       // Actually perform inference
       try {
         treelite::gtil::Predict(
-            base_tl_model_.get(), input.data(), samples, output_buffer.data(),
-            gtil_config, gtil_output_shape);
+            *base_tl_model_, input.data(), samples, output_buffer.data(),
+            gtil_config);
       }
       catch (treelite::Error const& tl_err) {
         throw rapids::TritonException(rapids::Error::Internal, tl_err.what());
