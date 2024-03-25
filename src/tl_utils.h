@@ -17,8 +17,8 @@
 #pragma once
 #include <names.h>
 #include <serialization.h>
-#include <treelite/frontend.h>
 #include <treelite/logging.h>
+#include <treelite/model_loader.h>
 #include <treelite/tree.h>
 
 #include <algorithm>
@@ -41,18 +41,19 @@ load_tl_base_model(
   try {
     switch (format) {
       case SerializationFormat::xgboost:
-        result = treelite::frontend::LoadXGBoostModel(model_file.c_str());
+        result = treelite::model_loader::LoadXGBoostModelLegacyBinary(
+            model_file.c_str());
         break;
       case SerializationFormat::xgboost_json: {
         auto config_str =
             std::string("{\"allow_unknown_field\": ") +
             std::string(xgboost_allow_unknown_field ? "true" : "false") + "}";
-        result = treelite::frontend::LoadXGBoostJSONModel(
+        result = treelite::model_loader::LoadXGBoostModel(
             model_file.c_str(), config_str.c_str());
         break;
       }
       case SerializationFormat::lightgbm:
-        result = treelite::frontend::LoadLightGBMModel(model_file.c_str());
+        result = treelite::model_loader::LoadLightGBMModel(model_file.c_str());
         break;
       case SerializationFormat::treelite: {
         auto file = std::fstream{model_file.c_str()};
@@ -89,7 +90,9 @@ load_tl_base_model(
 inline auto
 tl_get_num_classes(treelite::Model const& base_model)
 {
-  return base_model.task_param.num_class;
+  TREELITE_CHECK_EQ(base_model.num_target, 1)
+      << "Multi-target model not supported";
+  return base_model.num_class[0];
 }
 
 }}}  // namespace triton::backend::NAMESPACE

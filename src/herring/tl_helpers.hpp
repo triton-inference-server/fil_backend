@@ -136,8 +136,9 @@ convert_tree(
       auto right_id = tl_tree.RightChild(cur_node_id);
       auto default_child = tl_tree.DefaultChild(cur_node_id);
       auto tl_operator = tl_tree.ComparisonOp(cur_node_id);
-      auto tl_split = tl_tree.SplitType(cur_node_id);
-      auto categorical = (tl_split == treelite::SplitFeatureType::kCategorical);
+      auto tl_nodetype = tl_tree.NodeType(cur_node_id);
+      auto categorical =
+          (tl_nodetype == treelite::TreeNodeType::kCategoricalTestNode);
 
       // Distant child is always less-than or in-category condition
       if (!categorical) {
@@ -165,14 +166,14 @@ convert_tree(
               "Unsupported comparison operator"};
         }
       } else {
-        if (tl_tree.CategoriesListRightChild(cur_node_id)) {
+        if (tl_tree.CategoryListRightChild(cur_node_id)) {
           hot_child = left_id;
           distant_child = right_id;
         } else {
           hot_child = right_id;
           distant_child = left_id;
         }
-        auto tl_categories = tl_tree.MatchingCategories(cur_node_id);
+        auto tl_categories = tl_tree.CategoryList(cur_node_id);
         auto constexpr max_category =
             typename tree_t::node_type::category_set_type{}.size();
         cur_node.value.categories =
@@ -282,16 +283,26 @@ using tl_dispatched_model = std::variant<
         std::vector<double>>>;
 
 
-template <typename tl_threshold_t, typename tl_output_t>
 auto
-get_average_factor(
-    treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model)
+get_average_factor(treelite::Model const& tl_model)
 {
+  auto num_tree = tl_model.GetNumTree();
   if (tl_model.average_tree_output) {
-    if (tl_model.task_type == treelite::TaskType::kMultiClfGrovePerClass) {
-      return float(tl_model.trees.size() / tl_model.task_param.num_class);
+    if (tl_model.task_type == treelite::TaskType::kMultiClf &&
+        tl_model.leaf_vector_shape[1] == 1) {
+      // Check for grove-per-class layout
+      // TODO(hcho3): Remove once Herring supports Treelite 4.0 fully
+      TREELITE_CHECK_EQ(tl_model.num_target, 1)
+          << "Multi-target model not supported";
+      auto num_class = tl_model.num_class[0];
+      for (size_t i = 0; i < num_tree; ++i) {
+        TREELITE_CHECK_EQ(tl_model.class_id[i], i % num_class)
+            << "Unsupported class assignment for trees. "
+            << "Tree i should be associated with clas (i % num_class)";
+      }
+      return float(num_tree / num_class);
     } else {
-      return float(tl_model.trees.size());
+      return float(num_tree);
     }
   }
   return 1.0f;
@@ -302,31 +313,39 @@ template <
     typename tl_output_t>
 auto
 convert_dispatched_model(
-    treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model)
+    treelite::Model const& tl_model,
+    treelite::ModelPreset<tl_threshold_t, tl_output_t> const& tl_model_preset)
 {
   using model_type =
       std::variant_alternative_t<model_variant_index, tl_dispatched_model>;
   auto result = model_type{};
   result.use_inclusive_threshold = false;
 
-  result.trees.reserve(tl_model.trees.size());
+  result.trees.reserve(tl_model_preset.trees.size());
   std::transform(
-      std::begin(tl_model.trees), std::end(tl_model.trees),
+      std::begin(tl_model_preset.trees), std::end(tl_model_preset.trees),
       std::back_inserter(result.trees), [&result](auto&& tl_tree) {
         return convert_tree<typename model_type::tree_type>(
             tl_tree, result.use_inclusive_threshold,
             result.has_categorical_trees);
       });
 
-  result.num_class = tl_model.task_param.num_class;
+  TREELITE_CHECK_EQ(tl_model.num_target, 1)
+      << "Multi-target model not supported";
+  for (int i = 1; i < tl_model.num_class[0]; ++i) {
+    TREELITE_CHECK_EQ(tl_model.base_scores[0], tl_model.base_scores[i])
+        << "Vector base_scores not supported";
+  }
+
+  result.num_class = tl_model.num_class[0];
   result.num_feature = tl_model.num_feature;
   result.average_factor = get_average_factor(tl_model);
-  result.bias = tl_model.param.global_bias;
+  result.bias = tl_model.base_scores[0];
 
   result.set_element_postproc(element_op::disable);
   result.row_postproc = row_op::disable;
 
-  auto tl_pred_transform = std::string{tl_model.param.pred_transform};
+  auto tl_pred_transform = std::string{tl_model.postprocessor};
   if (tl_pred_transform == std::string{"identity"} ||
       tl_pred_transform == std::string{"identity_multiclass"}) {
     result.set_element_postproc(element_op::disable);
@@ -336,12 +355,12 @@ convert_dispatched_model(
   } else if (tl_pred_transform == std::string{"hinge"}) {
     result.set_element_postproc(element_op::hinge);
   } else if (tl_pred_transform == std::string{"sigmoid"}) {
-    result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.postproc_constant = tl_model.sigmoid_alpha;
     result.set_element_postproc(element_op::sigmoid);
   } else if (tl_pred_transform == std::string{"exponential"}) {
     result.set_element_postproc(element_op::exponential);
   } else if (tl_pred_transform == std::string{"exponential_standard_ratio"}) {
-    result.postproc_constant = tl_model.param.ratio_c;
+    result.postproc_constant = tl_model.ratio_c;
     result.set_element_postproc(element_op::exponential_standard_ratio);
   } else if (tl_pred_transform == std::string{"logarithm_one_plus_exp"}) {
     result.set_element_postproc(element_op::logarithm_one_plus_exp);
@@ -350,7 +369,7 @@ convert_dispatched_model(
   } else if (tl_pred_transform == std::string{"softmax"}) {
     result.row_postproc = row_op::softmax;
   } else if (tl_pred_transform == std::string{"multiclass_ova"}) {
-    result.postproc_constant = tl_model.param.sigmoid_alpha;
+    result.postproc_constant = tl_model.sigmoid_alpha;
     result.set_element_postproc(element_op::sigmoid);
   } else {
     throw unconvertible_model_exception{
@@ -364,7 +383,8 @@ template <
     typename tl_threshold_t, typename tl_output_t, std::size_t variant_index>
 auto
 convert_model(
-    treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model,
+    treelite::Model const& tl_model,
+    treelite::ModelPreset<tl_threshold_t, tl_output_t> const& tl_model_preset,
     std::size_t target_variant_index)
 {
   auto result = tl_dispatched_model{};
@@ -382,14 +402,15 @@ convert_model(
                std::vector<tl_output_t>,
                typename model_type::tree_type::output_type>)) {
         result = convert_dispatched_model<
-            variant_index, tl_threshold_t, tl_output_t>(tl_model);
+            variant_index, tl_threshold_t, tl_output_t>(
+            tl_model, tl_model_preset);
       } else {
         throw unconvertible_model_exception(
             "Unexpected TL types for this variant");
       }
     } else {
       result = convert_model<tl_threshold_t, tl_output_t, variant_index + 1>(
-          tl_model, target_variant_index);
+          tl_model, tl_model_preset, target_variant_index);
     }
   }
   return result;
@@ -397,10 +418,12 @@ convert_model(
 
 template <typename tl_threshold_t, typename tl_output_t>
 auto
-convert_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model)
+convert_model(
+    treelite::Model const& tl_model,
+    treelite::ModelPreset<tl_threshold_t, tl_output_t> const& tl_model_preset)
 {
   auto max_offset = std::accumulate(
-      std::begin(tl_model.trees), std::end(tl_model.trees), int{},
+      std::begin(tl_model_preset.trees), std::end(tl_model_preset.trees), int{},
       [](auto&& prev_max, auto&& tree) {
         return std::max(prev_max, tree.num_nodes);
       });
@@ -419,14 +442,14 @@ convert_model(treelite::ModelImpl<tl_threshold_t, tl_output_t> const& tl_model)
       std::size_t{max_offset >= std::numeric_limits<std::uint16_t>::max()};
   auto constexpr non_integer_output =
       std::size_t{!std::is_same_v<tl_output_t, std::uint32_t>};
-  auto const has_vector_leaves =
-      std::size_t{tl_model.task_param.leaf_vector_size > 1};
+  auto const has_vector_leaves = std::size_t{tl_model.leaf_vector_shape[1] > 1};
 
   auto variant_index = std::size_t{
       (large_threshold << 4) + (large_num_feature << 3) +
       (large_max_offset << 2) + (non_integer_output << 1) + has_vector_leaves};
 
-  return convert_model<tl_threshold_t, tl_output_t, 0>(tl_model, variant_index);
+  return convert_model<tl_threshold_t, tl_output_t, 0>(
+      tl_model, tl_model_preset, variant_index);
 }
 
 }  // namespace herring
