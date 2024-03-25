@@ -87,7 +87,7 @@ and should be formatted accordingly.
 If you wish to use the FIL backend, you must indicate this in the
 configuration file with the top-level `backend: "fil"` option. For
 information on models supported by the FIL backend, see [Model
-Support](https://developers.google.com/protocol-buffers/docs/text-format-spec)
+Support](model_support.md)
 or the [FAQ
 notebook](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?).
 
@@ -182,7 +182,7 @@ The FIL backend accepts models in a
 [number](https://nbviewer.org/github/triton-inference-server/fil_backend/blob/main/notebooks/faq/FAQs.ipynb#FAQ-1:-What-can-I-deploy-with-the-FIL-backend?) of serialization formats,
 including XGBoost JSON and binary formats, LightGBM's text format, and
 Treelite's checkpoint format. For more information, see [Model
-Support](docs/model_support.md).
+Support](model_support.md).
 
 The `model_type` option is used to indicate which of these serialization
 formats your model uses: `xgboost` for XGBoost binary, `xgboost_json` for
