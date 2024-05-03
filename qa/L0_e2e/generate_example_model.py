@@ -37,6 +37,7 @@ except ImportError:
 
 def generate_classification_data(classes=2, rows=1000, cols=32, cat_cols=0):
     """Generate classification training set"""
+
     if cat_cols > 0:
         output_type = "cudf"
     else:

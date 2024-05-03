@@ -81,7 +81,8 @@ shown below:
 | 21.11-22.02    | 2.1.0                         | <1.6                              |
 | 22.03-22.06    | 2.3.0                         | <1.6                              |
 | 22.07          | 2.4.0                         | <1.7                              |
-| 22.08+         | 2.4.0; >=3.0.0,<4.0.0         | <1.7                              |
+| 22.08-24.02    | 2.4.0; >=3.0.0,<4.0.0         | <1.7                              |
+| 24.03+         | 3.9.0; >=4.0.0,<5.0.0         | 1.7+                              |
 
 ## Limitations
 The FIL backend currently does not support any multi-output regression models.
