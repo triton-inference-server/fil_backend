@@ -89,7 +89,9 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  set(RAPIDS_DEPENDENCIES_VERSION "23.12" CACHE STRING "RAPIDS projects dependencies version")
+  # Specify *minimum* version for all RAPIDS dependencies
+  # Some RAPIDS deps may have later versions
+  set(RAPIDS_DEPENDENCIES_VERSION "24.04" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
 
 
@@ -161,10 +163,9 @@ else()
   rapids_cpm_init()
   find_package(OpenMP REQUIRED)
 
-  # Version and Branch to use for RAPIDS projects dependencies
-  # This project trails behind RAPIDS versions by one release
+  # Specify *minimum* version for all RAPIDS dependencies
+  # Some RAPIDS deps may have later versions
   set(RAPIDS_TRITON_MIN_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}.00")
-  set(RAPIDS_TRITON_BRANCH_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}")
 
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_cuml.cmake)
