@@ -19,6 +19,7 @@ option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
 option(BUILD_SHARED_LIBS OFF)
+option(TRITON_COMMON_ENABLE_JSON "Build json-related libs" ON)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
@@ -41,6 +42,7 @@ if(TRITON_FIL_DOCKER_BUILD)
       --build-arg TRITON_COMMON_REPO_TAG=${TRITON_COMMON_REPO_TAG}
       --build-arg TRITON_CORE_REPO_TAG=${TRITON_CORE_REPO_TAG}
       --build-arg TRITON_BACKEND_REPO_TAG=${TRITON_BACKEND_REPO_TAG}
+      --build-arg TRITON_COMMON_ENABLE_JSON=${TRITON_COMMON_ENABLE_JSON}
       -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile
       ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
