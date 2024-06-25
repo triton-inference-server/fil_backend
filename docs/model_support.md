@@ -34,7 +34,7 @@ Triton's other backends.
 ## Frameworks
 The FIL backend supports most XGBoost and LightGBM models using their native
 serialization formats. The FIL backend also supports the following model types
-from [Scikit-Learn and cuML](docs/sklearn_and_cuml.md) using Treelite's checkpoint serialization format:
+from [Scikit-Learn and cuML](sklearn_and_cuml.md) using Treelite's checkpoint serialization format:
 
 - GradientBoostingClassifier
 - GradientBoostingRegressor
