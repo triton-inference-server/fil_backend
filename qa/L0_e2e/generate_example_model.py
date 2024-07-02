@@ -584,7 +584,7 @@ def parse_args():
     parser.add_argument(
         "--disable_experimental_optimizations",
         action="store_true",
-        help="for classifiers, output class scores",
+        help="CPU inference: Use GTIL instead of Herring",
     )
     parser.add_argument(
         "--max_batch_size",
