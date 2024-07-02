@@ -80,7 +80,8 @@ then
     --depth 3 \
     --trees 2000 \
     --cat_features 3 \
-    --predict_proba
+    --predict_proba \
+    --disable_experimental_optimizations
   models+=( $name )
 fi
 

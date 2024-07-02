@@ -87,10 +87,6 @@ def train_lightgbm_classifier(data, labels, depth=25, trees=100, classes=2):
     """Train LightGBM classification model"""
     if lgb is None:
         raise RuntimeError("LightGBM could not be imported")
-    # Use float64 columns, to test if FIL can handle LightGBM models with
-    # float64 thresholds
-    cols = data.select_dtypes(include="number").columns
-    data[cols] = data[cols].astype("float64")
     lgb_data = lgb.Dataset(data, label=labels)
 
     if classes <= 2:
@@ -588,7 +584,7 @@ def parse_args():
     parser.add_argument(
         "--disable_experimental_optimizations",
         action="store_true",
-        help="for classifiers, output class scores",
+        help="CPU inference: Use GTIL instead of Herring",
     )
     parser.add_argument(
         "--max_batch_size",
