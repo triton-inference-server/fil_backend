@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=24.07
+ARG TRITON_VERSION=24.08
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -144,7 +144,6 @@ ARG TRITON_FIL_USE_TREELITE_STATIC=ON
 ENV TRITON_FIL_USE_TREELITE_STATIC=$TRITON_FIL_USE_TREELITE_STATIC
 
 COPY --from=conda-dev /conda/dev /conda/dev
-COPY ./0001-Allow-predicting-with-FP32-input-and-FP64-models.patch /rapids_triton/
 
 SHELL ["/bin/bash", "-c"]
 
@@ -162,10 +161,7 @@ RUN source /conda/dev/bin/activate \
       -DRAPIDS_DEPENDENCIES_VERSION="${RAPIDS_DEPENDENCIES_VERSION}" \
       -DTRITON_FIL_USE_TREELITE_STATIC="${TRITON_FIL_USE_TREELITE_STATIC}" \
       -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
-      .. \
- && cd _deps/treelite-src \
- && git apply /rapids_triton/0001-Allow-predicting-with-FP32-input-and-FP64-models.patch \
- && cd ../..
+      ..;
 
 ENV CCACHE_DIR=/ccache
 
