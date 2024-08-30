@@ -41,19 +41,19 @@ load_tl_base_model(
   try {
     switch (format) {
       case SerializationFormat::xgboost:
-        result = treelite::model_loader::LoadXGBoostModelLegacyBinary(
-            model_file.c_str());
+        result =
+            treelite::model_loader::LoadXGBoostModelLegacyBinary(model_file);
         break;
       case SerializationFormat::xgboost_json: {
         auto config_str =
             std::string("{\"allow_unknown_field\": ") +
             std::string(xgboost_allow_unknown_field ? "true" : "false") + "}";
-        result = treelite::model_loader::LoadXGBoostModel(
-            model_file.c_str(), config_str.c_str());
+        result = treelite::model_loader::LoadXGBoostModelJSON(
+            model_file, config_str);
         break;
       }
       case SerializationFormat::lightgbm:
-        result = treelite::model_loader::LoadLightGBMModel(model_file.c_str());
+        result = treelite::model_loader::LoadLightGBMModel(model_file);
         break;
       case SerializationFormat::treelite: {
         auto file = std::fstream{model_file.c_str()};
