@@ -25,8 +25,9 @@ function(find_and_configure_rapids_triton)
       BUILD_EXPORT_SET    rapids_triton-exports
       INSTALL_EXPORT_SET  rapids_triton-exports
         CPM_ARGS
-            GIT_REPOSITORY https://github.com/${PKG_FORK}/rapids-triton.git
-            GIT_TAG        ${PKG_PINNED_TAG}
+            # GIT_REPOSITORY https://github.com/${PKG_FORK}/rapids-triton.git      # repository which we mirror from
+            GIT_REPOSITORY ${TRITON_REPO_ORGANIZATION}/rapids_triton.git
+            GIT_TAG        ${RAPIDS_TRITON_REPO_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
               "BUILD_TESTS OFF"

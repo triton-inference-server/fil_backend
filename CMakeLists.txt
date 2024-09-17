@@ -20,9 +20,11 @@ option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_FIL_DOCKER_BUILD OFF)
 option(BUILD_SHARED_LIBS OFF)
 
+set(TRITON_REPO_ORGANIZATION "https://github.com/triton-inference-server" CACHE STRING "Git repository to pull from")
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
+set(RAPIDS_TRITON_REPO_TAG "main" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
   project(RAPIDS_TRITON_BACKEND VERSION 22.10.00)
@@ -38,9 +40,11 @@ if(TRITON_FIL_DOCKER_BUILD)
       --build-arg BASE_IMAGE=${TRITON_BUILD_CONTAINER}
       --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}
       --build-arg TRITON_ENABLE_STATS=${TRITON_ENABLE_GPU}
+      --build-arg TRITON_REPO_ORGANIZATION=${TRITON_REPO_ORGANIZATION}
       --build-arg TRITON_COMMON_REPO_TAG=${TRITON_COMMON_REPO_TAG}
       --build-arg TRITON_CORE_REPO_TAG=${TRITON_CORE_REPO_TAG}
       --build-arg TRITON_BACKEND_REPO_TAG=${TRITON_BACKEND_REPO_TAG}
+      --build-arg RAPIDS_TRITON_REPO_TAG=${RAPIDS_TRITON_REPO_TAG}
       -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile
       ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
