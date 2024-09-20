@@ -49,6 +49,10 @@ HELP="$0 [<target> ...] [<flag> ...]
                       the build the test image
    PREBUILT_IMAGE   - A server image to be tested (used as base of test image)
    TRITON_REF       - Commit ref for Triton when using build.py
+   REPO_ORGANIZATION
+                    - Repository organization to pull triton repositories from
+                      Default is \"https://github.com/triton-inference-server\"
+
    COMMON_REF       - Commit ref for Triton common repo when using build.py
    CORE_REF         - Commit ref for Triton core repo when using build.py
    BACKEND_REF      - Commit ref for Triton backend repo when using build.py
@@ -199,6 +203,7 @@ then
   # If the user has specified a TRITON_VERSION (or if we are performing a host
   # build), set the upstream repo references to the corresponding branches
   # (unless otherwise specified by the user)
+  [ ! -z $REPO_ORGANIZATION ] || REPO_ORGANIZATION="${REPO_ORGANIZATION}"
   [ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
   [ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
   [ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"
@@ -208,6 +213,7 @@ else
   # If TRITON_VERSION has not been set, these values will only be used for a
   # full build.py build, so it is safe to default to main rather than a release
   # branch.
+  [ ! -z $REPO_ORGANIZATION ] || REPO_ORGANIZATION='https://github.com/triton-inference-server'
   [ ! -z $TRITON_REF ] || TRITON_REF='main'
   [ ! -z $COMMON_REF ] || COMMON_REF='main'
   [ ! -z $CORE_REF ] || CORE_REF='main'
@@ -275,7 +281,7 @@ buildpy () {
   then
     rm -rf "$server_repo"
   fi
-  git clone https://github.com/triton-inference-server/server.git \
+  git clone $REPO_ORGANIZATION/server.git \
     "${server_repo}" \
     -b $TRITON_REF \
     --depth 1
@@ -288,6 +294,7 @@ buildpy () {
     --enable-stats \
     --endpoint=http \
     --endpoint=grpc \
+    --github-organization=$REPO_ORGANIZATION \
     --repo-tag=common:$COMMON_REF \
     --repo-tag=core:$CORE_REF \
     --repo-tag=backend:$BACKEND_REF \
@@ -311,6 +318,7 @@ hostbuild () {
     -GNinja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DBUILD_TESTS="OFF" \
+    -DTRITON_REPO_ORGANIZATION="$REPO_ORGANIZATION" \
     -DTRITON_CORE_REPO_TAG="$CORE_REF" \
     -DTRITON_COMMON_REPO_TAG="$COMMON_REF" \
     -DTRITON_BACKEND_REPO_TAG="$BACKEND_REF" \
