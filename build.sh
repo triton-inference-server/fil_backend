@@ -203,7 +203,7 @@ then
   # If the user has specified a TRITON_VERSION (or if we are performing a host
   # build), set the upstream repo references to the corresponding branches
   # (unless otherwise specified by the user)
-  [ ! -z $REPO_ORGANIZATION ] || REPO_ORGANIZATION="${REPO_ORGANIZATION}"
+  [ ! -z $REPO_ORGANIZATION ] || REPO_ORGANIZATION='https://github.com/triton-inference-server'
   [ ! -z $TRITON_REF ] || TRITON_REF="r${TRITON_VERSION}"
   [ ! -z $COMMON_REF ] || COMMON_REF="r${TRITON_VERSION}"
   [ ! -z $CORE_REF ] || CORE_REF="r${TRITON_VERSION}"

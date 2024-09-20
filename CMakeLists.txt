@@ -167,10 +167,6 @@ else()
   rapids_cpm_init()
   find_package(OpenMP REQUIRED)
 
-  # Specify *minimum* version for all RAPIDS dependencies
-  # Some RAPIDS deps may have later versions
-  set(RAPIDS_TRITON_MIN_VERSION_rapids_projects "${RAPIDS_DEPENDENCIES_VERSION}.00")
-
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_cuml.cmake)
   else()
