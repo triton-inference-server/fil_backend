@@ -32,9 +32,6 @@ function(find_and_configure_rapids_triton)
               "BUILD_TESTS OFF"
               "BUILD_EXAMPLE OFF"
     )
-
-  message(VERBOSE "RAPIDS_TRITON_BACKEND: Using RAPIDS-Triton located in ${rapids_triton_SOURCE_DIR}")
-
 endfunction()
 
 # Change pinned tag here to test a commit in CI
@@ -42,6 +39,7 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 set (RAPIDS_FORK https://github.com/rapidsai/rapids-triton.git)
 set (REPO_TAG branch-${RAPIDS_DEPENDENCIES_VERSION})
+message(STATUS "Setting repo tag to ${REPO_TAG}")
 # if Triton tag and organization is specified, change the fork and the repo
 if (NOT TRITON_REPO_ORGANIZATION STREQUAL "https://github.com/triton-inference-server")
   set (RAPIDS_FORK ${TRITON_REPO_ORGANIZATION}/rapids_triton.git)
@@ -49,10 +47,9 @@ if (NOT TRITON_REPO_ORGANIZATION STREQUAL "https://github.com/triton-inference-s
 endif()
 if (NOT RAPIDS_TRITON_REPO_TAG STREQUAL "main")
   set (REPO_TAG ${RAPIDS_TRITON_REPO_TAG})
-  message(STATUS "Setting repo tag to ${REPO_TAG}")
 endif()
 
-find_and_configure_rapids_triton(VERSION    ${RAPIDS_TRITON_MIN_VERSION_rapids_projects}
+find_and_configure_rapids_triton(VERSION    ${RAPIDS_DEPENDENCIES_VERSION}
                                  FORK       ${RAPIDS_FORK}
                                  PINNED_TAG ${REPO_TAG}
                                  )
