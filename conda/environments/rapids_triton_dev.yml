@@ -6,4 +6,4 @@ dependencies:
   - ccache
   - cmake>=3.26.4,!=3.30.0
   - ninja
-  - rapidjson>=1.1.0,<1.1.0.post*
+  - rapidjson
