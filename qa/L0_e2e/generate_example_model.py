@@ -311,7 +311,7 @@ def serialize_model(model, directory, output_format="xgboost"):
         model.save_model(model_path)
         new_model_path = os.path.join(directory, "xgboost.model")
         os.rename(model_path, new_model_path)
-        return model_path
+        return new_model_path
     if output_format == "xgboost_json":
         model_path = os.path.join(directory, "xgboost.json")
         model.save_model(model_path)
