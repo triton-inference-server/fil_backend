@@ -551,7 +551,7 @@ def parse_args():
     )
     parser.add_argument(
         "--format",
-        choices=("xgboost", "xgboost_json", "lightgbm", "pickle"),
+        choices=("xgboost", "xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
         default=None,
         help="serialization format for model",
     )
