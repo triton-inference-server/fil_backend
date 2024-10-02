@@ -72,11 +72,10 @@ def train_xgboost_classifier(data, labels, depth=25, trees=100):
     training_params = {
         "eval_metric": "error",
         "objective": "binary:logistic",
-        "tree_method": "gpu_hist",
+        "tree_method": "hist",
+        "device": "cuda",
         "max_depth": depth,
         "n_estimators": trees,
-        "use_label_encoder": False,
-        "predictor": "gpu_predictor",
     }
     model = xgb.XGBClassifier(**training_params)
 
@@ -192,10 +191,10 @@ def train_xgboost_regressor(data, targets, depth=25, trees=100):
 
     training_params = {
         "objective": "reg:squarederror",
-        "tree_method": "gpu_hist",
+        "tree_method": "hist",
+        "device": "cuda",
         "max_depth": depth,
         "n_estimators": trees,
-        "predictor": "gpu_predictor",
     }
     model = xgb.XGBRegressor(**training_params)
 
