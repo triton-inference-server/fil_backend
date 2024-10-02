@@ -185,7 +185,7 @@ Treelite's checkpoint format. For more information, see [Model
 Support](model_support.md).
 
 The `model_type` option is used to indicate which of these serialization
-formats your model uses: `xgboost_ubj` for XGBoost UBJSON [^1], `xgboost_json` for
+formats your model uses: `xgboost_ubj` for XGBoost UBJSON, `xgboost_json` for
 XGBoost JSON, `xgboost` for XGBoost binary (legacy), `lightgbm` for LightGBM,
 or `treelite_checkpoint` for Treelite:
 
@@ -197,11 +197,10 @@ parameters [
   }
 ]
 ```
-[^1] Default format in XGBoost 2.1+
 
 #### Model Filenames
 For each model type, Triton expects a particular default filename:
-- `xgboost.ubj` for XGBoost UBJSON [^1]
+- `xgboost.ubj` for XGBoost UBJSON
 - `xgboost.json` for XGBoost JSON
 - `xgboost.model` for XGBoost Binary (Legacy)
 - `model.txt` for LightGBM
