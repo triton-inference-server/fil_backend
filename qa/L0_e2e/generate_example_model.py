@@ -477,7 +477,10 @@ def build_model(
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
     if (
-        (model_type == "xgboost" and output_format not in {"xgboost", "xgboost_json"})
+        (
+            model_type == "xgboost"
+            and output_format not in {"xgboost", "xgboost_json", "xgboost_ubj"}
+        )
         or (model_type == "lightgbm" and output_format not in {"lightgbm"})
         or (model_type == "sklearn" and output_format not in {"pickle"})
         or (model_type == "cuml" and output_format not in {"pickle"})
