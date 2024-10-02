@@ -467,7 +467,9 @@ def build_model(
 
     if output_format is None:
         if model_type == "xgboost":
-            output_format = "xgboost_ubj"
+            # TODO(hcho3): Update to "xgboost_ubj" when XGBoost removes support
+            # for legacy binary format
+            output_format = "xgboost"
         elif model_type == "lightgbm":
             output_format = "lightgbm"
         elif model_type in {"sklearn", "cuml"}:
