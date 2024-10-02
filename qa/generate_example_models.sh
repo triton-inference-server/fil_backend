@@ -56,6 +56,19 @@ then
   models+=( $name )
 fi
 
+name=xgboost_ubj
+if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
+then
+  ${GENERATOR_SCRIPT} \
+    --name $name \
+    --format xgboost_ubj \
+    --depth 7 \
+    --trees 500 \
+    --features 500 \
+    --predict_proba
+  models+=( $name )
+fi
+
 name=xgboost_shap
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then

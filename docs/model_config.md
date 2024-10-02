@@ -70,7 +70,7 @@ instance_group [{ kind: KIND_AUTO }]
 parameters [
   {
     key: "model_type"
-    value: { string_value: "xgboost_json" }
+    value: { string_value: "xgboost_ubj" }
   },
   {
     key: "output_class"
@@ -185,23 +185,25 @@ Treelite's checkpoint format. For more information, see [Model
 Support](model_support.md).
 
 The `model_type` option is used to indicate which of these serialization
-formats your model uses: `xgboost` for XGBoost binary, `xgboost_json` for
-XGBoost JSON, `lightgbm` for LightGBM, or `treelite_checkpoint` for
-Treelite:
+formats your model uses: `xgboost_ubj` for XGBoost UBJSON [^1], `xgboost_json` for
+XGBoost JSON, `xgboost` for XGBoost binary (legacy), `lightgbm` for LightGBM,
+or `treelite_checkpoint` for Treelite:
 
 ```
 parameters [
   {
     key: "model_type"
-    value: { string_value: "xgboost_json" }
+    value: { string_value: "xgboost_ubj" }
   }
 ]
 ```
+[^1] Default format in XGBoost 2.1+
 
 #### Model Filenames
 For each model type, Triton expects a particular default filename:
-- `xgboost.model` for XGBoost Binary
+- `xgboost.ubj` for XGBoost UBJSON [^1]
 - `xgboost.json` for XGBoost JSON
+- `xgboost.model` for XGBoost Binary (Legacy)
 - `model.txt` for LightGBM
 - `checkpoint.tl` for Treelite
 It is recommended that you use these filenames, but custom filenames can be
