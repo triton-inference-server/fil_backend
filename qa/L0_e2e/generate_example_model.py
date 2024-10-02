@@ -468,7 +468,7 @@ def build_model(
 
     if output_format is None:
         if model_type == "xgboost":
-            output_format = "xgboost"
+            output_format = "xgboost_ubj"
         elif model_type == "lightgbm":
             output_format = "lightgbm"
         elif model_type in {"sklearn", "cuml"}:

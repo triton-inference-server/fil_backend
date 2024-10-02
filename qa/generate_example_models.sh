@@ -25,7 +25,7 @@ SCRIPTS_DIR="${QA_DIR}/../scripts"
 MODEL_REPO="${QA_DIR}/L0_e2e/model_repository"
 GENERATOR_SCRIPT="python ${QA_DIR}/L0_e2e/generate_example_model.py"
 
-SKLEARN_CONVERTER="${SCRIPTS_DIR}/convert_sklearn"
+SKLEARN_CONVERTER="${SCRIPTS_DIR}/convert_sklearn.py"
 CUML_CONVERTER="${SCRIPTS_DIR}/convert_cuml.py"
 
 models=()
