@@ -281,6 +281,7 @@ def test_small(client, model_data, hypothesis_data):
             model_inputs,
             model_data.output_sizes,
             shared_mem=shared_mem,
+            attempts=100,
         )
         for name, input_ in model_inputs.items():
             all_model_inputs[name].append(input_)
@@ -324,7 +325,11 @@ def test_small(client, model_data, hypothesis_data):
         st.one_of(st.just(mode) for mode in valid_shm_modes())
     )
     all_triton_outputs = client.predict(
-        model_data.name, all_model_inputs, total_output_sizes, shared_mem=shared_mem
+        model_data.name,
+        all_model_inputs,
+        total_output_sizes,
+        shared_mem=shared_mem,
+        attempts=100,
     )
 
     for output_name in sorted(ground_truth.keys()):
@@ -359,7 +364,11 @@ def test_max_batch(client, model_data, shared_mem):
     }
     shared_mem = valid_shm_modes()[0]
     result = client.predict(
-        model_data.name, max_inputs, model_output_sizes, shared_mem=shared_mem
+        model_data.name,
+        max_inputs,
+        model_output_sizes,
+        shared_mem=shared_mem,
+        attempts=100,
     )
 
     ground_truth = model_data.ground_truth_model.predict(max_inputs)
