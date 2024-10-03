@@ -102,9 +102,10 @@ trap finally EXIT
 if [ ! -z $CPU_ONLY ] && [ $CPU_ONLY -eq 1 ]
 then
   pytest \
+    -v -rxXs \
     --repo "${MODEL_REPO}" \
     --hypothesis-profile "$TEST_PROFILE" \
     "$QA_DIR"
 else
-  pytest --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
+  pytest -v -rxXs --repo "${MODEL_REPO}" "$QA_DIR" --hypothesis-profile "$TEST_PROFILE"
 fi

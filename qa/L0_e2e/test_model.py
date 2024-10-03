@@ -36,6 +36,7 @@ MODELS = (
     "xgboost",
     "xgboost_shap",
     "xgboost_json",
+    "xgboost_ubj",
     "lightgbm",
     "lightgbm_rf",
     "regression",
@@ -98,10 +99,22 @@ class GTILModel:
     """A compatibility wrapper for executing models with GTIL"""
 
     def __init__(self, model_path, model_format, output_class):
-        if model_format == "treelite_checkpoint":
+        if model_format == "xgboost":
+            self.tl_model = treelite.frontend.load_xgboost_model_legacy_binary(
+                model_path
+            )
+        elif model_format == "xgboost_json":
+            self.tl_model = treelite.frontend.load_xgboost_model(
+                model_path, format_choice="json"
+            )
+        elif model_format == "xgboost_ubj":
+            self.tl_model = treelite.frontend.load_xgboost_model(
+                model_path, format_choice="ubjson"
+            )
+        elif model_format == "lightgbm":
+            self.tl_model = treelite.frontend.load_lightgbm_model(model_path)
+        elif model_format == "treelite_checkpoint":
             self.tl_model = treelite.Model.deserialize(model_path)
-        else:
-            self.tl_model = treelite.Model.load(model_path, model_format)
         self.output_class = output_class
 
     def _predict(self, arr):
@@ -144,6 +157,8 @@ class GroundTruthModel:
             model_path = os.path.join(model_dir, "xgboost.model")
         elif model_format == "xgboost_json":
             model_path = os.path.join(model_dir, "xgboost.json")
+        elif model_format == "xgboost_ubj":
+            model_path = os.path.join(model_dir, "xgboost.ubj")
         elif model_format == "lightgbm":
             model_path = os.path.join(model_dir, "model.txt")
         elif model_format == "treelite_checkpoint":
