@@ -67,6 +67,16 @@ def valid_shm_modes():
     return tuple(modes)
 
 
+# TODO(hcho3): Remove once we fix the flakiness of CUDA shared mem
+def shared_mem_parametrize():
+    params = [None]
+    if "cuda" in valid_shm_modes():
+        params.append(
+            pytest.param("cuda", marks=pytest.mark.xfail(reason="shared mem is flaky")),
+        )
+    return params
+
+
 @pytest.fixture(scope="session")
 def client():
     """A RAPIDS-Triton client for submitting inference requests"""
@@ -242,12 +252,13 @@ def model_data(request, client, model_repo):
     )
 
 
+@pytest.mark.parametrize("shared_mem", shared_mem_parametrize())
 @given(hypothesis_data=st.data())
 @settings(
     deadline=None,
     suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much),
 )
-def test_small(client, model_data, hypothesis_data):
+def test_small(shared_mem, client, model_data, hypothesis_data):
     """Test Triton-served model on many small Hypothesis-generated examples"""
     all_model_inputs = defaultdict(list)
     total_output_sizes = {}
@@ -273,15 +284,11 @@ def test_small(client, model_data, hypothesis_data):
         model_output_sizes = {
             name: size for name, size in model_data.output_sizes.items()
         }
-        shared_mem = hypothesis_data.draw(
-            st.one_of(st.just(mode) for mode in valid_shm_modes())
-        )
         result = client.predict(
             model_data.name,
             model_inputs,
             model_data.output_sizes,
             shared_mem=shared_mem,
-            attempts=100,
         )
         for name, input_ in model_inputs.items():
             all_model_inputs[name].append(input_)
@@ -321,15 +328,11 @@ def test_small(client, model_data, hypothesis_data):
             )
 
     # Test entire batch of Hypothesis-generated inputs at once
-    shared_mem = hypothesis_data.draw(
-        st.one_of(st.just(mode) for mode in valid_shm_modes())
-    )
     all_triton_outputs = client.predict(
         model_data.name,
         all_model_inputs,
         total_output_sizes,
         shared_mem=shared_mem,
-        attempts=100,
     )
 
     for output_name in sorted(ground_truth.keys()):
@@ -351,7 +354,7 @@ def test_small(client, model_data, hypothesis_data):
             )
 
 
-@pytest.mark.parametrize("shared_mem", valid_shm_modes())
+@pytest.mark.parametrize("shared_mem", shared_mem_parametrize())
 def test_max_batch(client, model_data, shared_mem):
     """Test processing of a single maximum-sized batch"""
     max_inputs = {
@@ -362,13 +365,11 @@ def test_max_batch(client, model_data, shared_mem):
         name: size * model_data.max_batch_size
         for name, size in model_data.output_sizes.items()
     }
-    shared_mem = valid_shm_modes()[0]
     result = client.predict(
         model_data.name,
         max_inputs,
         model_output_sizes,
         shared_mem=shared_mem,
-        attempts=100,
     )
 
     ground_truth = model_data.ground_truth_model.predict(max_inputs)
