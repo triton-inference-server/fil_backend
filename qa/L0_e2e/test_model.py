@@ -68,6 +68,7 @@ def valid_shm_modes():
 
 
 # TODO(hcho3): Remove once we fix the flakiness of CUDA shared mem
+# See https://github.com/triton-inference-server/server/issues/7688
 def shared_mem_parametrize():
     params = [None]
     if "cuda" in valid_shm_modes():
