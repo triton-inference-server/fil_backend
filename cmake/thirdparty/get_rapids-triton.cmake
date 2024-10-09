@@ -39,14 +39,15 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 set (RAPIDS_FORK https://github.com/rapidsai/rapids-triton.git)
 set (REPO_TAG branch-${RAPIDS_DEPENDENCIES_VERSION})
-message(STATUS "Setting repo tag to ${REPO_TAG}")
+message(STATUS "Setting repo tag to ${REPO_TAG} for rapids fork ${RAPIDS_FORK}")
 # if Triton tag and organization is specified, change the fork and the repo
-if (NOT TRITON_REPO_ORGANIZATION STREQUAL "https://github.com/triton-inference-server")
-  set (RAPIDS_FORK ${TRITON_REPO_ORGANIZATION}/rapids_triton.git)
+if (NOT RAPIDS_TRITON_REPO_PATH STREQUAL RAPIDS_FORK)
+  set (RAPIDS_FORK ${RAPIDS_TRITON_REPO_PATH})
   message(STATUS "Setting repo fork to ${RAPIDS_FORK}")
 endif()
 if (NOT RAPIDS_TRITON_REPO_TAG STREQUAL "main")
   set (REPO_TAG ${RAPIDS_TRITON_REPO_TAG})
+  message(STATUS "Setting repo tag to ${REPO_TAG}")
 endif()
 
 find_and_configure_rapids_triton(VERSION    ${RAPIDS_DEPENDENCIES_VERSION}
