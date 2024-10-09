@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=24.08
+ARG TRITON_VERSION=24.09
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -56,7 +56,7 @@ RUN conda run --no-capture-output -n triton_test \
 
 FROM wheel-install-${USE_CLIENT_WHEEL} as conda-test
 RUN conda run --no-capture-output -n triton_test \
-    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-21.12#subdirectory=python
+    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-24.04#subdirectory=python
 RUN conda-pack --ignore-missing-files -n triton_test -o /tmp/env.tar \
  && mkdir /conda/test/ \
  && cd /conda/test/ \

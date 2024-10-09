@@ -48,7 +48,7 @@ model framework in Triton simply by exporting to the binary checkpoint format.
 The FIL backend repo includes scripts for easy conversion from
 pickle-serialized cuML or Scikit-Learn models to Treelite checkpoints. You can
 download the relevant script for Scikit-Learn
-[here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_sklearn)
+[here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_sklearn.py)
 and for cuML
 [here](https://raw.githubusercontent.com/triton-inference-server/fil_backend/main/scripts/convert_cuml.py).
 
@@ -89,7 +89,7 @@ model_repository/
 
 Then perform the conversion by running either:
 ```bash
-./convert_sklearn model_repository/fil/1/model.pkl
+./convert_sklearn.py model_repository/fil/1/model.pkl
 ```
 for Scikit-Learn models or
 ```bash
