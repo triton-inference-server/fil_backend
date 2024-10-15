@@ -23,7 +23,13 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-enum struct SerializationFormat { xgboost, xgboost_json, lightgbm, treelite };
+enum struct SerializationFormat {
+  xgboost,
+  xgboost_json,
+  xgboost_ubj,
+  lightgbm,
+  treelite
+};
 
 inline auto
 string_to_serialization(std::string const& type_string)
@@ -34,6 +40,8 @@ string_to_serialization(std::string const& type_string)
     result = SerializationFormat::xgboost;
   } else if (type_string == "xgboost_json") {
     result = SerializationFormat::xgboost_json;
+  } else if (type_string == "xgboost_ubj") {
+    result = SerializationFormat::xgboost_ubj;
   } else if (type_string == "lightgbm") {
     result = SerializationFormat::lightgbm;
   } else if (type_string == "treelite_checkpoint") {
@@ -59,6 +67,9 @@ serialization_to_string(SerializationFormat format)
       break;
     case SerializationFormat::xgboost_json:
       result = "xgboost_json";
+      break;
+    case SerializationFormat::xgboost_ubj:
+      result = "xgboost_ubj";
       break;
     case SerializationFormat::lightgbm:
       result = "lightgbm";

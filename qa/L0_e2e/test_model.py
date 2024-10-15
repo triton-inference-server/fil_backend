@@ -36,6 +36,7 @@ MODELS = (
     "xgboost",
     "xgboost_shap",
     "xgboost_json",
+    "xgboost_ubj",
     "lightgbm",
     "lightgbm_rf",
     "regression",
@@ -64,6 +65,17 @@ def valid_shm_modes():
     if os.environ.get("CPU_ONLY", 0) == 0:
         modes.append("cuda")
     return tuple(modes)
+
+
+# TODO(hcho3): Remove once we fix the flakiness of CUDA shared mem
+# See https://github.com/triton-inference-server/server/issues/7688
+def shared_mem_parametrize():
+    params = [None]
+    if "cuda" in valid_shm_modes():
+        params.append(
+            pytest.param("cuda", marks=pytest.mark.xfail(reason="shared mem is flaky")),
+        )
+    return params
 
 
 @pytest.fixture(scope="session")
@@ -98,27 +110,46 @@ class GTILModel:
     """A compatibility wrapper for executing models with GTIL"""
 
     def __init__(self, model_path, model_format, output_class):
-        if model_format == "treelite_checkpoint":
+        if model_format == "xgboost":
+            self.tl_model = treelite.frontend.load_xgboost_model_legacy_binary(
+                model_path
+            )
+        elif model_format == "xgboost_json":
+            self.tl_model = treelite.frontend.load_xgboost_model(
+                model_path, format_choice="json"
+            )
+        elif model_format == "xgboost_ubj":
+            self.tl_model = treelite.frontend.load_xgboost_model(
+                model_path, format_choice="ubjson"
+            )
+        elif model_format == "lightgbm":
+            self.tl_model = treelite.frontend.load_lightgbm_model(model_path)
+        elif model_format == "treelite_checkpoint":
             self.tl_model = treelite.Model.deserialize(model_path)
-        else:
-            self.tl_model = treelite.Model.load(model_path, model_format)
         self.output_class = output_class
 
     def _predict(self, arr):
-        return treelite.gtil.predict(self.tl_model, arr)
+        result = treelite.gtil.predict(self.tl_model, arr)
+        # GTIL always returns prediction result with dimensions
+        # (num_row, num_target, num_class)
+        assert len(result.shape) == 3
+        # We don't test multi-target models
+        # TODO(hcho3): Add coverage for multi-target models
+        assert result.shape[1] == 1
+        return result[:, 0, :]
 
     def predict_proba(self, arr):
         result = self._predict(arr)
-        if len(result.shape) > 1:
+        if result.shape[1] > 1:
             return result
         else:
-            return np.transpose(np.vstack((1 - result, result)))
+            return np.hstack((1 - result, result))
 
     def predict(self, arr):
         if self.output_class:
             return np.argmax(self.predict_proba(arr), axis=1)
         else:
-            return self._predict(arr)
+            return self._predict(arr).squeeze()
 
 
 class GroundTruthModel:
@@ -144,6 +175,8 @@ class GroundTruthModel:
             model_path = os.path.join(model_dir, "xgboost.model")
         elif model_format == "xgboost_json":
             model_path = os.path.join(model_dir, "xgboost.json")
+        elif model_format == "xgboost_ubj":
+            model_path = os.path.join(model_dir, "xgboost.ubj")
         elif model_format == "lightgbm":
             model_path = os.path.join(model_dir, "model.txt")
         elif model_format == "treelite_checkpoint":
@@ -220,12 +253,13 @@ def model_data(request, client, model_repo):
     )
 
 
+@pytest.mark.parametrize("shared_mem", shared_mem_parametrize())
 @given(hypothesis_data=st.data())
 @settings(
     deadline=None,
     suppress_health_check=(HealthCheck.too_slow, HealthCheck.filter_too_much),
 )
-def test_small(client, model_data, hypothesis_data):
+def test_small(shared_mem, client, model_data, hypothesis_data):
     """Test Triton-served model on many small Hypothesis-generated examples"""
     all_model_inputs = defaultdict(list)
     total_output_sizes = {}
@@ -251,9 +285,6 @@ def test_small(client, model_data, hypothesis_data):
         model_output_sizes = {
             name: size for name, size in model_data.output_sizes.items()
         }
-        shared_mem = hypothesis_data.draw(
-            st.one_of(st.just(mode) for mode in valid_shm_modes())
-        )
         result = client.predict(
             model_data.name,
             model_inputs,
@@ -298,11 +329,11 @@ def test_small(client, model_data, hypothesis_data):
             )
 
     # Test entire batch of Hypothesis-generated inputs at once
-    shared_mem = hypothesis_data.draw(
-        st.one_of(st.just(mode) for mode in valid_shm_modes())
-    )
     all_triton_outputs = client.predict(
-        model_data.name, all_model_inputs, total_output_sizes, shared_mem=shared_mem
+        model_data.name,
+        all_model_inputs,
+        total_output_sizes,
+        shared_mem=shared_mem,
     )
 
     for output_name in sorted(ground_truth.keys()):
@@ -324,7 +355,7 @@ def test_small(client, model_data, hypothesis_data):
             )
 
 
-@pytest.mark.parametrize("shared_mem", valid_shm_modes())
+@pytest.mark.parametrize("shared_mem", shared_mem_parametrize())
 def test_max_batch(client, model_data, shared_mem):
     """Test processing of a single maximum-sized batch"""
     max_inputs = {
@@ -335,9 +366,11 @@ def test_max_batch(client, model_data, shared_mem):
         name: size * model_data.max_batch_size
         for name, size in model_data.output_sizes.items()
     }
-    shared_mem = valid_shm_modes()[0]
     result = client.predict(
-        model_data.name, max_inputs, model_output_sizes, shared_mem=shared_mem
+        model_data.name,
+        max_inputs,
+        model_output_sizes,
+        shared_mem=shared_mem,
     )
 
     ground_truth = model_data.ground_truth_model.predict(max_inputs)
