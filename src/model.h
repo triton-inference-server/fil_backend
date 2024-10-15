@@ -151,6 +151,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
         case SerializationFormat::xgboost_json:
           path /= "xgboost.json";
           break;
+        case SerializationFormat::xgboost_ubj:
+          path /= "xgboost.ubj";
+          break;
         case SerializationFormat::lightgbm:
           path /= "model.txt";
           break;

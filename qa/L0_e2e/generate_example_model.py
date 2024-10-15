@@ -72,11 +72,10 @@ def train_xgboost_classifier(data, labels, depth=25, trees=100):
     training_params = {
         "eval_metric": "error",
         "objective": "binary:logistic",
-        "tree_method": "gpu_hist",
+        "tree_method": "hist",
+        "device": "cuda",
         "max_depth": depth,
         "n_estimators": trees,
-        "use_label_encoder": False,
-        "predictor": "gpu_predictor",
     }
     model = xgb.XGBClassifier(**training_params)
 
@@ -192,10 +191,10 @@ def train_xgboost_regressor(data, targets, depth=25, trees=100):
 
     training_params = {
         "objective": "reg:squarederror",
-        "tree_method": "gpu_hist",
+        "tree_method": "hist",
+        "device": "cuda",
         "max_depth": depth,
         "n_estimators": trees,
-        "predictor": "gpu_predictor",
     }
     model = xgb.XGBRegressor(**training_params)
 
@@ -307,11 +306,17 @@ def generate_model(
 
 def serialize_model(model, directory, output_format="xgboost"):
     if output_format == "xgboost":
-        model_path = os.path.join(directory, "xgboost.model")
+        model_path = os.path.join(directory, "xgboost.deprecated")
         model.save_model(model_path)
-        return model_path
+        new_model_path = os.path.join(directory, "xgboost.model")
+        os.rename(model_path, new_model_path)
+        return new_model_path
     if output_format == "xgboost_json":
         model_path = os.path.join(directory, "xgboost.json")
+        model.save_model(model_path)
+        return model_path
+    if output_format == "xgboost_ubj":
+        model_path = os.path.join(directory, "xgboost.ubj")
         model.save_model(model_path)
         return model_path
     if output_format == "lightgbm":
@@ -462,6 +467,8 @@ def build_model(
 
     if output_format is None:
         if model_type == "xgboost":
+            # TODO(hcho3): Update to "xgboost_ubj" when XGBoost removes support
+            # for legacy binary format
             output_format = "xgboost"
         elif model_type == "lightgbm":
             output_format = "lightgbm"
@@ -471,7 +478,10 @@ def build_model(
             raise RuntimeError('Unknown model type "{}"'.format(model_type))
 
     if (
-        (model_type == "xgboost" and output_format not in {"xgboost", "xgboost_json"})
+        (
+            model_type == "xgboost"
+            and output_format not in {"xgboost", "xgboost_json", "xgboost_ubj"}
+        )
         or (model_type == "lightgbm" and output_format not in {"lightgbm"})
         or (model_type == "sklearn" and output_format not in {"pickle"})
         or (model_type == "cuml" and output_format not in {"pickle"})
@@ -545,7 +555,7 @@ def parse_args():
     )
     parser.add_argument(
         "--format",
-        choices=("xgboost", "xgboost_json", "lightgbm", "pickle"),
+        choices=("xgboost", "xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
         default=None,
         help="serialization format for model",
     )

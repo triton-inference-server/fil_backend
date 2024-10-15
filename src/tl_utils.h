@@ -52,6 +52,14 @@ load_tl_base_model(
             model_file, config_str);
         break;
       }
+      case SerializationFormat::xgboost_ubj: {
+        auto config_str =
+            std::string("{\"allow_unknown_field\": ") +
+            std::string(xgboost_allow_unknown_field ? "true" : "false") + "}";
+        result = treelite::model_loader::LoadXGBoostModelUBJSON(
+            model_file, config_str);
+        break;
+      }
       case SerializationFormat::lightgbm:
         result = treelite::model_loader::LoadLightGBMModel(model_file);
         break;
