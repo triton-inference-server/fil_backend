@@ -31,7 +31,7 @@ function(find_and_configure_treelite)
         GLOBAL_TARGETS       ${TREELITE_LIBS}
         INSTALL_EXPORT_SET   cuml-exports
         CPM_ARGS
-            GIT_REPOSITORY   https://github.com/dmlc/treelite.git
+            GIT_REPOSITORY   https://github.com/hcho3/treelite.git
             GIT_TAG          ${PKG_PINNED_TAG}
             OPTIONS
               "USE_OPENMP ON"
@@ -79,5 +79,5 @@ function(find_and_configure_treelite)
 endfunction()
 
 find_and_configure_treelite(VERSION     4.4.0-dev
-                        PINNED_TAG  4d8430e25ae622b60dd4f63ae953449270595e6b
+                        PINNED_TAG  27a8c7ad5c5697f01b176608e797e518bf6efafb
                         BUILD_STATIC_LIBS ${TRITON_FIL_USE_TREELITE_STATIC})
