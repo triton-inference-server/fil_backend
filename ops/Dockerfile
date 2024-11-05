@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=24.09
+ARG TRITON_VERSION=24.10
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -17,7 +17,7 @@ ARG SDK_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3-sdk
 # Whether or not to use backend library prebuilt on host
 ARG USE_HOST_LIB=0
 
-FROM condaforge/mambaforge as conda-base
+FROM condaforge/miniforge3 as conda-base
 COPY ./ops/gpuci_conda_retry /usr/bin/gpuci_conda_retry
 COPY ./ops/gpuci_mamba_retry /usr/bin/gpuci_mamba_retry
 RUN chmod +x /usr/bin/gpuci_conda_retry /usr/bin/gpuci_mamba_retry
