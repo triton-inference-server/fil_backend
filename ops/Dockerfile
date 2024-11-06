@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=24.09
+ARG TRITON_VERSION=24.10
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -17,7 +17,7 @@ ARG SDK_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3-sdk
 # Whether or not to use backend library prebuilt on host
 ARG USE_HOST_LIB=0
 
-FROM condaforge/mambaforge as conda-base
+FROM condaforge/miniforge3 as conda-base
 COPY ./ops/gpuci_conda_retry /usr/bin/gpuci_conda_retry
 COPY ./ops/gpuci_mamba_retry /usr/bin/gpuci_mamba_retry
 RUN chmod +x /usr/bin/gpuci_conda_retry /usr/bin/gpuci_mamba_retry
@@ -44,7 +44,14 @@ RUN gpuci_mamba_retry env update -f /environment.yml \
     && rm /environment.yml
 
 FROM base-test-install as wheel-install-0
-RUN conda run --no-capture-output -n triton_test pip install tritonclient[all]
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+      build-essential \
+      ca-certificates \
+      git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && conda run --no-capture-output -n triton_test pip install tritonclient[all]
 
 FROM ${SDK_IMAGE} as sdk-image
 
