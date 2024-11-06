@@ -44,7 +44,14 @@ RUN gpuci_mamba_retry env update -f /environment.yml \
     && rm /environment.yml
 
 FROM base-test-install as wheel-install-0
-RUN conda run --no-capture-output -n triton_test pip install tritonclient[all]
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+      build-essential \
+      ca-certificates \
+      git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && conda run --no-capture-output -n triton_test pip install tritonclient[all]
 
 FROM ${SDK_IMAGE} as sdk-image
 
