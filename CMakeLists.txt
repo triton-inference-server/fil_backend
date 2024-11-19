@@ -76,7 +76,7 @@ else()
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-24.04/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-24.10/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -97,7 +97,7 @@ else()
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
   # Specify *minimum* version for all RAPIDS dependencies
   # Some RAPIDS deps may have later versions
-  set(RAPIDS_DEPENDENCIES_VERSION "24.04" CACHE STRING "RAPIDS projects dependencies version")
+  set(RAPIDS_DEPENDENCIES_VERSION "24.10" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
 
 
