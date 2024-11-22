@@ -225,7 +225,7 @@ def model_data(request, client, model_repo):
     config = client.get_model_config(name)
     input_shapes = {input_.name: list(input_.dims) for input_ in config.input}
     output_sizes = {
-        output.name: np.product(output.dims) * np.dtype("float32").itemsize
+        output.name: np.prod(output.dims) * np.dtype("float32").itemsize
         for output in config.output
     }
     max_batch_size = config.max_batch_size

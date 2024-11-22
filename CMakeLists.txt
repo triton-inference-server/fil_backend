@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,8 +24,12 @@ set(TRITON_REPO_ORGANIZATION "https://github.com/triton-inference-server" CACHE 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(RAPIDS_TRITON_REPO_TAG "main" CACHE STRING "Tag for rapidsai/rapids-triton repo")
+
+# Specify *minimum* version for all RAPIDS dependencies
+# Some RAPIDS deps may have later versions
+set(RAPIDS_DEPENDENCIES_VERSION "24.10" CACHE STRING "RAPIDS projects dependencies version")
 set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACHE STRING "Git repository to pull rapids_triton from")
+set(RAPIDS_TRITON_REPO_TAG "branch-${RAPIDS_DEPENDENCIES_VERSION}" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
   project(RAPIDS_TRITON_BACKEND VERSION 22.10.00)
@@ -45,6 +49,7 @@ if(TRITON_FIL_DOCKER_BUILD)
       --build-arg TRITON_COMMON_REPO_TAG=${TRITON_COMMON_REPO_TAG}
       --build-arg TRITON_CORE_REPO_TAG=${TRITON_CORE_REPO_TAG}
       --build-arg TRITON_BACKEND_REPO_TAG=${TRITON_BACKEND_REPO_TAG}
+      --build-arg RAPIDS_DEPENDENCIES_VERSION=${RAPIDS_DEPENDENCIES_VERSION}
       --build-arg RAPIDS_TRITON_REPO_TAG=${RAPIDS_TRITON_REPO_TAG}
       --build-arg RAPIDS_TRITON_REPO_PATH=${RAPIDS_TRITON_REPO_PATH}
       -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile
@@ -95,9 +100,6 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  # Specify *minimum* version for all RAPIDS dependencies
-  # Some RAPIDS deps may have later versions
-  set(RAPIDS_DEPENDENCIES_VERSION "24.10" CACHE STRING "RAPIDS projects dependencies version")
   option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
 
 
