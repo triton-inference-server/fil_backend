@@ -36,34 +36,35 @@ HELP="$0 [<target> ...] [<flag> ...]
 
  default action (no args) is to build all targets
  The following environment variables are also accepted to allow further customization:
-   BASE_IMAGE       - Base image for Docker images, or build image for build.py
-   TRITON_VERSION   - Triton version to use for build
-   SERVER_TAG       - The tag to use for the server image
-   TEST_TAG         - The tag to use for the test image
-   CONDA_DEV_TAG    - The tag of the image containing dev Conda env; if set, build.sh
-                      will attempt to leverage the pre-built Conda env to speed up
-                      the build the server image
-   CONDA_TEST_TAG   - The tag of the image containing test Conda env; if set, build.sh
-                      will attempt to leverage the pre-built Conda env to speed up
-                      the build the test image
-   PREBUILT_IMAGE   - A server image to be tested (used as base of test image)
-   TRITON_REF       - Commit ref for Triton when using build.py
-   COMMON_REF       - Commit ref for Triton common repo when using build.py
-   CORE_REF         - Commit ref for Triton core repo when using build.py
-   BACKEND_REF      - Commit ref for Triton backend repo when using build.py
-   THIRDPARTY_REF   - Commit ref for Triton third-party repos when using build.py
-   JOB_ID           - A unique id to use for this build job
-   USE_CLIENT_WHEEL - If 1, Triton Python client will be installed from wheel
-                      distributed in a Triton SDK image.
-   SDK_IMAGE        - If set, client wheel will be copied from this image.
-                      Otherwise, if USE_CLIENT_WHEEL is 1, use SDK image
-                      corresponding to TRITON_VERSION
-   BUILDPY_BRANCH   - Instead of autodetecting the current branch of the FIL
-                      backend repo, use this branch when building with
-                      build.py. For all other build methods, the backend will
-                      simply be built with the current version of the code
-   TREELITE_STATIC  - If ON, Treelite will be statically linked into the binaries
-   RAPIDS_VERSION   - The version of RAPIDS to require for RAPIDS dependencies
+   BASE_IMAGE             - Base image for Docker images, or build image for build.py
+   TRITON_VERSION         - Triton version to use for build
+   SERVER_TAG             - The tag to use for the server image
+   TEST_TAG               - The tag to use for the test image
+   CONDA_DEV_TAG          - The tag of the image containing dev Conda env; if set, build.sh
+                            will attempt to leverage the pre-built Conda env to speed up
+                            the build the server image
+   CONDA_TEST_TAG         - The tag of the image containing test Conda env; if set, build.sh
+                            will attempt to leverage the pre-built Conda env to speed up
+                            the build the test image
+   PREBUILT_IMAGE         - A server image to be tested (used as base of test image)
+   TRITON_REF             - Commit ref for Triton when using build.py
+   COMMON_REF             - Commit ref for Triton common repo when using build.py
+   CORE_REF               - Commit ref for Triton core repo when using build.py
+   BACKEND_REF            - Commit ref for Triton backend repo when using build.py
+   THIRDPARTY_REF         - Commit ref for Triton third-party repos when using build.py
+   JOB_ID                 - A unique id to use for this build job
+   USE_CLIENT_WHEEL       - If 1, Triton Python client will be installed from wheel
+                            distributed in a Triton SDK image.
+   SDK_IMAGE              - If set, client wheel will be copied from this image.
+                            Otherwise, if USE_CLIENT_WHEEL is 1, use SDK image
+                            corresponding to TRITON_VERSION
+   BUILDPY_BRANCH         - Instead of autodetecting the current branch of the FIL
+                            backend repo, use this branch when building with
+                            build.py. For all other build methods, the backend will
+                            simply be built with the current version of the code
+   TREELITE_STATIC        - If ON, Treelite will be statically linked into the binaries
+   RAPIDS_VERSION         - The version of RAPIDS to require for RAPIDS dependencies
+   RAPIDS_TRITON_REPO_TAG - Commit ref for RAPIDS-Triton
 "
 
 BUILD_TYPE=Release
@@ -167,7 +168,7 @@ DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
 
 if [ -z $RAPIDS_VERSION ]
 then
-  RAPIDS_VERSION=23.12
+  RAPIDS_VERSION=24.10
 else
   DOCKER_ARGS="$DOCKER_ARGS --build-arg RAPIDS_DEPENDENCIES_VERSION=${RAPIDS_VERSION}"
 fi
@@ -212,6 +213,11 @@ else
   [ ! -z $CORE_REF ] || CORE_REF='main'
   [ ! -z $BACKEND_REF ] || BACKEND_REF='main'
   [ ! -z $THIRDPARTY_REF ] || THIRDPARTY_REF='main'
+fi
+
+if [ ! -z $RAPIDS_TRITON_REPO_TAG ]
+then
+  DOCKER_ARGS="$DOCKER_ARGS --build-arg RAPIDS_TRITON_REPO_TAG=${RAPIDS_TRITON_REPO_TAG}"
 fi
 
 if [ ! -z $SDK_IMAGE ]
