@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2024, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,21 +34,7 @@ function(find_and_configure_rapids_triton)
     )
 endfunction()
 
-# Change pinned tag here to test a commit in CI
-# To use a different RAFT locally, set the CMake variable
-# CPM_raft_SOURCE=/path/to/local/raft
-set (RAPIDS_FORK https://github.com/rapidsai/rapids-triton.git)
-set (REPO_TAG branch-${RAPIDS_DEPENDENCIES_VERSION})
-message(STATUS "Setting repo tag to ${REPO_TAG} for rapids fork ${RAPIDS_FORK}")
-# if Triton tag and organization is non-default, change the fork and repo tag used
-# for rapids
-if (NOT RAPIDS_TRITON_REPO_PATH STREQUAL RAPIDS_FORK)
-  set (RAPIDS_FORK ${RAPIDS_TRITON_REPO_PATH})
-  set (REPO_TAG ${RAPIDS_TRITON_REPO_TAG})
-  message(STATUS "Re-setting repo tag to ${REPO_TAG} for rapids fork ${RAPIDS_FORK}")
-endif()
-
 find_and_configure_rapids_triton(VERSION    ${RAPIDS_DEPENDENCIES_VERSION}
-                                 FORK       ${RAPIDS_FORK}
-                                 PINNED_TAG ${REPO_TAG}
+                                 FORK       ${RAPIDS_TRITON_REPO_PATH}
+                                 PINNED_TAG ${RAPIDS_TRITON_REPO_TAG}
                                  )
