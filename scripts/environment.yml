@@ -5,7 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - cuda-version=11.8
-  - cuml=24.10
+  - cuml=24.12
   - python
   - scikit-learn>=1.5
   - treelite>=4.3
