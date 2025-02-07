@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 # ENVIRONMENT VARIABLE OPTIONS
 # PREBUILT_SERVER_TAG: The tag of the prebuilt Triton server image to test
