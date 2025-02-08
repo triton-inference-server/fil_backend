@@ -106,6 +106,8 @@ then
 fi
 
 echo "Generating example models..."
+# Avoid permission error by cd'ing into source dir
+cd $REPO_DIR
 docker run \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
