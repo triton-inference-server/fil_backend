@@ -93,9 +93,7 @@ then
     GPU_DOCKER_ARGS='--gpus $CUDA_VISIBLE_DEVICES'
   fi
 else
-  echo "RUNNER_GPUS: ${RUNNER_GPUS}"
-  echo "NV_DOCKER_ARGS: ${NV_DOCKER_ARGS}"
-  GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS})"
+  GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS} || echo -n '')"
 fi
 
 if [ ! -z $RUNNER_ID ]
