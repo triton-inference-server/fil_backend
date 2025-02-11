@@ -142,7 +142,7 @@ else
 fi
 
 echo "Running tests..."
-docker create -t --name test_inst $TEST_TAG
+docker create -t --name test_inst $DOCKER_LABEL $TEST_TAG
 docker start test_inst
 docker exec test_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 docker cp qa/L0_e2e/model_repository/ test_inst:/qa/L0_e2e/
