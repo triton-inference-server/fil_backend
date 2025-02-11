@@ -16,9 +16,6 @@ set -ex
 # SDK_IMAGE: If set, copy client wheel from this SDK image
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
-QA_DIR="${REPO_DIR}/qa"
-MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
-CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${NO_CACHE:-1}
@@ -78,15 +75,14 @@ MODEL_BUILDER_IMAGE=${MODEL_BUILDER_IMAGE:-${TEST_TAG}}
 # Set up directory for logging
 if [ -z $LOG_DIR ]
 then
-  LOG_DIR="${QA_DIR}/logs"
+  LOG_DIR="qa/logs"
+else
+  LOG_DIR="$(readlink -f $LOG_DIR)"
 fi
 if [ ! -d "${LOG_DIR}" ]
 then
   mkdir -p "${LOG_DIR}"
 fi
-LOG_DIR="$(readlink -f $LOG_DIR)"
-
-DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
 if [ -z "$NV_DOCKER_ARGS" ]
 then
@@ -106,16 +102,35 @@ then
 fi
 
 echo "Generating example models..."
-docker run \
+# Use 'docker cp' instead of mounting, because we cannot mount directories
+# from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
+# See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
+# for more details.
+docker create -t --name model_builder_inst $MODEL_BUILDER_IMAGE
+docker start model_builder_inst
+docker exec model_builder_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+docker cp qa/L0_e2e/model_repository/ model_builder_inst:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ model_builder_inst:/qa/L0_e2e/
+docker exec model_builder_inst bash -c 'find /qa/'
+
+docker exec \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
   -e OWNER_GID=$(id -g) \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   $MODEL_BUILDER_IMAGE \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
+
+docker cp model_builder_inst:/qa/L0_e2e/model_repository/ qa/L0_e2e/
+docker cp model_builder_inst:/qa/L0_e2e/cpu_model_repository/ qa/L0_e2e/
+docker cp model_builder_inst:/qa/logs/. "${LOG_DIR}"
+docker stop model_builder_inst
+docker rm model_builder_inst
+
+find "${LOG_DIR}"
+find qa/L0_e2e/model_repository/
+find qa/L0_e2e/cpu_model_repository/
 
 if [ $CPU_ONLY -eq 1 ]
 then
@@ -125,9 +140,18 @@ else
 fi
 
 echo "Running tests..."
-docker run \
+docker create -t --name test_inst $TEST_TAG
+docker start test_inst
+docker exec test_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+docker cp qa/L0_e2e/model_repository/ test_inst:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ test_inst:/qa/L0_e2e/
+docker exec test_inst bash -c 'find /qa/'
+
+docker exec \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
-  --rm $TEST_TAG
+  $TEST_TAG
+
+docker cp test_inst:/qa/logs/. "${LOG_DIR}"
+docker stop test_inst
+docker rm test_inst
