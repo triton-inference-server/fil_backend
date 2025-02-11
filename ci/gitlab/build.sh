@@ -152,7 +152,7 @@ docker exec test_inst bash -c 'find /qa/'
 docker exec \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
-  $TEST_TAG
+  test_inst
 
 docker cp test_inst:/qa/logs/. "${LOG_DIR}"
 docker stop test_inst
