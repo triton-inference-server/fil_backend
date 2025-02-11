@@ -109,6 +109,8 @@ echo "Generating example models..."
 docker create -t --name model_builder_inst $MODEL_BUILDER_IMAGE
 docker start model_builder_inst
 docker exec model_builder_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+mkdir -p qa/L0_e2e/model_repository/
+mkdir -p qa/L0_e2e/cpu_model_repository/
 docker cp qa/L0_e2e/model_repository/ model_builder_inst:/qa/L0_e2e/
 docker cp qa/L0_e2e/cpu_model_repository/ model_builder_inst:/qa/L0_e2e/
 docker exec model_builder_inst bash -c 'find /qa/'
