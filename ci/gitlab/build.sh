@@ -98,7 +98,7 @@ fi
 
 if [ ! -z $RUNNER_ID ]
 then
-  DOCKER_ARGS="$DOCKER_ARGS --label RUNNER_ID=${RUNNER_ID}"
+  DOCKER_LABEL="--label RUNNER_ID=${RUNNER_ID}"
 fi
 
 echo "Generating example models..."
@@ -106,7 +106,7 @@ echo "Generating example models..."
 # from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
 # See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
 # for more details.
-docker create -t --name model_builder_inst $MODEL_BUILDER_IMAGE
+docker create -t --name model_builder_inst $DOCKER_LABEL $MODEL_BUILDER_IMAGE
 docker start model_builder_inst
 docker exec model_builder_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 mkdir -p qa/L0_e2e/model_repository/
