@@ -121,7 +121,7 @@ docker exec \
   -e OWNER_GID=$(id -g) \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
-  $MODEL_BUILDER_IMAGE \
+  model_builder_inst \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
 docker cp model_builder_inst:/qa/L0_e2e/model_repository/ qa/L0_e2e/
