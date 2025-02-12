@@ -98,7 +98,7 @@ fi
 
 if [ ! -z $RUNNER_ID ]
 then
-  DOCKER_LABEL="--label RUNNER_ID=${RUNNER_ID}"
+  DOCKER_ARGS="$DOCKER_ARGS --label RUNNER_ID=${RUNNER_ID}"
 fi
 
 echo "Generating example models..."
@@ -106,7 +106,13 @@ echo "Generating example models..."
 # from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
 # See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
 # for more details.
-docker create -t --name model_builder_inst $DOCKER_LABEL $MODEL_BUILDER_IMAGE
+docker create -t --name model_builder_inst \
+  -e RETRAIN=1 \
+  -e OWNER_ID=$(id -u) \
+  -e OWNER_GID=$(id -g) \
+  $GPU_DOCKER_ARGS \
+  $DOCKER_ARGS \
+  $MODEL_BUILDER_IMAGE
 docker start model_builder_inst
 docker exec model_builder_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 mkdir -p qa/L0_e2e/model_repository/
@@ -116,11 +122,6 @@ docker cp qa/L0_e2e/cpu_model_repository/ model_builder_inst:/qa/L0_e2e/
 docker exec model_builder_inst bash -c 'find /qa/'
 
 docker exec \
-  -e RETRAIN=1 \
-  -e OWNER_ID=$(id -u) \
-  -e OWNER_GID=$(id -g) \
-  $GPU_DOCKER_ARGS \
-  $DOCKER_ARGS \
   model_builder_inst \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
@@ -142,17 +143,16 @@ else
 fi
 
 echo "Running tests..."
-docker create -t --name test_inst $DOCKER_LABEL $TEST_TAG
+docker create -t --name test_inst \
+  -e TEST_PROFILE=ci \
+  $DOCKER_ARGS \
+  $TEST_TAG
 docker start test_inst
 docker exec test_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 docker cp qa/L0_e2e/model_repository/ test_inst:/qa/L0_e2e/
 docker cp qa/L0_e2e/cpu_model_repository/ test_inst:/qa/L0_e2e/
 docker exec test_inst bash -c 'find /qa/'
-
-docker exec \
-  -e TEST_PROFILE=ci \
-  $DOCKER_ARGS \
-  test_inst
+docker exec test_inst
 
 docker cp test_inst:/qa/logs/. "${LOG_DIR}"
 docker stop test_inst
