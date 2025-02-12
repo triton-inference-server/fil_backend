@@ -106,30 +106,31 @@ echo "Generating example models..."
 # from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
 # See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
 # for more details.
-docker create -t --name model_builder_inst \
+MODEL_BUILDER_INST=model_builder_inst_$(uuidgen | sed -e 's/-//g')
+docker create -t --name ${MODEL_BUILDER_INST} \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
   -e OWNER_GID=$(id -g) \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
   $MODEL_BUILDER_IMAGE
-docker start model_builder_inst
-docker exec model_builder_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+docker start ${MODEL_BUILDER_INST}
+docker exec ${MODEL_BUILDER_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 mkdir -p qa/L0_e2e/model_repository/
 mkdir -p qa/L0_e2e/cpu_model_repository/
-docker cp qa/L0_e2e/model_repository/ model_builder_inst:/qa/L0_e2e/
-docker cp qa/L0_e2e/cpu_model_repository/ model_builder_inst:/qa/L0_e2e/
-docker exec model_builder_inst bash -c 'find /qa/'
+docker cp qa/L0_e2e/model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
+docker exec ${MODEL_BUILDER_INST} bash -c 'find /qa/'
 
 docker exec \
-  model_builder_inst \
+  ${MODEL_BUILDER_INST} \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
 
-docker cp model_builder_inst:/qa/L0_e2e/model_repository/ qa/L0_e2e/
-docker cp model_builder_inst:/qa/L0_e2e/cpu_model_repository/ qa/L0_e2e/
-docker cp model_builder_inst:/qa/logs/. "${LOG_DIR}"
-docker stop model_builder_inst
-docker rm model_builder_inst
+docker cp ${MODEL_BUILDER_INST}:/qa/L0_e2e/model_repository/ qa/L0_e2e/
+docker cp ${MODEL_BUILDER_INST}:/qa/L0_e2e/cpu_model_repository/ qa/L0_e2e/
+docker cp ${MODEL_BUILDER_INST}:/qa/logs/. "${LOG_DIR}"
+docker stop ${MODEL_BUILDER_INST}
+docker rm ${MODEL_BUILDER_INST}
 
 find "${LOG_DIR}"
 find qa/L0_e2e/model_repository/
@@ -143,17 +144,18 @@ else
 fi
 
 echo "Running tests..."
-docker create -t --name test_inst \
+TEST_INST=test_inst_$(uuidgen | sed -e 's/-//g')
+docker create -t --name ${TEST_INST} \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
   $TEST_TAG
-docker start test_inst
-docker exec test_inst bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
-docker cp qa/L0_e2e/model_repository/ test_inst:/qa/L0_e2e/
-docker cp qa/L0_e2e/cpu_model_repository/ test_inst:/qa/L0_e2e/
-docker exec test_inst bash -c 'find /qa/'
-docker exec test_inst
+docker start ${TEST_INST}
+docker exec ${TEST_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+docker cp qa/L0_e2e/model_repository/ ${TEST_INST}:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ ${TEST_INST}:/qa/L0_e2e/
+docker exec ${TEST_INST} bash -c 'find /qa/'
+docker exec ${TEST_INST}
 
-docker cp test_inst:/qa/logs/. "${LOG_DIR}"
-docker stop test_inst
-docker rm test_inst
+docker cp ${TEST_INST}:/qa/logs/. "${LOG_DIR}"
+docker stop ${TEST_INST}
+docker rm ${TEST_INST}
