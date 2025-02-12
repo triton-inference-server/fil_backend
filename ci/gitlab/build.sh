@@ -106,7 +106,7 @@ echo "Generating example models..."
 # from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
 # See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
 # for more details.
-MODEL_BUILDER_INST=model_builder_inst_$(uuidgen | sed -e 's/-//g')
+MODEL_BUILDER_INST=model_builder_inst_${CI_JOB_ID}
 docker create -t --name ${MODEL_BUILDER_INST} \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
@@ -144,7 +144,7 @@ else
 fi
 
 echo "Running tests..."
-TEST_INST=test_inst_$(uuidgen | sed -e 's/-//g')
+TEST_INST=test_inst_${CI_JOB_ID}
 docker create -t --name ${TEST_INST} \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
