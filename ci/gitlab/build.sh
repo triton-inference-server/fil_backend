@@ -16,9 +16,6 @@ set -e
 # SDK_IMAGE: If set, copy client wheel from this SDK image
 
 REPO_DIR=$(cd $(dirname $0)/../../; pwd)
-QA_DIR="${REPO_DIR}/qa"
-MODEL_DIR="${QA_DIR}/L0_e2e/model_repository"
-CPU_MODEL_DIR="${QA_DIR}/L0_e2e/cpu_model_repository"
 BUILDPY=${BUILDPY:-0}
 CPU_ONLY=${CPU_ONLY:-0}
 NO_CACHE=${NO_CACHE:-1}
@@ -78,15 +75,14 @@ MODEL_BUILDER_IMAGE=${MODEL_BUILDER_IMAGE:-${TEST_TAG}}
 # Set up directory for logging
 if [ -z $LOG_DIR ]
 then
-  LOG_DIR="${QA_DIR}/logs"
+  LOG_DIR="qa/logs"
+else
+  LOG_DIR="$(readlink -f $LOG_DIR)"
 fi
 if [ ! -d "${LOG_DIR}" ]
 then
   mkdir -p "${LOG_DIR}"
 fi
-LOG_DIR="$(readlink -f $LOG_DIR)"
-
-DOCKER_ARGS="-v ${LOG_DIR}:/qa/logs"
 
 if [ -z "$NV_DOCKER_ARGS" ]
 then
@@ -97,7 +93,7 @@ then
     GPU_DOCKER_ARGS='--gpus $CUDA_VISIBLE_DEVICES'
   fi
 else
-  GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS})"
+  GPU_DOCKER_ARGS="$(eval ${NV_DOCKER_ARGS} || echo -n '')"
 fi
 
 if [ ! -z $RUNNER_ID ]
@@ -106,16 +102,35 @@ then
 fi
 
 echo "Generating example models..."
-docker run \
+# Use 'docker cp' instead of mounting, because we cannot mount directories
+# from the GitLab runner due to the "Docker-outside-of-Docker" architecture.
+# See https://confluence.nvidia.com/pages/viewpage.action?spaceKey=DL&title=GitLab+Runner
+# for more details.
+MODEL_BUILDER_INST=model_builder_inst_${CI_JOB_ID}
+docker create -t --name ${MODEL_BUILDER_INST} \
   -e RETRAIN=1 \
   -e OWNER_ID=$(id -u) \
   -e OWNER_GID=$(id -g) \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
   $MODEL_BUILDER_IMAGE \
+  bash
+docker start ${MODEL_BUILDER_INST}
+docker exec ${MODEL_BUILDER_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+mkdir -p qa/L0_e2e/model_repository/
+mkdir -p qa/L0_e2e/cpu_model_repository/
+docker cp qa/L0_e2e/model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
+
+docker exec \
+  ${MODEL_BUILDER_INST} \
   bash -c 'source /conda/test/bin/activate && /qa/generate_example_models.sh'
+
+docker cp ${MODEL_BUILDER_INST}:/qa/L0_e2e/model_repository/ qa/L0_e2e/
+docker cp ${MODEL_BUILDER_INST}:/qa/L0_e2e/cpu_model_repository/ qa/L0_e2e/
+docker cp ${MODEL_BUILDER_INST}:/qa/logs/. "${LOG_DIR}"
+docker stop ${MODEL_BUILDER_INST}
+docker rm ${MODEL_BUILDER_INST}
 
 if [ $CPU_ONLY -eq 1 ]
 then
@@ -125,9 +140,18 @@ else
 fi
 
 echo "Running tests..."
-docker run \
+TEST_INST=test_inst_${CI_JOB_ID}
+docker create -t --name ${TEST_INST} \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
-  -v "${MODEL_DIR}:/qa/L0_e2e/model_repository" \
-  -v "${CPU_MODEL_DIR}:/qa/L0_e2e/cpu_model_repository" \
-  --rm $TEST_TAG
+  $TEST_TAG \
+  bash
+docker start ${TEST_INST}
+docker exec ${TEST_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
+docker cp qa/L0_e2e/model_repository/ ${TEST_INST}:/qa/L0_e2e/
+docker cp qa/L0_e2e/cpu_model_repository/ ${TEST_INST}:/qa/L0_e2e/
+docker exec ${TEST_INST} bash -c 'source /conda/test/bin/activate && /qa/entrypoint.sh'
+
+docker cp ${TEST_INST}:/qa/logs/. "${LOG_DIR}"
+docker stop ${TEST_INST}
+docker rm ${TEST_INST}
