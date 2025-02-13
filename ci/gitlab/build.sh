@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 # ENVIRONMENT VARIABLE OPTIONS
 # PREBUILT_SERVER_TAG: The tag of the prebuilt Triton server image to test
@@ -121,7 +121,6 @@ mkdir -p qa/L0_e2e/model_repository/
 mkdir -p qa/L0_e2e/cpu_model_repository/
 docker cp qa/L0_e2e/model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
 docker cp qa/L0_e2e/cpu_model_repository/ ${MODEL_BUILDER_INST}:/qa/L0_e2e/
-docker exec ${MODEL_BUILDER_INST} bash -c 'find /qa/'
 
 docker exec \
   ${MODEL_BUILDER_INST} \
@@ -132,10 +131,6 @@ docker cp ${MODEL_BUILDER_INST}:/qa/L0_e2e/cpu_model_repository/ qa/L0_e2e/
 docker cp ${MODEL_BUILDER_INST}:/qa/logs/. "${LOG_DIR}"
 docker stop ${MODEL_BUILDER_INST}
 docker rm ${MODEL_BUILDER_INST}
-
-find "${LOG_DIR}"
-find qa/L0_e2e/model_repository/
-find qa/L0_e2e/cpu_model_repository/
 
 if [ $CPU_ONLY -eq 1 ]
 then
@@ -155,7 +150,6 @@ docker start ${TEST_INST}
 docker exec ${TEST_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 docker cp qa/L0_e2e/model_repository/ ${TEST_INST}:/qa/L0_e2e/
 docker cp qa/L0_e2e/cpu_model_repository/ ${TEST_INST}:/qa/L0_e2e/
-docker exec ${TEST_INST} bash -c 'find /qa/'
 docker exec ${TEST_INST} bash -c 'source /conda/test/bin/activate && /qa/entrypoint.sh'
 
 docker cp ${TEST_INST}:/qa/logs/. "${LOG_DIR}"
