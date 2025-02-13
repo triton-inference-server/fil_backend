@@ -113,7 +113,8 @@ docker create -t --name ${MODEL_BUILDER_INST} \
   -e OWNER_GID=$(id -g) \
   $GPU_DOCKER_ARGS \
   $DOCKER_ARGS \
-  $MODEL_BUILDER_IMAGE
+  $MODEL_BUILDER_IMAGE \
+  bash
 docker start ${MODEL_BUILDER_INST}
 docker exec ${MODEL_BUILDER_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 mkdir -p qa/L0_e2e/model_repository/
@@ -148,13 +149,14 @@ TEST_INST=test_inst_${CI_JOB_ID}
 docker create -t --name ${TEST_INST} \
   -e TEST_PROFILE=ci \
   $DOCKER_ARGS \
-  $TEST_TAG
+  $TEST_TAG \
+  bash
 docker start ${TEST_INST}
 docker exec ${TEST_INST} bash -c 'mkdir -p /qa/L0_e2e/ && mkdir -p /qa/logs/'
 docker cp qa/L0_e2e/model_repository/ ${TEST_INST}:/qa/L0_e2e/
 docker cp qa/L0_e2e/cpu_model_repository/ ${TEST_INST}:/qa/L0_e2e/
 docker exec ${TEST_INST} bash -c 'find /qa/'
-docker exec ${TEST_INST}
+docker exec ${TEST_INST} bash -c 'source /conda/test/bin/activate && /qa/entrypoint.sh'
 
 docker cp ${TEST_INST}:/qa/logs/. "${LOG_DIR}"
 docker stop ${TEST_INST}
