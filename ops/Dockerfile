@@ -185,15 +185,9 @@ RUN --mount=type=cache,target=/ccache/ source /conda/dev/bin/activate && ninja i
 
 ARG CCACHE_REMOTE_STORAGE
 RUN if [ -n "${CCACHE_REMOTE_STORAGE}" ] ; then \
-      apt-get update -qq && apt-get install -y ccache ; \
       ccache --set-config=remote_only=true ; \
       ccache --set-config=remote_storage=${CCACHE_REMOTE_STORAGE} ; \
-      ccache --set-config=log_file=/tmp/ccache.log ; \
       ccache -p ; \
-      export CMAKE_C_COMPILER_LAUNCHER=ccache ; \
-      export CMAKE_CXX_COMPILER_LAUNCHER=ccache ; \
-      export CMAKE_CUDA_COMPILER_LAUNCHER=ccache ; \
-      export VERBOSE=1 ; \
     fi
 
 # Stage for generating testing image
