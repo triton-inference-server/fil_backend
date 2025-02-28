@@ -189,7 +189,7 @@ RUN --mount=type=cache,target=/ccache/ source /conda/dev/bin/activate && \
       ccache --set-config=remote_storage=${CCACHE_REMOTE_STORAGE} ; \
       ccache -p ; \
     fi && \
-    ninja install 
+    ninja install
 
 # Stage for generating testing image
 FROM ${SERVER_IMAGE} as test-host-0
