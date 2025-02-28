@@ -181,14 +181,16 @@ RUN source /conda/dev/bin/activate \
 
 ENV CCACHE_DIR=/ccache
 
-RUN --mount=type=cache,target=/ccache/ source /conda/dev/bin/activate && ninja install
-
 ARG CCACHE_REMOTE_STORAGE
 RUN if [ -n "${CCACHE_REMOTE_STORAGE}" ] ; then \
+      if ! which ccache ; then  apt-get update && apt-get install -y ccache && apt-get clean && rm -rf /var/lib/apt/lists/* ; fi \
+      export VERBOSE=1 ; \
       ccache --set-config=remote_only=true ; \
       ccache --set-config=remote_storage=${CCACHE_REMOTE_STORAGE} ; \
       ccache -p ; \
     fi
+
+RUN --mount=type=cache,target=/ccache/ source /conda/dev/bin/activate && ninja install
 
 # Stage for generating testing image
 FROM ${SERVER_IMAGE} as test-host-0
