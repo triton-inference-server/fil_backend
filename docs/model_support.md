@@ -50,7 +50,8 @@ format.
 ## Serialization Formats
 The FIL backend currently supports the following serialization formats:
 
-- XGBoost JSON (Version < 1.7)
+- XGBoost JSON
+- XGBoost UBJSON
 - XGBoost Binary
 - LightGBM Text
 - Treelite binary checkpoint
@@ -74,15 +75,16 @@ changes.
 The compatibility matrix for Treelite and XGBoost with the FIL backend is
 shown below:
 
-| Triton Version | Supported Treelite Version(s) | Supported XGBoost JSON Version(s) |
-| -------------- | ----------------------------- | --------------------------------- |
-| 21.08          | 1.3.0                         | <1.6                              |
-| 21.09-21.10    | 2.0.0                         | <1.6                              |
-| 21.11-22.02    | 2.1.0                         | <1.6                              |
-| 22.03-22.06    | 2.3.0                         | <1.6                              |
-| 22.07          | 2.4.0                         | <1.7                              |
-| 22.08-24.02    | 2.4.0; >=3.0.0,<4.0.0         | <1.7                              |
-| 24.03+         | 3.9.0; >=4.0.0,<5.0.0         | 1.7+                              |
+| Triton Version | Supported Treelite Version(s) | Supported XGBoost models               |
+| -------------- | ----------------------------- | -------------------------------------- |
+| 21.08          | 1.3.0                         | XGBoost JSON <1.6                      |
+| 21.09-21.10    | 2.0.0                         | XGBoost JSON <1.6                      |
+| 21.11-22.02    | 2.1.0                         | XGBoost JSON <1.6                      |
+| 22.03-22.06    | 2.3.0                         | XGBoost JSON <1.6                      |
+| 22.07          | 2.4.0                         | XGBoost JSON <1.7                      |
+| 22.08-24.02    | 2.4.0; >=3.0.0,<4.0.0         | XGBoost JSON <1.7                      |
+| 24.03+         | 3.9.0; >=4.0.0,<5.0.0         | XGBoost JSON 1.7+                      |
+| 24.10+         | 3.9.0; >=4.0.0,<5.0.0         | XGBoost JSON 1.7+, XGBoost UBJSON 2.1+ |
 
 ## Limitations
 The FIL backend currently does not support any multi-output regression models.
