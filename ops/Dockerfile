@@ -27,7 +27,8 @@ RUN gpuci_mamba_retry install -c conda-forge conda-pack=0.7
 
 FROM conda-base as conda-dev
 COPY ./conda/environments/rapids_triton_dev.yml /conda/environment.yml
-RUN gpuci_mamba_retry env update -f /conda/environment.yml \
+RUN gpuci_mamba_retry create -n rapids_triton_dev \
+ && gpuci_mamba_retry env update -n rapids_triton_dev -f /conda/environment.yml \
  && rm /conda/environment.yml
 RUN conda-pack -n rapids_triton_dev -o /tmp/env.tar \
  && mkdir /conda/dev/ \
