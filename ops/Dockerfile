@@ -41,7 +41,8 @@ RUN /conda/dev/bin/conda-unpack
 FROM conda-base as base-test-install
 COPY ./conda/environments/triton_test_no_client.yml /environment.yml
 
-RUN gpuci_mamba_retry env update -f /environment.yml \
+RUN gpuci_mamba_retry create -n triton_test \
+    && gpuci_mamba_retry env update -n triton_test -f /environment.yml \
     && rm /environment.yml
 
 FROM base-test-install as wheel-install-0
