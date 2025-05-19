@@ -5,19 +5,19 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cudatoolkit=11.4
-  - cuml=22.04
+  - cudatoolkit=12.8
+  - cuml=25.04
   - joblib
   - jupyter
   - lightgbm
   - numpy
   - pandas
   - pip
-  - python=3.8
-  - scikit-learn<1.2.0
+  - python
   - skl2onnx
-  - treelite=2.3.0
+  - treelite>=4.4
+  - rapidsai::xgboost>=2.1
+  - scikit-learn>=1.5
   - pip:
-      - xgboost>=1.5,<1.6
-      - protobuf==3.20.1
+      - protobuf
       - tritonclient[all]
