@@ -261,6 +261,15 @@ def model_data(request, client, model_repo):
 )
 def test_small(shared_mem, client, model_data, hypothesis_data):
     """Test Triton-served model on many small Hypothesis-generated examples"""
+
+    if model_data.name == "lightgbm":
+        pytest.skip(
+            reason=(
+                "Legacy FIL gives incorrect output for latest LightGBM. "
+                "See https://github.com/triton-inference-server/fil_backend/issues/432"
+            )
+        )
+
     all_model_inputs = defaultdict(list)
     total_output_sizes = {}
     all_triton_outputs = defaultdict(list)
