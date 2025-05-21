@@ -208,7 +208,7 @@ class GroundTruthModel:
             result = self._base_model.predict_proba(inputs["input__0"])
         else:
             result = self._base_model.predict(inputs["input__0"])
-        output = {"output__0": result}
+        output = {"output__0": result.squeeze()}
         if self._run_treeshap:
             treeshap_result = self._xgb_model.predict(
                 xgb.DMatrix(inputs["input__0"]), pred_contribs=True
