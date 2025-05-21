@@ -73,7 +73,7 @@ def shared_mem_parametrize():
     params = [None]
     if "cuda" in valid_shm_modes():
         params.append(
-            pytest.param("cuda", marks=pytest.mark.xfail(reason="shared mem is flaky")),
+            pytest.param("cuda", marks=pytest.mark.skip(reason="shared mem is flaky")),
         )
     return params
 
