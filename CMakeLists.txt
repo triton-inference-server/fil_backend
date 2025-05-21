@@ -32,9 +32,9 @@ set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACH
 set(RAPIDS_TRITON_REPO_TAG "branch-${RAPIDS_DEPENDENCIES_VERSION}" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  project(RAPIDS_TRITON_BACKEND VERSION 25.02.00)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.02-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "25.02" CACHE STRING "Triton version for Dockerized builds")
+  project(RAPIDS_TRITON_BACKEND VERSION 25.04.00)
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.04-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "25.04" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
@@ -83,7 +83,7 @@ else()
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-25.02/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-25.04/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
