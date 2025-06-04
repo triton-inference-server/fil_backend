@@ -6,7 +6,7 @@ channels:
   - rapidsai
 dependencies:
   - cudatoolkit=12.8
-  - cuml=25.04
+  - cuml=25.06
   - joblib
   - jupyter
   - lightgbm
