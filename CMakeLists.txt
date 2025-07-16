@@ -256,7 +256,7 @@ else()
   endif()
 
   install(
-    TARGETS ${BACKEND_TARGET}
+    TARGETS ${BACKEND_TARGET} rmm
     LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
 
