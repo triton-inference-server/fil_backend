@@ -248,7 +248,7 @@ else()
   )
 
   if(TRITON_ENABLE_GPU)
-    list(APPEND BACKEND_TARGET "cuml++")
+    list(APPEND BACKEND_TARGET "cuml++" "rmm")
   endif()
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
@@ -256,7 +256,7 @@ else()
   endif()
 
   install(
-    TARGETS ${BACKEND_TARGET} rmm
+    TARGETS ${BACKEND_TARGET}
     LIBRARY DESTINATION ${BACKEND_FOLDER}/${BACKEND_NAME}
   )
 
