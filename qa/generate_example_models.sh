@@ -24,8 +24,8 @@ CPU_MODEL_REPO="${QA_DIR}/L0_e2e/cpu_model_repository"
 SCRIPTS_DIR="${QA_DIR}/../scripts"
 GENERATOR_SCRIPT="python ${QA_DIR}/L0_e2e/generate_example_model.py"
 
-SKLEARN_CONVERTER="${SCRIPTS_DIR}/convert_sklearn.py"
-CUML_CONVERTER="${SCRIPTS_DIR}/convert_cuml.py"
+SKLEARN_CONVERTER="python ${SCRIPTS_DIR}/convert_sklearn.py"
+CUML_CONVERTER="python ${SCRIPTS_DIR}/convert_cuml.py"
 
 models=()
 
@@ -137,7 +137,7 @@ then
     --predict_proba
   models+=( $name )
 fi
-$SKLEARN_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
+$SKLEARN_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl"
 
 name=cuml
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
@@ -152,7 +152,7 @@ then
     --task regression
   models+=( $name )
 fi
-$CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl" 2>/dev/null
+$CUML_CONVERTER "${MODEL_REPO}/${name}/1/model.pkl"
 
 mkdir -p "${CPU_MODEL_REPO}"
 cp -r "${MODEL_REPO}"/* "${CPU_MODEL_REPO}"/
