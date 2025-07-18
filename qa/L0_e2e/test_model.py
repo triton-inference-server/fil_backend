@@ -206,6 +206,9 @@ class GroundTruthModel:
     def predict(self, inputs):
         if self.predict_proba:
             result = self._base_model.predict_proba(inputs["input__0"])
+            if len(result.shape) == 1 or (len(result.shape) == 2 and result.shape[1] == 1):
+                result = result.reshape((-1, 1))
+                result = np.concatenate((1 - result, result), axis=1)
         else:
             result = self._base_model.predict(inputs["input__0"])
         output = {"output__0": result.squeeze()}
