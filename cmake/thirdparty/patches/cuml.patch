@@ -1,0 +1,116 @@
+From dfd964c531c909dfc469ef10ed0c172a637ffd95 Mon Sep 17 00:00:00 2001
+From: Hyunsu Cho <phcho@nvidia.com>
+Date: Mon, 11 Aug 2025 15:43:03 -0700
+Subject: [PATCH] Patch FindOpenMP
+
+---
+ cpp/CMakeLists.txt                          |  2 +-
+ cpp/cmake/thirdparty/get_raft.cmake         |  1 +
+ cpp/cmake/thirdparty/get_treelite.cmake     |  1 +
+ cpp/cmake/thirdparty/patches/raft.patch     | 24 ++++++++++++++++++++
+ cpp/cmake/thirdparty/patches/treelite.patch | 25 +++++++++++++++++++++
+ 5 files changed, 52 insertions(+), 1 deletion(-)
+ create mode 100644 cpp/cmake/thirdparty/patches/raft.patch
+ create mode 100644 cpp/cmake/thirdparty/patches/treelite.patch
+
+diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
+index 918416085..d9b64feed 100644
+--- a/cpp/CMakeLists.txt
++++ b/cpp/CMakeLists.txt
+@@ -163,7 +163,7 @@ if(CUDA_STATIC_MATH_LIBRARIES)
+ endif()
+
+ if (NOT DISABLE_OPENMP)
+-  find_package(OpenMP)
++  find_package(OpenMP REQUIRED CXX)
+   if(OpenMP_FOUND)
+     message(STATUS "CUML_CPP: OpenMP found in ${OPENMP_INCLUDE_DIRS}")
+     list(APPEND CUML_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+diff --git a/cpp/cmake/thirdparty/get_raft.cmake b/cpp/cmake/thirdparty/get_raft.cmake
+index 7659384cc..bc9d785b3 100644
+--- a/cpp/cmake/thirdparty/get_raft.cmake
++++ b/cpp/cmake/thirdparty/get_raft.cmake
+@@ -51,6 +51,7 @@ function(find_and_configure_raft)
+         GIT_REPOSITORY         https://github.com/${PKG_FORK}/raft.git
+         GIT_TAG                ${PKG_PINNED_TAG}
+         SOURCE_SUBDIR          cpp
++        PATCHES                "./patches/raft.patch"
+         EXCLUDE_FROM_ALL       ${PKG_EXCLUDE_FROM_ALL}
+         OPTIONS
+           "BUILD_TESTS OFF"
+diff --git a/cpp/cmake/thirdparty/get_treelite.cmake b/cpp/cmake/thirdparty/get_treelite.cmake
+index 11c4f5a26..4cdb8cc04 100644
+--- a/cpp/cmake/thirdparty/get_treelite.cmake
++++ b/cpp/cmake/thirdparty/get_treelite.cmake
+@@ -34,6 +34,7 @@ function(find_and_configure_treelite)
+         CPM_ARGS
+             GIT_REPOSITORY   https://github.com/dmlc/treelite.git
+             GIT_TAG          ${PKG_PINNED_TAG}
++            PATCHES          "./patches/treelite.patch"
+             EXCLUDE_FROM_ALL ${PKG_EXCLUDE_FROM_ALL}
+             OPTIONS
+               "USE_OPENMP ON"
+diff --git a/cpp/cmake/thirdparty/patches/raft.patch b/cpp/cmake/thirdparty/patches/raft.patch
+new file mode 100644
+index 000000000..3f24a414f
+--- /dev/null
++++ b/cpp/cmake/thirdparty/patches/raft.patch
+@@ -0,0 +1,24 @@
++From e231da1a3adfabedcbfea62c4733906c36348cf0 Mon Sep 17 00:00:00 2001
++From: Hyunsu Cho <phcho@nvidia.com>
++Date: Mon, 11 Aug 2025 15:29:46 -0700
++Subject: [PATCH] Patch FindOpenMP
++
++---
++ cpp/CMakeLists.txt | 1 +
++ 1 file changed, 1 insertion(+)
++
++diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
++index 54bdef13..57814ff1 100644
++--- a/cpp/CMakeLists.txt
+++++ b/cpp/CMakeLists.txt
++@@ -152,6 +152,7 @@ if(NOT DISABLE_OPENMP)
++     OpenMP REQUIRED
+++    CXX
++     BUILD_EXPORT_SET raft-exports
++     INSTALL_EXPORT_SET raft-exports
++   )
++   if(OPENMP_FOUND)
++     message(VERBOSE "RAFT: OpenMP found in ${OpenMP_CXX_INCLUDE_DIRS}")
++--
++2.43.0
++
+diff --git a/cpp/cmake/thirdparty/patches/treelite.patch b/cpp/cmake/thirdparty/patches/treelite.patch
+new file mode 100644
+index 000000000..85afe6c44
+--- /dev/null
++++ b/cpp/cmake/thirdparty/patches/treelite.patch
+@@ -0,0 +1,25 @@
++From 8fd0c4a601e10004ab76f4fb27fb73c411d84434 Mon Sep 17 00:00:00 2001
++From: Hyunsu Cho <phcho@nvidia.com>
++Date: Mon, 11 Aug 2025 15:38:13 -0700
++Subject: [PATCH] Patch FindOpenMP
++
++---
++ src/CMakeLists.txt | 2 +-
++ 1 file changed, 1 insertion(+), 1 deletion(-)
++
++diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
++index 002f1ee..c1bc170 100644
++--- a/src/CMakeLists.txt
+++++ b/src/CMakeLists.txt
++@@ -22,7 +22,7 @@ if(USE_OPENMP)
++       find_package(OpenMP REQUIRED)
++     endif()
++   else()
++-    find_package(OpenMP REQUIRED)
+++    find_package(OpenMP REQUIRED CXX)
++   endif()
++ else()
++   message(STATUS "Disabling OpenMP")
++--
++2.43.0
++
+--
+2.43.0
+

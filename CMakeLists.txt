@@ -172,7 +172,7 @@ else()
 
   # add third party dependencies using CPM
   rapids_cpm_init()
-  find_package(OpenMP REQUIRED)
+  find_package(OpenMP REQUIRED CXX)
 
   if(TRITON_ENABLE_GPU)
     include(cmake/thirdparty/get_cuml.cmake)
