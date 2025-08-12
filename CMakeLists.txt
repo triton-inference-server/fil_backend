@@ -82,9 +82,9 @@ else()
 
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
-  set(rapids-cmake-version 25.06)
+  set(rapids-cmake-version 25.10)
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-25.06/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-25.10/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
