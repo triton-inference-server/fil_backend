@@ -27,6 +27,7 @@ function(find_and_configure_rapids_triton)
         CPM_ARGS
             GIT_REPOSITORY ${PKG_FORK}
             GIT_TAG        ${PKG_PINNED_TAG}
+            PATCHES          "./patches/rapids-triton.patch"
             SOURCE_SUBDIR  cpp
             OPTIONS
               "BUILD_TESTS OFF"

@@ -31,6 +31,7 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            PATCHES        "./patches/cuml.patch"
             OPTIONS
               "BUILD_CUML_C_LIBRARY OFF"
               "BUILD_CUML_CPP_LIBRARY ON"
