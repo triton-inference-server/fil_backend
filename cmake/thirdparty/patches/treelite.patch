@@ -1,0 +1,25 @@
+From 8fd0c4a601e10004ab76f4fb27fb73c411d84434 Mon Sep 17 00:00:00 2001
+From: Hyunsu Cho <phcho@nvidia.com>
+Date: Mon, 11 Aug 2025 15:38:13 -0700
+Subject: [PATCH] Patch FindOpenMP
+
+---
+ src/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 002f1ee..c1bc170 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -22,7 +22,7 @@ if(USE_OPENMP)
+       find_package(OpenMP REQUIRED)
+     endif()
+   else()
+-    find_package(OpenMP REQUIRED)
++    find_package(OpenMP REQUIRED CXX)
+   endif()
+ else()
+   message(STATUS "Disabling OpenMP")
+--
+2.43.0
+
