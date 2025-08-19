@@ -57,7 +57,7 @@ if(TRITON_FIL_DOCKER_BUILD)
       -f ${CMAKE_CURRENT_LIST_DIR}/ops/Dockerfile
       ${CMAKE_CURRENT_LIST_DIR}
     COMMAND docker rm triton_fil_builder || echo 'error ignored..' || true
-    COMMAND docker create --name triton_fil_builder triton_fil_builder
+    COMMAND docker create --name triton_fil_builder triton_fil_builder /bin/bash
     COMMAND rm -rf fil
     COMMAND docker cp triton_fil_builder:/opt/tritonserver/backends/fil fil
     COMMAND docker rm triton_fil_builder
