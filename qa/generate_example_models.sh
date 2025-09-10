@@ -38,7 +38,7 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type depth_first
+    --layout depth_first
   models+=( $name )
 fi
 
@@ -77,7 +77,7 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type breadth_first \
+    --layout breadth_first \
     --max_batch_size 4096
   models+=( $name )
 fi
