@@ -27,14 +27,14 @@ set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server
 
 # Specify *minimum* version for all RAPIDS dependencies
 # Some RAPIDS deps may have later versions
-set(RAPIDS_DEPENDENCIES_VERSION "25.06" CACHE STRING "RAPIDS projects dependencies version")
+set(RAPIDS_DEPENDENCIES_VERSION "25.08" CACHE STRING "RAPIDS projects dependencies version")
 set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACHE STRING "Git repository to pull rapids_triton from")
 set(RAPIDS_TRITON_REPO_TAG "branch-${RAPIDS_DEPENDENCIES_VERSION}" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  project(RAPIDS_TRITON_BACKEND VERSION 25.06.00)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.05-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "25.05" CACHE STRING "Triton version for Dockerized builds")
+  project(RAPIDS_TRITON_BACKEND VERSION 25.08.00)
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.08-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "25.08" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>

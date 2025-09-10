@@ -7,8 +7,8 @@ dependencies:
   - aws-sdk-cpp
   - clang-tools=19.1.7
   - cuda-version=12.8
-  - cudf=25.06
-  - cuml=25.06
+  - cudf=25.08
+  - cuml=25.08
   - flake8
   - hypothesis
   - lightgbm
