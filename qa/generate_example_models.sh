@@ -38,7 +38,7 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type SPARSE
+    --storage_type depth_first
   models+=( $name )
 fi
 
@@ -77,7 +77,7 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type SPARSE \
+    --storage_type breadth_first \
     --max_batch_size 4096
   models+=( $name )
 fi
@@ -92,8 +92,7 @@ then
     --depth 3 \
     --trees 2000 \
     --cat_features 3 \
-    --predict_proba \
-    --disable_experimental_optimizations
+    --predict_proba
   models+=( $name )
 fi
 

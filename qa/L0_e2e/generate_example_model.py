@@ -339,7 +339,6 @@ def generate_config(
     features=32,
     num_classes=2,
     predict_proba=False,
-    use_experimental_optimizations=True,
     task="classification",
     threshold=0.5,
     max_batch_size=8192,
@@ -357,7 +356,6 @@ def generate_config(
     else:
         output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
-    use_experimental_optimizations = str(bool(use_experimental_optimizations)).lower()
     output_class = str(task == "classification").lower()
 
     if model_format == "pickle":
@@ -443,7 +441,6 @@ def build_model(
     model_name=None,
     classification_threshold=0.5,
     predict_proba=False,
-    use_experimental_optimizations=True,
     max_batch_size=8192,
     layout="depth_first",
 ):
@@ -506,7 +503,6 @@ def build_model(
         features=features,
         num_classes=classes,
         predict_proba=predict_proba,
-        use_experimental_optimizations=use_experimental_optimizations,
         task=task,
         threshold=classification_threshold,
         max_batch_size=max_batch_size,
@@ -580,11 +576,6 @@ def parse_args():
         help="for classifiers, output class scores",
     )
     parser.add_argument(
-        "--disable_experimental_optimizations",
-        action="store_true",
-        help="CPU inference: Use GTIL instead of Herring",
-    )
-    parser.add_argument(
         "--max_batch_size",
         type=int,
         help="largest batch size allowed for this model",
@@ -619,9 +610,6 @@ if __name__ == "__main__":
             model_name=args.name,
             classification_threshold=args.threshold,
             predict_proba=args.predict_proba,
-            use_experimental_optimizations=(
-                not args.disable_experimental_optimizations
-            ),
             max_batch_size=args.max_batch_size,
             layout=args.layout,
         )
