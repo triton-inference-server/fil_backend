@@ -191,6 +191,7 @@ else()
   add_library(
     ${BACKEND_TARGET} SHARED
     src/api.cc
+    src/detail/postprocess_gpu.cu
   )
 
   IF(TRITON_ENABLE_GPU)

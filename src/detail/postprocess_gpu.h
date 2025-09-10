@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+* Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,24 @@
 
 #pragma once
 
+#include <detail/postprocess.h>
 #include <names.h>
 
-#include <string>
+#include <cstddef>
+#include <rapids_triton/memory/buffer.hpp>
+#include <rapids_triton/memory/types.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-struct treelite_config {
-  bool output_class;
-  float threshold;
-  std::string layout;
-  int chunk_size;
-  int cpu_nthread;
+template <>
+struct ClassEncoder<rapids::DeviceMemory> {
+  ClassEncoder() = default;
+  void argmax_for_multiclass(
+      rapids::Buffer<float>& output, rapids::Buffer<float>& input,
+      std::size_t samples, std::size_t num_classes) const;
+  void threshold_inplace(
+      rapids::Buffer<float>& output, std::size_t samples,
+      float threshold) const;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

@@ -17,11 +17,15 @@
 #pragma once
 
 #include <cuda_runtime_api.h>
-#include <cuml/fil/fil.h>
+#include <cuml/fil/detail/raft_proto/device_type.hpp>
+#include <cuml/fil/forest_model.hpp>
+#include <cuml/fil/infer_kind.hpp>
+#include <cuml/fil/treelite_importer.hpp>
 #include <fil_config.h>
 #include <forest_model.h>
 #include <names.h>
 #include <tl_model.h>
+#include <detail/postprocess_gpu.h>
 
 #include <cstddef>
 #include <memory>
@@ -31,8 +35,6 @@
 
 namespace triton { namespace backend { namespace NAMESPACE {
 
-using fil_forest_t = ML::fil::forest_t<float>;
-
 template <>
 struct ForestModel<rapids::DeviceMemory> {
   using device_id_t = int;
@@ -41,19 +43,11 @@ struct ForestModel<rapids::DeviceMemory> {
       std::shared_ptr<TreeliteModel> tl_model)
       : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
         fil_forest_{[this]() {
-          auto result = fil_forest_t{};
-          auto variant_result = ML::fil::forest_variant{};
-          auto config = tl_to_fil_config(tl_model_->config());
-          ML::fil::from_treelite(
-              raft_handle_, &variant_result, tl_model_->handle(), &config);
-          try {
-            result = std::get<fil_forest_t>(variant_result);
-          }
-          catch (std::bad_variant_access const& err) {
-            throw rapids::TritonException(
-                rapids::Error::Internal,
-                "Model did not load with expected precision");
-          }
+          auto config = tl_model_->config();
+          auto result = ML::fil::import_from_treelite_handle(
+            tl_model_->handle(), detail::name_to_fil_layout(config.layout), 128,
+            false, raft_proto::device_type::gpu, device_id_,
+            raft_handle_.get_stream());
           return result;
         }()}
   {
@@ -64,21 +58,55 @@ struct ForestModel<rapids::DeviceMemory> {
   ForestModel(ForestModel&& other) = default;
   ForestModel& operator=(ForestModel&& other) = default;
 
-  ~ForestModel() noexcept { ML::fil::free(raft_handle_, fil_forest_); }
+  ~ForestModel() noexcept {}
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    ML::fil::predict(
-        raft_handle_, fil_forest_, output.data(), input.data(), samples,
-        predict_proba);
+    // Create non-owning Buffer to same memory as `output`
+    auto output_buffer = rapids::Buffer<float>{
+      output.data(), output.size(), output.mem_type(), output.device(),
+      output.stream()};
+    auto output_size = output.size();
+    // FIL expects buffer of size samples * num_classes for multi-class
+    // classifiers, but output buffer may be smaller, so we need a temporary
+    // buffer
+    auto const num_classes = tl_model_->num_classes();
+    if (!predict_proba && tl_model_->config().output_class &&
+        num_classes > 1) {
+      output_size = samples * num_classes;
+      if (output_size != output.size()) {
+        // If expected output size is not the same as the size of `output`,
+        // create a temporary buffer of the correct size
+        output_buffer =
+            rapids::Buffer<float>{output_size, rapids::DeviceMemory};
+      }
+    }
+    fil_forest_.predict(
+        raft_proto::handle_t{raft_handle_}, output_buffer.data(),
+        const_cast<float*>(input.data()), samples,
+        raft_proto::device_type::gpu,
+        raft_proto::device_type::gpu,
+        ML::fil::infer_kind::default_kind,
+        tl_model_->config().chunk_size);
+
+    if (!predict_proba && tl_model_->config().output_class) {
+      if (num_classes > 1) {
+        class_encoder_.argmax_for_multiclass(
+          output, output_buffer, samples, num_classes);
+      } else if (num_classes == 1) {
+        class_encoder_.threshold_inplace(
+          output, samples, tl_model_->config().threshold);
+      }
+    }
   }
 
  private:
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
-  fil_forest_t fil_forest_;
+  mutable ML::fil::forest_model fil_forest_;
+  ClassEncoder<rapids::DeviceMemory> class_encoder_;
   device_id_t device_id_;
 };
 

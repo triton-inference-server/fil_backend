@@ -343,7 +343,7 @@ def generate_config(
     task="classification",
     threshold=0.5,
     max_batch_size=8192,
-    storage_type="AUTO",
+    layout="depth_first",
 ):
     """Return a string with the full Triton config.pbtxt for this model"""
     if instance_kind == "gpu":
@@ -416,20 +416,8 @@ parameters [
     value: {{ string_value: "{threshold}" }}
   }},
   {{
-    key: "algo"
-    value: {{ string_value: "ALGO_AUTO" }}
-  }},
-  {{
-    key: "storage_type"
-    value: {{ string_value: "{storage_type}" }}
-  }},
-  {{
-    key: "blocks_per_sm"
-    value: {{ string_value: "0" }}
-  }},
-  {{
-    key: "use_experimental_optimizations"
-    value: {{ string_value: "{use_experimental_optimizations}" }}
+    key: "layout"
+    value: {{ string_value: "{layout}" }}
   }},
   {{
     key: "xgboost_allow_unknown_field"
@@ -457,7 +445,7 @@ def build_model(
     predict_proba=False,
     use_experimental_optimizations=True,
     max_batch_size=8192,
-    storage_type="AUTO",
+    layout="depth_first",
 ):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
@@ -522,7 +510,7 @@ def build_model(
         task=task,
         threshold=classification_threshold,
         max_batch_size=max_batch_size,
-        storage_type=storage_type,
+        layout=layout,
     )
     config_path = os.path.join(config_dir, "config.pbtxt")
 
@@ -603,9 +591,9 @@ def parse_args():
         default=8192,
     )
     parser.add_argument(
-        "--storage_type",
-        choices=["AUTO", "DENSE", "SPARSE", "SPARSE8"],
-        help="storage type used to load this model in FIL",
+        "--layout",
+        choices=["depth_first", "breadth_first", "layered"],
+        help="layout used to load this model in FIL",
         default="AUTO",
     )
 
@@ -635,6 +623,6 @@ if __name__ == "__main__":
                 not args.disable_experimental_optimizations
             ),
             max_batch_size=args.max_batch_size,
-            storage_type=args.storage_type,
+            layout=args.layout,
         )
     )
