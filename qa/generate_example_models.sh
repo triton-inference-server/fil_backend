@@ -29,19 +29,6 @@ CUML_CONVERTER="python ${SCRIPTS_DIR}/convert_cuml.py"
 
 models=()
 
-name=xgboost
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --depth 11 \
-    --trees 2000 \
-    --classes 3 \
-    --features 500 \
-    --layout depth_first
-  models+=( $name )
-fi
-
 name=xgboost_json
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then

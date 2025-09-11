@@ -304,13 +304,7 @@ def generate_model(
     raise RuntimeError('Unknown model task "{}"'.format(task))
 
 
-def serialize_model(model, directory, output_format="xgboost"):
-    if output_format == "xgboost":
-        model_path = os.path.join(directory, "xgboost.deprecated")
-        model.save_model(model_path)
-        new_model_path = os.path.join(directory, "xgboost.model")
-        os.rename(model_path, new_model_path)
-        return new_model_path
+def serialize_model(model, directory, output_format="xgboost_ubj"):
     if output_format == "xgboost_json":
         model_path = os.path.join(directory, "xgboost.json")
         model.save_model(model_path)
@@ -452,9 +446,7 @@ def build_model(
 
     if output_format is None:
         if model_type == "xgboost":
-            # TODO(hcho3): Update to "xgboost_ubj" when XGBoost removes support
-            # for legacy binary format
-            output_format = "xgboost"
+            output_format = "xgboost_ubj"
         elif model_type == "lightgbm":
             output_format = "lightgbm"
         elif model_type in {"sklearn", "cuml"}:
@@ -465,7 +457,7 @@ def build_model(
     if (
         (
             model_type == "xgboost"
-            and output_format not in {"xgboost", "xgboost_json", "xgboost_ubj"}
+            and output_format not in {"xgboost_json", "xgboost_ubj"}
         )
         or (model_type == "lightgbm" and output_format not in {"lightgbm"})
         or (model_type == "sklearn" and output_format not in {"pickle"})
@@ -539,7 +531,7 @@ def parse_args():
     )
     parser.add_argument(
         "--format",
-        choices=("xgboost", "xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
+        choices=("xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
         default=None,
         help="serialization format for model",
     )

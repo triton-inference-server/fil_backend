@@ -33,7 +33,6 @@ from rapids_triton.testing import arrays_close, get_random_seed
 
 TOTAL_SAMPLES = 20
 MODELS = (
-    "xgboost",
     "xgboost_shap",
     "xgboost_json",
     "xgboost_ubj",
