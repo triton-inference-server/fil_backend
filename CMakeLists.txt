@@ -249,7 +249,7 @@ else()
   )
 
   if(TRITON_ENABLE_GPU)
-    list(APPEND BACKEND_TARGET "cuml++" "rmm")
+    list(APPEND BACKEND_TARGET "cuml++" "rmm" "rapids_logger")
   endif()
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
