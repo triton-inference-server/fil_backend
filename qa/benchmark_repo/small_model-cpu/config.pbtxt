@@ -25,7 +25,7 @@ parameters [
     value: { string_value: "true" }
   },
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   },
   {

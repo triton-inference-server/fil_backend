@@ -356,7 +356,7 @@ def generate_config(
     else:
         output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
-    output_class = str(task == "classification").lower()
+    is_classifier = str(task == "classification").lower()
 
     if model_format == "pickle":
         model_format = "treelite_checkpoint"
@@ -406,8 +406,8 @@ parameters [
     value: {{ string_value: "{predict_proba}" }}
   }},
   {{
-    key: "output_class"
-    value: {{ string_value: "{output_class}" }}
+    key: "is_classifier"
+    value: {{ string_value: "{is_classifier}" }}
   }},
   {{
     key: "threshold"

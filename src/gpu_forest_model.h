@@ -72,7 +72,8 @@ struct ForestModel<rapids::DeviceMemory> {
     // classifiers, but output buffer may be smaller, so we need a temporary
     // buffer
     auto const num_classes = tl_model_->num_classes();
-    if (!predict_proba && tl_model_->config().output_class && num_classes > 1) {
+    if (!predict_proba && tl_model_->config().is_classifier &&
+        num_classes > 1) {
       output_size = samples * num_classes;
       if (output_size != output.size()) {
         // If expected output size is not the same as the size of `output`,
@@ -87,7 +88,7 @@ struct ForestModel<rapids::DeviceMemory> {
         raft_proto::device_type::gpu, ML::fil::infer_kind::default_kind,
         tl_model_->config().chunk_size);
 
-    if (!predict_proba && tl_model_->config().output_class) {
+    if (!predict_proba && tl_model_->config().is_classifier) {
       if (num_classes > 1) {
         class_encoder_.argmax_for_multiclass(
             output, output_buffer, samples, num_classes);
