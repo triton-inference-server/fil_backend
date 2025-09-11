@@ -61,5 +61,19 @@ ClassEncoder<rapids::DeviceMemory>::threshold_inplace(
       });
 }
 
+void
+convert_probability_scores(
+    std::size_t samples, rapids::Buffer<float>& output,
+    rapids::Buffer<float>& input)
+{
+  thrust::counting_iterator<std::size_t> cnt_iter =
+      thrust::make_counting_iterator<std::size_t>(0);
+  thrust::for_each(
+      thrust::device, cnt_iter, cnt_iter + samples,
+      [dest = output.data(), src = input.data()] __device__(std::size_t i) {
+        dest[i * 2] = 1.0 - src[i];
+        dest[i * 2 + 1] = src[i];
+      });
+}
 
 }}}  // namespace triton::backend::NAMESPACE

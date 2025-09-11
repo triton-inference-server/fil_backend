@@ -82,12 +82,24 @@ struct ForestModel<rapids::DeviceMemory> {
             rapids::Buffer<float>{output_size, rapids::DeviceMemory};
       }
     }
+    // For some binary classifiers, FIL will output a single probability
+    // score per input, but the client may be expecting two probability
+    // scores (for positive and negative classes). In this case,
+    // a temp buffer is necessary.
+    bool convert_binary_probs = false;
+    if (predict_proba && tl_model_->config().is_classifier &&
+        num_classes == 1 && output.size() == samples * 2) {
+      output_buffer = rapids::Buffer<float>{samples, rapids::DeviceMemory};
+      convert_binary_probs = true;
+    }
     fil_forest_.predict(
         raft_proto::handle_t{raft_handle_}, output_buffer.data(),
         const_cast<float*>(input.data()), samples, raft_proto::device_type::gpu,
         raft_proto::device_type::gpu, ML::fil::infer_kind::default_kind,
         tl_model_->config().chunk_size);
+    raft_handle_.sync_stream();
 
+    // Apply thresholding to convert probability scores to class predictions
     if (!predict_proba && tl_model_->config().is_classifier) {
       if (num_classes > 1) {
         class_encoder_.argmax_for_multiclass(
@@ -96,6 +108,11 @@ struct ForestModel<rapids::DeviceMemory> {
         class_encoder_.threshold_inplace(
             output, samples, tl_model_->config().threshold);
       }
+    }
+    // Binary classifiers:
+    // convert (1,) probability score to (2,) probability vector
+    if (convert_binary_probs) {
+      convert_probability_scores(samples, output, output_buffer);
     }
   }
 

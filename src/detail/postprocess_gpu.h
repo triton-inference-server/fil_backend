@@ -36,4 +36,14 @@ struct ClassEncoder<rapids::DeviceMemory> {
       float threshold) const;
 };
 
+// Create the output vector of dimension (n, 2) from
+// the input vector of dimension (n, 1), by computing
+//   output(i, 1) := input(i, 0)
+//   output(i, 0) := 1 - input(i, 0)
+// This function is useful for representing output of
+// a binary classifier.
+void convert_probability_scores(
+    std::size_t n_samples, rapids::Buffer<float>& output,
+    rapids::Buffer<float>& input);
+
 }}}  // namespace triton::backend::NAMESPACE
