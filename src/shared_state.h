@@ -42,21 +42,28 @@ struct RapidsSharedState : rapids::SharedModelState {
     if (!get_config_param<std::string>("algo", std::string{}).empty()) {
       auto log_stream = std::stringstream{};
       log_stream << "The `algo` parameter has been removed in 25.09 release. "
-        << "Use `layout` instead.";
-      throw rapids::TritonException(rapids::Error::InvalidArg, log_stream.str());
+                 << "Use `layout` instead.";
+      throw rapids::TritonException(
+          rapids::Error::InvalidArg, log_stream.str());
     }
-    if (!get_config_param<std::string>("threads_per_tree", std::string{}).empty()) {
+    if (!get_config_param<std::string>("threads_per_tree", std::string{})
+             .empty()) {
       auto log_stream = std::stringstream{};
-      log_stream << "The `threads_per_tree` parameter has been removed in 25.09 release. "
-        << "Use `chunk_size` instead.";
-      throw rapids::TritonException(rapids::Error::InvalidArg, log_stream.str());
+      log_stream << "The `threads_per_tree` parameter has been removed in "
+                    "25.09 release. "
+                 << "Use `chunk_size` instead.";
+      throw rapids::TritonException(
+          rapids::Error::InvalidArg, log_stream.str());
     }
-    for (auto const& removed_param
-         : std::vector<std::string>{"storage_type", "blocks_per_sm"}) {
-      if (!get_config_param<std::string>(removed_param, std::string{}).empty()) {
+    for (auto const& removed_param :
+         std::vector<std::string>{"storage_type", "blocks_per_sm"}) {
+      if (!get_config_param<std::string>(removed_param, std::string{})
+               .empty()) {
         auto log_stream = std::stringstream{};
-        log_stream << "The `" << removed_param << "` parameter has been removed in 25.09 release.";
-        throw rapids::TritonException(rapids::Error::InvalidArg, log_stream.str());
+        log_stream << "The `" << removed_param
+                   << "` parameter has been removed in 25.09 release.";
+        throw rapids::TritonException(
+            rapids::Error::InvalidArg, log_stream.str());
       }
     }
 

@@ -66,8 +66,8 @@ struct TreeliteModel {
           auto result = std::optional<herring::tl_dispatched_model>{};
           if (use_herring) {
             rapids::log_warn(__FILE__, __LINE__)
-              << "use_experimental_optimizations option is deprecated. "
-              << "It will be removed in the 25.10 release.";
+                << "use_experimental_optimizations option is deprecated. "
+                << "It will be removed in the 25.10 release.";
             try {
               result = std::visit(
                   [&](auto&& concrete_model) {

@@ -15,16 +15,14 @@
  */
 
 #pragma once
-#include <cuml/fil/tree_layout.hpp>
 #include <names.h>
 #include <tl_config.h>
 
+#include <cuml/fil/tree_layout.hpp>
 #include <rapids_triton/exceptions.hpp>
 #include <sstream>
 
-namespace triton { namespace backend { namespace NAMESPACE {
-
-namespace detail {
+namespace triton { namespace backend { namespace NAMESPACE { namespace detail {
 
 inline auto
 name_to_fil_layout(std::string const& name)
@@ -45,6 +43,4 @@ name_to_fil_layout(std::string const& name)
   return result;
 }
 
-}  // namespace detail
-
-}}}  // namespace triton::backend::NAMESPACE
+}}}}  // namespace triton::backend::NAMESPACE::detail
