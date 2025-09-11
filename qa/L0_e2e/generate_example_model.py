@@ -585,7 +585,7 @@ def parse_args():
         "--layout",
         choices=["depth_first", "breadth_first", "layered"],
         help="layout used to load this model in FIL",
-        default="AUTO",
+        default="depth_first",
     )
 
     return parser.parse_args()
