@@ -73,7 +73,7 @@ parameters [
     value: { string_value: "xgboost_ubj" }
   },
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   }
 ]
@@ -210,13 +210,13 @@ specified using Triton's usual
 [configuration](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#model-configuration)
 options.
 
-### Classification vs. Regression (`output_class`)
-Set `output_class` to `true` if your model is a classification model or
+### Classification vs. Regression (`is_classifier`)
+Set `is_classifier` to `true` if your model is a classification model or
 `false` if your model is a regressor:
 ```
 parameters [
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   }
 ]

@@ -109,7 +109,7 @@ def get_model_parameter(config, param, default=None):
 class GTILModel:
     """A compatibility wrapper for executing models with GTIL"""
 
-    def __init__(self, model_path, model_format, output_class):
+    def __init__(self, model_path, model_format, is_classifier):
         if model_format == "xgboost":
             self.tl_model = treelite.frontend.load_xgboost_model_legacy_binary(
                 model_path
@@ -126,7 +126,7 @@ class GTILModel:
             self.tl_model = treelite.frontend.load_lightgbm_model(model_path)
         elif model_format == "treelite_checkpoint":
             self.tl_model = treelite.Model.deserialize(model_path)
-        self.output_class = output_class
+        self.is_classifier = is_classifier
 
     def _predict(self, arr):
         result = treelite.gtil.predict(self.tl_model, arr)
@@ -146,7 +146,7 @@ class GTILModel:
             return np.hstack((1 - result, result))
 
     def predict(self, arr):
-        if self.output_class:
+        if self.is_classifier:
             return np.argmax(self.predict_proba(arr), axis=1)
         else:
             return self._predict(arr).squeeze()
@@ -162,7 +162,7 @@ class GroundTruthModel:
         model_repo,
         model_format,
         predict_proba,
-        output_class,
+        is_classifier,
         use_cpu,
         *,
         model_version=1,
@@ -193,14 +193,14 @@ class GroundTruthModel:
             self._run_treeshap = True
 
         if use_cpu:
-            self._base_model = GTILModel(model_path, model_format, output_class)
+            self._base_model = GTILModel(model_path, model_format, is_classifier)
         else:
             if model_format == "treelite_checkpoint":
                 with open(model_path, "rb") as pkl_file:
                     self._base_model = pickle.load(pkl_file)
             else:
                 self._base_model = cuml.ForestInference.load(
-                    model_path, output_class=output_class, model_type=model_format
+                    model_path, is_classifier=is_classifier, model_type=model_format
                 )
 
     def predict(self, inputs):
@@ -238,8 +238,8 @@ def model_data(request, client, model_repo):
     model_format = get_model_parameter(config, "model_type", default="xgboost")
     predict_proba = get_model_parameter(config, "predict_proba", default="false")
     predict_proba = predict_proba == "true"
-    output_class = get_model_parameter(config, "output_class", default="true")
-    output_class = output_class == "true"
+    is_classifier = get_model_parameter(config, "is_classifier", default="true")
+    is_classifier = is_classifier == "true"
 
     use_cpu = config.instance_group[0].kind != 1
 
@@ -248,7 +248,7 @@ def model_data(request, client, model_repo):
         model_repo,
         model_format,
         predict_proba,
-        output_class,
+        is_classifier,
         use_cpu,
         model_version=1,
     )

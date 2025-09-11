@@ -39,21 +39,20 @@ struct RapidsSharedState : rapids::SharedModelState {
   void load()
   {
     /* Handle parameters from old FIL */
-    if (!get_config_param<std::string>("algo", std::string{}).empty()) {
-      auto log_stream = std::stringstream{};
-      log_stream << "The `algo` parameter has been removed in 25.09 release. "
-                 << "Use `layout` instead.";
-      throw rapids::TritonException(
-          rapids::Error::InvalidArg, log_stream.str());
-    }
-    if (!get_config_param<std::string>("threads_per_tree", std::string{})
-             .empty()) {
-      auto log_stream = std::stringstream{};
-      log_stream << "The `threads_per_tree` parameter has been removed in "
-                    "25.09 release. "
-                 << "Use `chunk_size` instead.";
-      throw rapids::TritonException(
-          rapids::Error::InvalidArg, log_stream.str());
+    for (auto const& [removed_param, new_param] :
+         std::vector<std::pair<std::string, std::string>>{
+             {"algo", "layout"},
+             {"threads_per_tree", "chunk_size"},
+             {"output_class", "is_classifier"}}) {
+      if (!get_config_param<std::string>(removed_param, std::string{})
+               .empty()) {
+        auto log_stream = std::stringstream{};
+        log_stream << "The `" << removed_param
+                   << "` parameter has been removed in 25.09 release. "
+                   << "Use `" << new_param << "` instead.";
+        throw rapids::TritonException(
+            rapids::Error::InvalidArg, log_stream.str());
+      }
     }
     for (auto const& removed_param :
          std::vector<std::string>{"storage_type", "blocks_per_sm"}) {
@@ -77,8 +76,8 @@ struct RapidsSharedState : rapids::SharedModelState {
 
     tl_config_->layout =
         get_config_param<std::string>("layout", std::string("depth_first"));
-    tl_config_->output_class = get_config_param<bool>("output_class");
-    if (tl_config_->output_class) {
+    tl_config_->is_classifier = get_config_param<bool>("is_classifier");
+    if (tl_config_->is_classifier) {
       tl_config_->threshold = get_config_param<float>("threshold");
     } else {
       tl_config_->threshold = 0.5f;

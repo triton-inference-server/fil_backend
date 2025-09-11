@@ -45,7 +45,7 @@ struct TreeliteModel {
           auto result = load_tl_base_model(
               model_file, format, xgboost_allow_unknown_field);
           auto num_classes = tl_get_num_classes(*base_tl_model_);
-          if (!predict_proba && tl_config_->output_class && num_classes > 1) {
+          if (!predict_proba && tl_config_->is_classifier && num_classes > 1) {
             result->postprocessor = "max_index";
           }
           if (predict_proba &&
@@ -123,7 +123,7 @@ struct TreeliteModel {
       // GTIL expects buffer of size samples * num_classes_ for multi-class
       // classifiers, but output buffer may be smaller, so we will create a
       // temporary buffer
-      if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
+      if (!predict_proba && tl_config_->is_classifier && num_classes_ > 1) {
         gtil_output_size = samples * num_classes_;
       }
 
@@ -163,7 +163,7 @@ struct TreeliteModel {
             ((i % 2) == 1) ? output.data()[i / 2] : 1.0f - output.data()[i / 2];
       }
     } else if (
-        num_classes_ == 1 && !predict_proba && tl_config_->output_class) {
+        num_classes_ == 1 && !predict_proba && tl_config_->is_classifier) {
       std::transform(
           output.data(), output.data() + output.size(), output.data(),
           [this](float raw_pred) {

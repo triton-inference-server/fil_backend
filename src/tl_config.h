@@ -23,7 +23,7 @@
 namespace triton { namespace backend { namespace NAMESPACE {
 
 struct treelite_config {
-  bool output_class;
+  bool is_classifier;
   float threshold;
   std::string layout;
   int chunk_size;

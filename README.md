@@ -142,7 +142,7 @@ parameters [
     value: { string_value: "$MODEL_TYPE" }
   },
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "$IS_A_CLASSIFIER" }
   }
 ]
