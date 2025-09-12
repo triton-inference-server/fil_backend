@@ -304,13 +304,7 @@ def generate_model(
     raise RuntimeError('Unknown model task "{}"'.format(task))
 
 
-def serialize_model(model, directory, output_format="xgboost"):
-    if output_format == "xgboost":
-        model_path = os.path.join(directory, "xgboost.deprecated")
-        model.save_model(model_path)
-        new_model_path = os.path.join(directory, "xgboost.model")
-        os.rename(model_path, new_model_path)
-        return new_model_path
+def serialize_model(model, directory, output_format="xgboost_ubj"):
     if output_format == "xgboost_json":
         model_path = os.path.join(directory, "xgboost.json")
         model.save_model(model_path)
@@ -339,11 +333,10 @@ def generate_config(
     features=32,
     num_classes=2,
     predict_proba=False,
-    use_experimental_optimizations=True,
     task="classification",
     threshold=0.5,
     max_batch_size=8192,
-    storage_type="AUTO",
+    layout="depth_first",
 ):
     """Return a string with the full Triton config.pbtxt for this model"""
     if instance_kind == "gpu":
@@ -357,8 +350,7 @@ def generate_config(
     else:
         output_dim = 1
     predict_proba = str(bool(predict_proba)).lower()
-    use_experimental_optimizations = str(bool(use_experimental_optimizations)).lower()
-    output_class = str(task == "classification").lower()
+    is_classifier = str(task == "classification").lower()
 
     if model_format == "pickle":
         model_format = "treelite_checkpoint"
@@ -408,28 +400,16 @@ parameters [
     value: {{ string_value: "{predict_proba}" }}
   }},
   {{
-    key: "output_class"
-    value: {{ string_value: "{output_class}" }}
+    key: "is_classifier"
+    value: {{ string_value: "{is_classifier}" }}
   }},
   {{
     key: "threshold"
     value: {{ string_value: "{threshold}" }}
   }},
   {{
-    key: "algo"
-    value: {{ string_value: "ALGO_AUTO" }}
-  }},
-  {{
-    key: "storage_type"
-    value: {{ string_value: "{storage_type}" }}
-  }},
-  {{
-    key: "blocks_per_sm"
-    value: {{ string_value: "0" }}
-  }},
-  {{
-    key: "use_experimental_optimizations"
-    value: {{ string_value: "{use_experimental_optimizations}" }}
+    key: "layout"
+    value: {{ string_value: "{layout}" }}
   }},
   {{
     key: "xgboost_allow_unknown_field"
@@ -455,9 +435,8 @@ def build_model(
     model_name=None,
     classification_threshold=0.5,
     predict_proba=False,
-    use_experimental_optimizations=True,
     max_batch_size=8192,
-    storage_type="AUTO",
+    layout="depth_first",
 ):
     """Train a model with given parameters, create a config file, and add it to
     the model repository"""
@@ -467,9 +446,7 @@ def build_model(
 
     if output_format is None:
         if model_type == "xgboost":
-            # TODO(hcho3): Update to "xgboost_ubj" when XGBoost removes support
-            # for legacy binary format
-            output_format = "xgboost"
+            output_format = "xgboost_ubj"
         elif model_type == "lightgbm":
             output_format = "lightgbm"
         elif model_type in {"sklearn", "cuml"}:
@@ -480,7 +457,7 @@ def build_model(
     if (
         (
             model_type == "xgboost"
-            and output_format not in {"xgboost", "xgboost_json", "xgboost_ubj"}
+            and output_format not in {"xgboost_json", "xgboost_ubj"}
         )
         or (model_type == "lightgbm" and output_format not in {"lightgbm"})
         or (model_type == "sklearn" and output_format not in {"pickle"})
@@ -518,11 +495,10 @@ def build_model(
         features=features,
         num_classes=classes,
         predict_proba=predict_proba,
-        use_experimental_optimizations=use_experimental_optimizations,
         task=task,
         threshold=classification_threshold,
         max_batch_size=max_batch_size,
-        storage_type=storage_type,
+        layout=layout,
     )
     config_path = os.path.join(config_dir, "config.pbtxt")
 
@@ -555,7 +531,7 @@ def parse_args():
     )
     parser.add_argument(
         "--format",
-        choices=("xgboost", "xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
+        choices=("xgboost_json", "xgboost_ubj", "lightgbm", "pickle"),
         default=None,
         help="serialization format for model",
     )
@@ -592,21 +568,16 @@ def parse_args():
         help="for classifiers, output class scores",
     )
     parser.add_argument(
-        "--disable_experimental_optimizations",
-        action="store_true",
-        help="CPU inference: Use GTIL instead of Herring",
-    )
-    parser.add_argument(
         "--max_batch_size",
         type=int,
         help="largest batch size allowed for this model",
         default=8192,
     )
     parser.add_argument(
-        "--storage_type",
-        choices=["AUTO", "DENSE", "SPARSE", "SPARSE8"],
-        help="storage type used to load this model in FIL",
-        default="AUTO",
+        "--layout",
+        choices=["depth_first", "breadth_first", "layered"],
+        help="layout used to load this model in FIL",
+        default="depth_first",
     )
 
     return parser.parse_args()
@@ -631,10 +602,7 @@ if __name__ == "__main__":
             model_name=args.name,
             classification_threshold=args.threshold,
             predict_proba=args.predict_proba,
-            use_experimental_optimizations=(
-                not args.disable_experimental_optimizations
-            ),
             max_batch_size=args.max_batch_size,
-            storage_type=args.storage_type,
+            layout=args.layout,
         )
     )

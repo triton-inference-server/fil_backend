@@ -23,12 +23,10 @@
 namespace triton { namespace backend { namespace NAMESPACE {
 
 struct treelite_config {
-  std::string algo;
-  bool output_class;
+  bool is_classifier;
   float threshold;
-  std::string storage_type;
-  int blocks_per_sm;
-  int threads_per_tree;
+  std::string layout;
+  int chunk_size;
   int cpu_nthread;
 };
 

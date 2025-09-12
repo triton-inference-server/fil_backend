@@ -29,19 +29,6 @@ CUML_CONVERTER="python ${SCRIPTS_DIR}/convert_cuml.py"
 
 models=()
 
-name=xgboost
-if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
-then
-  ${GENERATOR_SCRIPT} \
-    --name $name \
-    --depth 11 \
-    --trees 2000 \
-    --classes 3 \
-    --features 500 \
-    --storage_type SPARSE
-  models+=( $name )
-fi
-
 name=xgboost_json
 if [ $RETRAIN -ne 0 ] || [ ! -d "${MODEL_REPO}/${name}" ]
 then
@@ -77,7 +64,7 @@ then
     --trees 2000 \
     --classes 3 \
     --features 500 \
-    --storage_type SPARSE \
+    --layout breadth_first \
     --max_batch_size 4096
   models+=( $name )
 fi
@@ -92,8 +79,7 @@ then
     --depth 3 \
     --trees 2000 \
     --cat_features 3 \
-    --predict_proba \
-    --disable_experimental_optimizations
+    --predict_proba
   models+=( $name )
 fi
 

@@ -33,7 +33,6 @@ function(find_and_configure_treelite)
         CPM_ARGS
             GIT_REPOSITORY   https://github.com/dmlc/treelite.git
             GIT_TAG          ${PKG_PINNED_TAG}
-            PATCHES          "./patches/treelite.patch"
             OPTIONS
               "USE_OPENMP ON"
               "Treelite_BUILD_STATIC_LIBS ${PKG_BUILD_STATIC_LIBS}"

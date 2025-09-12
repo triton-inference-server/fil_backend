@@ -45,9 +45,6 @@ struct TreeliteModel {
           auto result = load_tl_base_model(
               model_file, format, xgboost_allow_unknown_field);
           auto num_classes = tl_get_num_classes(*base_tl_model_);
-          if (!predict_proba && tl_config_->output_class && num_classes > 1) {
-            result->postprocessor = "max_index";
-          }
           if (predict_proba &&
               result->task_type == treelite::TaskType::kMultiClf &&
               result->leaf_vector_shape[1] == 1) {
@@ -65,6 +62,9 @@ struct TreeliteModel {
         base_herring_model_{[this, use_herring]() {
           auto result = std::optional<herring::tl_dispatched_model>{};
           if (use_herring) {
+            rapids::log_warn(__FILE__, __LINE__)
+                << "use_experimental_optimizations option is deprecated. "
+                << "It will be removed in the 25.10 release.";
             try {
               result = std::visit(
                   [&](auto&& concrete_model) {
@@ -116,25 +116,37 @@ struct TreeliteModel {
           },
           *base_herring_model_);
     } else {
-      auto gtil_output_size = output.size();
+      // Create non-owning Buffer to same memory as `output`
+      auto output_buffer = rapids::Buffer<float>{
+          output.data(), output.size(), rapids::HostMemory};
+      auto output_size = output.size();
       // GTIL expects buffer of size samples * num_classes_ for multi-class
-      // classifiers, but output buffer may be smaller, so we will create a
-      // temporary buffer
-      if (!predict_proba && tl_config_->output_class && num_classes_ > 1) {
-        gtil_output_size = samples * num_classes_;
+      // classifiers, but output buffer may be smaller, so we need a temporary
+      // buffer
+      if (!predict_proba && tl_config_->is_classifier && num_classes_ > 1) {
+        output_size = samples * num_classes_;
+        if (output_size != output.size()) {
+          // If expected output size is not the same as the size of `output`,
+          // create a temporary buffer of the correct size
+          output_buffer = rapids::Buffer<float>{
+              output_size, rapids::HostMemory, output.device(),
+              output.stream()};
+        }
       }
-
-      // If expected GTIL size is not the same as the size of `output`, create
-      // a temporary buffer of the correct size
-      if (gtil_output_size != output.size()) {
-        output_buffer =
-            rapids::Buffer<float>{gtil_output_size, rapids::HostMemory};
+      // For some binary classifiers, GTIL will output a single probability
+      // score per input, but the client may be expecting two probability
+      // scores (for positive and negative classes). In this case,
+      // a temp buffer is necessary.
+      bool convert_binary_probs = false;
+      if (predict_proba && tl_config_->is_classifier && num_classes_ == 1 &&
+          output.size() == samples * 2) {
+        output_buffer = rapids::Buffer<float>{samples, rapids::HostMemory};
+        convert_binary_probs = true;
       }
 
       auto gtil_config = treelite::gtil::Configuration{};
       gtil_config.nthread = tl_config_->cpu_nthread;
 
-      // Actually perform inference
       try {
         treelite::gtil::Predict(
             *base_tl_model_, input.data(), samples, output_buffer.data(),
@@ -144,28 +156,47 @@ struct TreeliteModel {
         throw rapids::TritonException(rapids::Error::Internal, tl_err.what());
       }
 
-      // Copy back to expected output location
-      if (gtil_output_size != output.size()) {
-        rapids::copy<float, float>(
-            output, output_buffer, std::size_t{}, output.size());
+      if (!predict_proba && tl_config_->is_classifier) {
+        if (num_classes_ > 1) {
+          // Multi-class classifiers
+          // Compute class output from probabilities
+          //   output[i] := argmax(output_buffer[i * num_classes_ + j])
+          float* dest = output.data();
+          float* src = output_buffer.data();
+          for (std::size_t i = 0; i < samples; ++i) {
+            float max_prob = 0.0f;
+            int max_class = 0;
+            for (std::size_t j = 0; j < num_classes_; ++j) {
+              if (src[i * num_classes_ + j] > max_prob) {
+                max_prob = src[i * num_classes_ + j];
+                max_class = j;
+              }
+            }
+            dest[i] = max_class;
+          }
+        } else if (num_classes_ == 1) {
+          // Binary classifiers (predict_proba=False):
+          // Apply thresholding to convert probability scores to class
+          // predictions
+          //   output[i] := (1 if output[i] > threshold else 0)
+          for (std::size_t i = 0; i < samples; ++i) {
+            output.data()[i] =
+                (output.data()[i] > tl_config_->threshold) ? 1.0f : 0.0f;
+          }
+        }
       }
-    }
-
-    // Transform probabilities to desired output if necessary
-    if (num_classes_ == 1 && predict_proba) {
-      auto i = output.size();
-      while (i > 0) {
-        --i;
-        output.data()[i] =
-            ((i % 2) == 1) ? output.data()[i / 2] : 1.0f - output.data()[i / 2];
+      // Binary classifiers (predict_proba=True):
+      // Convert (n, 1) probability score matrix to (n, 2) matrix
+      //   output[i, 0] := 1 - output_buffer[i, 0]
+      //   output[i, 1] := output_buffer[i, 0]
+      if (convert_binary_probs) {
+        float* dest = output.data();
+        float* src = output_buffer.data();
+        for (std::size_t i = 0; i < samples; ++i) {
+          dest[i * 2] = 1.0 - src[i];
+          dest[i * 2 + 1] = src[i];
+        }
       }
-    } else if (
-        num_classes_ == 1 && !predict_proba && tl_config_->output_class) {
-      std::transform(
-          output.data(), output.data() + output.size(), output.data(),
-          [this](float raw_pred) {
-            return (raw_pred > tl_config_->threshold) ? 1.0f : 0.0f;
-          });
     }
   }
 

@@ -25,7 +25,7 @@ parameters [
     value: { string_value: "true" }
   },
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   },
   {
@@ -33,8 +33,8 @@ parameters [
     value: { string_value: "0.5" }
   },
   {
-    key: "storage_type"
-    value: { string_value: "AUTO" }
+    key: "layout"
+    value: { string_value: "breadth_first" }
   }
 ]
 

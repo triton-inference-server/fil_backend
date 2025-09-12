@@ -73,7 +73,7 @@ parameters [
     value: { string_value: "xgboost_ubj" }
   },
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   }
 ]
@@ -210,13 +210,13 @@ specified using Triton's usual
 [configuration](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#model-configuration)
 options.
 
-### Classification vs. Regression (`output_class`)
-Set `output_class` to `true` if your model is a classification model or
+### Classification vs. Regression (`is_classifier`)
+Set `is_classifier` to `true` if your model is a classification model or
 `false` if your model is a regressor:
 ```
 parameters [
   {
-    key: "output_class"
+    key: "is_classifier"
     value: { string_value: "true" }
   }
 ]
@@ -266,97 +266,48 @@ latency and throughput for your model. These parameters will not affect model
 output, but experimenting with them can significantly improve model
 performance for your specific use case.
 
-#### `use_experimental_optimizations`
-As of release 22.11, this flag only affects CPU deployments. Setting it to
-true can significantly improve both latency and throughput. In the future,
-the current experimental optimizations will become default, and new
-performance optimizations will be trialed using this flag. Even these
-experimental optimizations are thoroughly tested before release, but they
-offer less of a stability guarantee than the default execution mode.
-```
-parameters [
-  {
-    key: "use_experimental_optimizations"
-    value: { string_value: "true" }
-  }
-]
-```
-
-#### `threads_per_tree` (GPU only)
-This parameter applies only to GPU deployments and determines the number
-of consecutive CUDA threads used to evaluate a single tree. While
-correctly tuning this value offers significant performance improvements,
-it is very difficult to determine the optimal value *a priori*.
+#### `chunk_size` (GPU only)
+This parameter applies only to GPU deployments and determines how batches are
+further subdivided for parallel processing. The optimal value depends on hardware,
+model, and batch size, and it is difficult to predict in advance.
 
 In general, servers under higher load or those receiving larger batches from
-clients will benefit from a higher value. On the other hand, more
-powerful GPUs typically see optimal performance with a somewhat lower value.
-
-To find the optimal value for your deployment, test under realistic traffic
-and experiment with powers of 2 from 1 to 32.
+clients will benefit from a higher value. `chunk_size` can be any power of 2
+between 1 and 32.
 ```
 parameters [
   {
-    key: "threads_per_tree"
+    key: "chunk_size"
     value: { string_value: "4" }
   }
 ]
 ```
 
-#### `storage_type` (GPU only)
-This parameter determines how trees are represented in device memory.
-Choosing `DENSE` will consume more memory but may sometimes offer
-performance benefits. Choosing `SPARSE` will consume less memory and may
-perform as well as or better than `DENSE` for some models. Choosing `AUTO`
-will apply a heuristic that defaults to `DENSE` unless it is obvious that
-doing so will consume significantly more memory.
-
-`SPARSE8` is an
-experimental format which offers an even smaller memory footprint than
-`SPARSE` and may offer better throughput/latency in some cases. You should
-thoroughly test your model's output with `SPARSE8` if you choose to use it.
-
-```
-parameters [
-  {
-    key: "storage_type"
-    value: { string_value: "SPARSE" }
-  }
-]
-```
-
-#### `algo` (GPU only)
+#### `layout` (GPU only)
 This parameter determines how nodes within a tree are organized in memory
-as well as how they are accessed during inference. `NAIVE` uses a
-breadth-first layout and is the only value which should be used with the
-`SPARSE` or `SPARSE8` storage types. `TREE_REORG` rearranges trees to improve
-memory coalescing. `BATCH_TREE_REORG` is similar to `TREE_REORG` but
-performs inference on several rows at once within a thread block.
-`ALGO_AUTO` will default to `NAIVE` for sparse storage and
-`BATCH_TREE_REORG` for dense storage.
+as well as how they are accessed during inference.
 
-Different settings for this parameter may produce modest performance
-benefits depending on the details of the model.
+The `depth_first` and `breadth_first` options lay out the nodes in the
+depth-first and breadth-first orders, respectively.
+
+The `layered` option is unique,
+in that it interleaves nodes from multiple trees, unlike `depth_first`
+or `breadth_first`. When `layered` option is chosen, FIL will traverse
+the forest by proceeding through the root nodes of each tree first,
+followed by the children of those root nodes for each tree,
+and so forth. This traversal order ensures that all nodes of a
+particular tree at a particular depth are traversed together.
+
+In general, `depth_first` tends to work the best for deeper trees
+(depth 4 or greater), whereas `breadth_first` tends to work better
+for shallow trees. Your mileage  may vary, so make sure to measure
+performance to choose the best configuration.
+
 ```
 parameters [
   {
-    key: "algo"
-    value: { string_value: "NAIVE" }
-  }
-]
-```
-
-#### `blocks_per_sm` (GPU only)
-This experimental option attempts to launch the indicated number of blocks
-per streaming multiprocessor if set to a value greater than 0. This will
-fail if your hardware cannot support the number of threads associated with
-this value. Tweaking this number can sometimes result in small
-performance benefits.
-```
-parameters [
-  {
-    key: "blocks_per_sm"
-    value: { string_value: "2" }
+    key: "layout"
+    value: { string_value: "depth_first" }
   }
 ]
 ```

@@ -52,7 +52,6 @@ The FIL backend currently supports the following serialization formats:
 
 - XGBoost JSON
 - XGBoost UBJSON
-- XGBoost Binary
 - LightGBM Text
 - Treelite binary checkpoint
 
@@ -61,12 +60,11 @@ pickled model must be converted to one of the above formats before it can be
 used in Triton.
 
 ## Version Compatibility
-Until version 3.0 of Treelite, Treelite offered no backward compatibility
+Until version 3.0, Treelite offered no backwards compatibility
 for its checkpoint format even among minor releases. Therefore, the version
 of Treelite used to save a checkpoint had to exactly match the version used in
-the FIL backend. Starting with version 3.0, Treelite supports checkpoint
-output from any version of Treelite starting with 2.7 until the next major
-release.
+the FIL backend. Starting with version 3.0, Treelite provides backwards and
+forward compatibility between minor releases.
 
 XGBoost's JSON format also changes periodically between minor versions, and
 older versions of Treelite used in the FIL backend may not support those
@@ -83,7 +81,7 @@ shown below:
 | 22.03-22.06    | 2.3.0                         | XGBoost JSON <1.6                      |
 | 22.07          | 2.4.0                         | XGBoost JSON <1.7                      |
 | 22.08-24.02    | 2.4.0; >=3.0.0,<4.0.0         | XGBoost JSON <1.7                      |
-| 24.03+         | 3.9.0; >=4.0.0,<5.0.0         | XGBoost JSON 1.7+                      |
+| 24.03-24.09    | 3.9.0; >=4.0.0,<5.0.0         | XGBoost JSON 1.7+                      |
 | 24.10+         | 3.9.0; >=4.0.0,<5.0.0         | XGBoost JSON 1.7+, XGBoost UBJSON 2.1+ |
 
 ## Limitations

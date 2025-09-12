@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <rapids_triton/model/shared_state.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
@@ -38,6 +39,39 @@ struct RapidsSharedState : rapids::SharedModelState {
 
   void load()
   {
+    std::optional<bool> deprecated_output_class_param{std::nullopt};
+    /* Handle parameters from old FIL */
+    for (auto const& [removed_param, new_param] :
+         std::vector<std::pair<std::string, std::string>>{
+             {"algo", "layout"},
+             {"threads_per_tree", "chunk_size"},
+             {"output_class", "is_classifier"}}) {
+      auto removed_param_value =
+          get_config_param<std::string>(removed_param, std::string{});
+      if (!removed_param_value.empty()) {
+        rapids::log_warn(__FILE__, __LINE__)
+            << "The `" << removed_param
+            << "` parameter has been removed in 25.09 release. "
+            << "Use `" << new_param << "` instead.";
+        if (removed_param == "output_class") {
+          if (removed_param_value == "true") {
+            deprecated_output_class_param = true;
+          } else if (removed_param_value == "false") {
+            deprecated_output_class_param = false;
+          }
+        }
+      }
+    }
+    for (auto const& removed_param :
+         std::vector<std::string>{"storage_type", "blocks_per_sm"}) {
+      if (!get_config_param<std::string>(removed_param, std::string{})
+               .empty()) {
+        rapids::log_warn(__FILE__, __LINE__)
+            << "The `" << removed_param
+            << "` parameter has been removed in 25.09 release.";
+      }
+    }
+
     predict_proba_ = get_config_param<bool>("predict_proba", false);
     model_format_ = string_to_serialization(
         get_config_param<std::string>("model_type", std::string{"xgboost"}));
@@ -46,19 +80,20 @@ struct RapidsSharedState : rapids::SharedModelState {
     transfer_threshold_ = get_config_param<std::size_t>(
         "transfer_threshold", DEFAULT_TRANSFER_THRESHOLD);
 
-    tl_config_->algo =
-        get_config_param<std::string>("algo", std::string("ALGO_AUTO"));
-    tl_config_->storage_type =
-        get_config_param<std::string>("storage_type", std::string("AUTO"));
-    tl_config_->output_class = get_config_param<bool>("output_class");
-    if (tl_config_->output_class) {
+    tl_config_->layout =
+        get_config_param<std::string>("layout", std::string("depth_first"));
+    if (deprecated_output_class_param.has_value()) {
+      tl_config_->is_classifier = deprecated_output_class_param.value();
+    } else {
+      tl_config_->is_classifier = get_config_param<bool>("is_classifier");
+    }
+    if (tl_config_->is_classifier) {
       tl_config_->threshold = get_config_param<float>("threshold");
     } else {
       tl_config_->threshold = 0.5f;
     }
-    tl_config_->blocks_per_sm = get_config_param<int>("blocks_per_sm", 0);
-    tl_config_->threads_per_tree =
-        std::max(1, get_config_param<int>("threads_per_tree", 1));
+    tl_config_->chunk_size =
+        std::max(1, get_config_param<int>("chunk_size", 1));
     tl_config_->cpu_nthread = get_config_param<int>("cpu_nthread", -1);
     use_herring_ =
         get_config_param<bool>("use_experimental_optimizations", false);
