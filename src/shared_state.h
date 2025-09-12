@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <rapids_triton/model/shared_state.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
@@ -38,31 +39,36 @@ struct RapidsSharedState : rapids::SharedModelState {
 
   void load()
   {
+    std::optional<bool> deprecated_output_class_param{std::nullopt};
     /* Handle parameters from old FIL */
     for (auto const& [removed_param, new_param] :
          std::vector<std::pair<std::string, std::string>>{
              {"algo", "layout"},
              {"threads_per_tree", "chunk_size"},
              {"output_class", "is_classifier"}}) {
-      if (!get_config_param<std::string>(removed_param, std::string{})
-               .empty()) {
-        auto log_stream = std::stringstream{};
-        log_stream << "The `" << removed_param
-                   << "` parameter has been removed in 25.09 release. "
-                   << "Use `" << new_param << "` instead.";
-        throw rapids::TritonException(
-            rapids::Error::InvalidArg, log_stream.str());
+      auto removed_param_value =
+          get_config_param<std::string>(removed_param, std::string{});
+      if (!removed_param_value.empty()) {
+        rapids::log_warn(__FILE__, __LINE__)
+            << "The `" << removed_param
+            << "` parameter has been removed in 25.09 release. "
+            << "Use `" << new_param << "` instead.";
+        if (removed_param == "output_class") {
+          if (removed_param_value == "true") {
+            deprecated_output_class_param = true;
+          } else if (removed_param_value == "false") {
+            deprecated_output_class_param = false;
+          }
+        }
       }
     }
     for (auto const& removed_param :
          std::vector<std::string>{"storage_type", "blocks_per_sm"}) {
       if (!get_config_param<std::string>(removed_param, std::string{})
                .empty()) {
-        auto log_stream = std::stringstream{};
-        log_stream << "The `" << removed_param
-                   << "` parameter has been removed in 25.09 release.";
-        throw rapids::TritonException(
-            rapids::Error::InvalidArg, log_stream.str());
+        rapids::log_warn(__FILE__, __LINE__)
+            << "The `" << removed_param
+            << "` parameter has been removed in 25.09 release.";
       }
     }
 
@@ -76,7 +82,11 @@ struct RapidsSharedState : rapids::SharedModelState {
 
     tl_config_->layout =
         get_config_param<std::string>("layout", std::string("depth_first"));
-    tl_config_->is_classifier = get_config_param<bool>("is_classifier");
+    if (deprecated_output_class_param.has_value()) {
+      tl_config_->is_classifier = deprecated_output_class_param.value();
+    } else {
+      tl_config_->is_classifier = get_config_param<bool>("is_classifier");
+    }
     if (tl_config_->is_classifier) {
       tl_config_->threshold = get_config_param<float>("threshold");
     } else {
