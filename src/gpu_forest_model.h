@@ -75,6 +75,7 @@ struct ForestModel<rapids::DeviceMemory> {
     auto const num_classes = tl_model_->num_classes();
     if (!predict_proba && tl_model_->config().is_classifier &&
         num_classes > 1) {
+      fil_forest_.set_row_postprocessing(ML::fil::row_op::max_index);
       output_size = samples * num_classes;
       if (output_size != output.size()) {
         // If expected output size is not the same as the size of `output`,
