@@ -24,6 +24,7 @@
 #include <tl_model.h>
 
 #include <cstddef>
+#include <cuml/fil/detail/raft_proto/cuda_stream.hpp>
 #include <cuml/fil/detail/raft_proto/device_type.hpp>
 #include <cuml/fil/forest_model.hpp>
 #include <cuml/fil/infer_kind.hpp>
@@ -78,8 +79,9 @@ struct ForestModel<rapids::DeviceMemory> {
       if (output_size != output.size()) {
         // If expected output size is not the same as the size of `output`,
         // create a temporary buffer of the correct size
-        output_buffer =
-            rapids::Buffer<float>{output_size, rapids::DeviceMemory};
+        output_buffer = rapids::Buffer<float>{
+            output_size, rapids::DeviceMemory, output.device(),
+            output.stream()};
       }
     }
     // For some binary classifiers, FIL will output a single probability
@@ -89,30 +91,41 @@ struct ForestModel<rapids::DeviceMemory> {
     bool convert_binary_probs = false;
     if (predict_proba && tl_model_->config().is_classifier &&
         num_classes == 1 && output.size() == samples * 2) {
-      output_buffer = rapids::Buffer<float>{samples, rapids::DeviceMemory};
+      output_buffer = rapids::Buffer<float>{
+          samples, rapids::DeviceMemory, output.device(), output.stream()};
       convert_binary_probs = true;
     }
+
     fil_forest_.predict(
         raft_proto::handle_t{raft_handle_}, output_buffer.data(),
         const_cast<float*>(input.data()), samples, raft_proto::device_type::gpu,
         raft_proto::device_type::gpu, ML::fil::infer_kind::default_kind,
         tl_model_->config().chunk_size);
     raft_handle_.sync_stream();
+    output_buffer.stream_synchronize();
 
-    // Apply thresholding to convert probability scores to class predictions
     if (!predict_proba && tl_model_->config().is_classifier) {
       if (num_classes > 1) {
-        class_encoder_.argmax_for_multiclass(
-            output, output_buffer, samples, num_classes);
+        // Multi-class classifiers
+        // Gather class outputs into the output array by setting
+        //   output[i] := output_buffer[i * num_classes]
+        detail::multiclass_classifier::gather_class_output(
+            samples, num_classes, output, output_buffer);
       } else if (num_classes == 1) {
-        class_encoder_.threshold_inplace(
-            output, samples, tl_model_->config().threshold);
+        // Binary classifiers (predict_proba=False):
+        // Apply thresholding to convert probability scores to class predictions
+        //   output[i] := (1 if output[i] > threshold else 0)
+        detail::binary_classifier::convert_probability_to_class(
+            samples, output, tl_model_->config().threshold);
       }
     }
-    // Binary classifiers:
-    // convert (1,) probability score to (2,) probability vector
+    // Binary classifiers (predict_proba=True):
+    // Convert (n, 1) probability score matrix to (n, 2) matrix
+    //   output[i, 0] := 1 - output_buffer[i, 0]
+    //   output[i, 1] := output_buffer[i, 0]
     if (convert_binary_probs) {
-      convert_probability_scores(samples, output, output_buffer);
+      detail::binary_classifier::convert_probability(
+          samples, output, output_buffer);
     }
   }
 
@@ -120,7 +133,6 @@ struct ForestModel<rapids::DeviceMemory> {
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
   mutable ML::fil::forest_model fil_forest_;
-  ClassEncoder<rapids::DeviceMemory> class_encoder_;
   device_id_t device_id_;
 };
 

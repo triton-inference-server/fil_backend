@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,64 +16,86 @@
 
 #include <detail/postprocess_gpu.h>
 #include <names.h>
+#include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
+#include <thrust/host_vector.h>
 #include <thrust/iterator/counting_iterator.h>
 
 #include <cstddef>
 #include <cstdint>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE { namespace detail {
+
+namespace binary_classifier {
 
 void
-ClassEncoder<rapids::DeviceMemory>::argmax_for_multiclass(
-    rapids::Buffer<float>& output, rapids::Buffer<float>& input,
-    std::size_t samples, std::size_t num_classes) const
+convert_probability_to_class(
+    std::size_t n_samples, rapids::Buffer<float>& output, float threshold)
 {
-  // Perform argmax for multi-class classification
-  thrust::counting_iterator<std::size_t> cnt_iter =
-      thrust::make_counting_iterator<std::size_t>(0);
   thrust::for_each(
-      thrust::device, cnt_iter, cnt_iter + samples,
-      [dest = output.data(), src = input.data(),
-       num_classes] __device__(std::size_t i) {
-        float max_prob = 0.0f;
-        int max_class = 0;
-        for (std::size_t j = 0; j < num_classes; ++j) {
-          if (src[i * num_classes + j] > max_prob) {
-            max_prob = src[i * num_classes + j];
-            max_class = j;
-          }
-        }
-        dest[i] = max_class;
-      });
-}
-
-void
-ClassEncoder<rapids::DeviceMemory>::threshold_inplace(
-    rapids::Buffer<float>& output, std::size_t samples, float threshold) const
-{
-  // Perform thresholding in-place for binary classification
-  thrust::for_each(
-      thrust::device, output.data(), output.data() + samples,
+      thrust::device, output.data(), output.data() + n_samples,
       [threshold] __device__(float& e) {
         return (e > threshold) ? 1.0f : 0.0f;
       });
 }
 
 void
-convert_probability_scores(
-    std::size_t samples, rapids::Buffer<float>& output,
+convert_probability(
+    std::size_t n_samples, rapids::Buffer<float>& output,
     rapids::Buffer<float>& input)
 {
   thrust::counting_iterator<std::size_t> cnt_iter =
       thrust::make_counting_iterator<std::size_t>(0);
   thrust::for_each(
-      thrust::device, cnt_iter, cnt_iter + samples,
+      thrust::device, cnt_iter, cnt_iter + n_samples,
       [dest = output.data(), src = input.data()] __device__(std::size_t i) {
         dest[i * 2] = 1.0 - src[i];
         dest[i * 2 + 1] = src[i];
       });
 }
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace binary_classifier
+
+namespace multiclass_classifier {
+
+void
+gather_class_output(
+    std::size_t n_samples, std::size_t n_classes, rapids::Buffer<float>& output,
+    rapids::Buffer<float>& input)
+{
+  thrust::counting_iterator<std::size_t> cnt_iter =
+      thrust::make_counting_iterator<std::size_t>(0);
+  thrust::for_each(
+      thrust::device, cnt_iter, cnt_iter + n_samples,
+      [dest = output.data(), src = input.data(),
+       n_classes] __device__(std::size_t i) { dest[i] = src[i * n_classes]; });
+}
+
+}  // namespace multiclass_classifier
+
+void
+print_buffer(rapids::Buffer<float> const& buffer)
+{
+  auto ptr = thrust::device_pointer_cast(buffer.data());
+  thrust::device_vector<float> d(ptr, ptr + buffer.size());
+  thrust::host_vector<float> h = d;
+  for (float e : h) {
+    std::cerr << e << ", ";
+  }
+  std::cerr << std::endl;
+}
+
+void
+print_buffer(rapids::Buffer<float const> const& buffer)
+{
+  auto ptr = thrust::device_pointer_cast(buffer.data());
+  thrust::device_vector<float> d(ptr, ptr + buffer.size());
+  thrust::host_vector<float> h = d;
+  for (float e : h) {
+    std::cerr << e << ", ";
+  }
+  std::cerr << std::endl;
+}
+
+}}}}  // namespace triton::backend::NAMESPACE::detail

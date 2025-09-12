@@ -16,34 +16,40 @@
 
 #pragma once
 
-#include <detail/postprocess.h>
 #include <names.h>
 
 #include <cstddef>
 #include <rapids_triton/memory/buffer.hpp>
-#include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton { namespace backend { namespace NAMESPACE { namespace detail {
 
-template <>
-struct ClassEncoder<rapids::DeviceMemory> {
-  ClassEncoder() = default;
-  void argmax_for_multiclass(
-      rapids::Buffer<float>& output, rapids::Buffer<float>& input,
-      std::size_t samples, std::size_t num_classes) const;
-  void threshold_inplace(
-      rapids::Buffer<float>& output, std::size_t samples,
-      float threshold) const;
-};
+namespace binary_classifier {
 
-// Create the output vector of dimension (n, 2) from
-// the input vector of dimension (n, 1), by computing
-//   output(i, 1) := input(i, 0)
-//   output(i, 0) := 1 - input(i, 0)
-// This function is useful for representing output of
-// a binary classifier.
-void convert_probability_scores(
+// Apply thresholding to convert probability scores to class predictions
+//   output[i] := (1 if output[i] > threshold else 0)
+void convert_probability_to_class(
+    std::size_t n_samples, rapids::Buffer<float>& output, float threshold);
+
+// Convert (n, 1) probability score matrix to (n, 2) matrix
+//   output[i, 0] := 1 - input[i, 0]
+//   output[i, 1] := input[i, 0]
+void convert_probability(
     std::size_t n_samples, rapids::Buffer<float>& output,
     rapids::Buffer<float>& input);
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace binary_classifier
+
+namespace multiclass_classifier {
+
+// Gather class outputs into the output array by setting
+//   output[i] := input[i * n_classes]
+void gather_class_output(
+    std::size_t n_samples, std::size_t n_classes, rapids::Buffer<float>& output,
+    rapids::Buffer<float>& input);
+
+}  // namespace multiclass_classifier
+
+void print_buffer(rapids::Buffer<float> const& buffer);
+void print_buffer(rapids::Buffer<float const> const& buffer);
+
+}}}}  // namespace triton::backend::NAMESPACE::detail
