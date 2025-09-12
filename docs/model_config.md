@@ -298,7 +298,7 @@ followed by the children of those root nodes for each tree,
 and so forth. This traversal order ensures that all nodes of a
 particular tree at a particular depth are traversed together.
 
-In general, `depth_first` tends  to work the best for deeper trees
+In general, `depth_first` tends to work the best for deeper trees
 (depth 4 or greater), whereas `breadth_first` tends to work better
 for shallow trees. Your mileage  may vary, so make sure to measure
 performance to choose the best configuration.

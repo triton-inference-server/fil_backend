@@ -5,8 +5,8 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cudatoolkit=12.8
-  - cuml=25.06
+  - cuda-version=12.8
+  - cuml=25.08
   - joblib
   - jupyter
   - lightgbm
