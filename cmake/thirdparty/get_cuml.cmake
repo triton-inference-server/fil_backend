@@ -55,8 +55,8 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_cuml(VERSION    25.08
+find_and_configure_cuml(VERSION    25.10
                         FORK       rapidsai
-                        PINNED_TAG 00094f7e4e4b5da3a968d193a4da6085fa38f11b
+                        PINNED_TAG f9fcdbb050826d2ade8553872da0c19f5ebd2947
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )
