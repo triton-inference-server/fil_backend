@@ -34,7 +34,8 @@ function(find_and_configure_rapids_triton)
     )
 endfunction()
 
+# TODO(hcho3): Revert PINNED_TAG when RAPIDS is upgraded to 25.12
 find_and_configure_rapids_triton(VERSION    ${RAPIDS_DEPENDENCIES_VERSION}
                                  FORK       ${RAPIDS_TRITON_REPO_PATH}
-                                 PINNED_TAG ${RAPIDS_TRITON_REPO_TAG}
+                                 PINNED_TAG 661cbc8998cadecec7ccfbdea81ad4f1d6abf98f
                                  )
