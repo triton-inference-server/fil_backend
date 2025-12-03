@@ -6,8 +6,8 @@ channels:
   - rapidsai
 dependencies:
   - cuda-version=12.8
-  - cudf=25.08
-  - cuml=25.08
+  - cudf=25.10
+  - cuml=25.10
   - cupy
   - jupyter
   - kaggle
