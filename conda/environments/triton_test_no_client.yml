@@ -17,5 +17,5 @@ dependencies:
   - python
   - python-rapidjson
   - rapidsai::xgboost>=3.0
-  - scikit-learn>=1.5
+  - scikit-learn>=1.5,<1.8
   - treelite>=4.4

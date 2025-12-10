@@ -35,4 +35,4 @@ if __name__ == "__main__":
     model_dir = pathlib.Path(args.pickle_file).resolve().parent
     out_path = model_dir / "checkpoint.tl"
 
-    model.convert_to_treelite_model().serialize(str(out_path))
+    model.as_treelite().serialize(str(out_path))
