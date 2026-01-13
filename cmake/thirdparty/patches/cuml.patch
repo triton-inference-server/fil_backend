@@ -1,0 +1,43 @@
+From be547b2d046a998ab8f35c21fc235130654aa13c Mon Sep 17 00:00:00 2001
+From: Hyunsu Cho <phcho@nvidia.com>
+Date: Mon, 12 Jan 2026 06:33:22 -0800
+Subject: [PATCH] Fix linking logic for cumlprims_mg
+
+---
+ cpp/CMakeLists.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
+index d82d405aa..e96791d30 100644
+--- a/cpp/CMakeLists.txt
++++ b/cpp/CMakeLists.txt
+@@ -626,7 +626,7 @@ if(BUILD_CUML_CPP_LIBRARY)
+
+   target_link_libraries(
+     cuml_objs
+-    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft cumlprims_mg::cumlprims_mg
++    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft $<TARGET_NAME_IF_EXISTS:cumlprims_mg::cumlprims_mg>
+            ${TREELITE_LIBS} ${_cuml_cpp_public_libs}
+     PRIVATE ${_cuml_cpp_private_libs} ${CUVS_LIB}
+   )
+@@ -687,7 +687,7 @@ if(NOT cuml_compile_mode STREQUAL "static_only")
+
+   target_link_libraries(
+     ${CUML_CPP_TARGET}
+-    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft cumlprims_mg::cumlprims_mg
++    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft $<TARGET_NAME_IF_EXISTS:cumlprims_mg::cumlprims_mg>
+            ${TREELITE_LIBS} ${_cuml_cpp_public_libs}
+     PRIVATE ${_cuml_cpp_private_libs} ${CUVS_LIB}
+   )
+@@ -764,7 +764,7 @@ if(NOT cuml_compile_mode STREQUAL "shared_only")
+
+   target_link_libraries(
+     ${CUML_CPP_TARGET}_static
+-    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft cumlprims_mg::cumlprims_mg
++    PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft $<TARGET_NAME_IF_EXISTS:cumlprims_mg::cumlprims_mg>
+            ${TREELITE_LIBS} ${_cuml_cpp_public_libs}
+     PRIVATE ${_cuml_cpp_private_libs} ${CUVS_LIB}
+   )
+--
+2.43.0
+
