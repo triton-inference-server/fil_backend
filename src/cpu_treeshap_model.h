@@ -329,10 +329,6 @@ struct TreeShapModel<rapids::HostMemory> {
 
           TREELITE_CHECK_EQ(model.num_target, 1)
               << "Multi-target model not yet supported";
-          for (int i = 1; i < model.num_class[0]; ++i) {
-            TREELITE_CHECK_EQ(model.base_scores[0], model.base_scores[i])
-                << "Vector base_scores not supported";
-          }
 
           num_class_ = model.num_class[0];
           bool is_vector_leaf = model.leaf_vector_shape[1] > 1;
@@ -349,7 +345,10 @@ struct TreeShapModel<rapids::HostMemory> {
                     value_type(model_preset.trees.at(tree_idx), class_idx));
           }
           average_factor_ = herring::get_average_factor(model);
-          global_bias_ = model.base_scores[0];
+          base_scores_.resize(model.num_class[0]);
+          for (int i = 0; i < model.num_class[0]; ++i) {
+            base_scores_[i] = model.base_scores[i];
+          }
         },
         model.variant_);
   }
@@ -383,7 +382,7 @@ struct TreeShapModel<rapids::HostMemory> {
             for (auto class_idx = 0; class_idx < num_class_; class_idx++) {
               auto output_offset =
                   (i * num_class_ + class_idx) * (n_cols + 1) + n_cols;
-              output.data()[output_offset] += global_bias_;
+              output.data()[output_offset] += base_scores_[class_idx];
             }
           }
         },
@@ -392,7 +391,7 @@ struct TreeShapModel<rapids::HostMemory> {
   std::shared_ptr<TreeliteModel> tl_model_;
   int num_class_;
   float average_factor_;
-  float global_bias_;
+  std::vector<float> base_scores_;
   // Vector of supplementary information for each tree
   // Contains precomputed data necessary for linear treeshap algorithm
   std::variant<
