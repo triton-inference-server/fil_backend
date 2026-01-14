@@ -7,8 +7,8 @@ dependencies:
   - aws-sdk-cpp
   - clang-tools=19.1.7
   - cuda-version=12.8
-  - cudf=25.10
-  - cuml=25.10
+  - cudf=25.12
+  - cuml=25.12
   - flake8
   - hypothesis
   - lightgbm
@@ -18,4 +18,4 @@ dependencies:
   - python-rapidjson
   - rapidsai::xgboost>=3.0
   - scikit-learn>=1.5,<1.8
-  - treelite>=4.4
+  - treelite>=4.6

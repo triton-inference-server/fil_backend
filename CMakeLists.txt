@@ -27,9 +27,9 @@ set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server
 
 # Specify *minimum* version for all RAPIDS dependencies
 # Some RAPIDS deps may have later versions
-set(RAPIDS_DEPENDENCIES_VERSION "25.08" CACHE STRING "RAPIDS projects dependencies version")
+set(RAPIDS_DEPENDENCIES_VERSION "25.12" CACHE STRING "RAPIDS projects dependencies version")
 set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACHE STRING "Git repository to pull rapids_triton from")
-set(RAPIDS_TRITON_REPO_TAG "branch-${RAPIDS_DEPENDENCIES_VERSION}" CACHE STRING "Tag for rapidsai/rapids-triton repo")
+set(RAPIDS_TRITON_REPO_TAG "v${RAPIDS_DEPENDENCIES_VERSION}.00" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
   project(RAPIDS_TRITON_BACKEND VERSION 25.08.00)
@@ -82,9 +82,9 @@ else()
 
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
-  set(rapids-cmake-version 25.10)
+  set(rapids-cmake-version 25.12)
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-25.10/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/refs/tags/v25.12.00/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -246,6 +246,17 @@ else()
     "${TRITONSERVER_LIB}"
     $<TARGET_NAME_IF_EXISTS:conda_env>
     OpenMP::OpenMP_CXX
+    rapidjson
+  )
+
+  # Fix issue with locating RapidJSON headers in Triton base
+  target_link_libraries(triton-json-test rapidjson)
+  target_link_libraries(triton-common-logging
+    PRIVATE rapidjson)
+  target_link_libraries(
+    triton-common-json
+    INTERFACE
+    rapidjson
   )
 
   if(TRITON_ENABLE_GPU)
