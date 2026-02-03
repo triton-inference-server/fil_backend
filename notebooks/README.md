@@ -1,5 +1,5 @@
 <!--
-# Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2021-2026, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -45,10 +45,3 @@ on how to run the example.
   This notebook answers a series of frequently asked questions around the FIL
   backend for Triton and offers example code with practical applications of
   those answers.
-
-## Deprecated Examples
-- [Simple
-  XGBoost](https://github.com/triton-inference-server/fil_backend/tree/main/notebooks/simple-xgboost):
-  This example has been superseded by the Categorical Fraud Example, which
-  offers a more succinct and up-to-date example of how to train and deploy an
-  XGBoost model.

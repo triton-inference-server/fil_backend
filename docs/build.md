@@ -1,5 +1,5 @@
 <!--
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022-2026, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -35,7 +35,7 @@ you may follow the indicated steps.
 **Note**: Most users will not need to build their own copy of the FIL backend.
 These instructions are intended for developers and those who wish to make
 custom tweaks to the backend. If you are just looking for install instructions,
-follow our [installation guide](docs/install.md).
+follow our [installation guide](./install.md).
 
 ## Prerequisites
 The FIL backend may be built either using Docker or on the host. We
