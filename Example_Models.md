@@ -93,7 +93,7 @@ python  qa/L0_e2e/generate_example_model.py --type sklearn --name skl_example
 ## Testing example models
 Once you have generated an example model (or set up a real model), you can test
 it using the `qa/L0_e2e/test_model.py` script. After [starting the
-server](https://github.com/triton-inference-server/fil_backend#starting-the-server),
+server](README.md#quickstart-deploying-a-tree-model-in-3-steps),
 the simplest invocation of this script is just:
 ```bash
 python qa/L0_e2e/test_model.py --name $NAME_OF_MODEL

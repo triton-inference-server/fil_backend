@@ -1,5 +1,5 @@
 <!--
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022-2026, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -55,7 +55,7 @@ working FIL backend implementation.
 In order to actually deploy a model, you will need to provide the serialized
 model and configuration file in a specially-structured directory called the
 "model repository." Check out the
-[configuration guide](docs/model_config.md) for details on how to do this for your model.
+[configuration guide](./model_config.md) for details on how to do this for your model.
 
 Assuming your model repository is on the host system, you can
 bind-mount it into the container and start the server via the following
