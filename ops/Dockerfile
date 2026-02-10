@@ -212,6 +212,7 @@ FROM test-host-${USE_HOST_LIB} as test-build
 FROM ${SERVER_IMAGE} as test-stage
 ARG BACKEND_NAME=fil
 ENV BACKEND_NAME=$BACKEND_NAME
+ENV PYTHONPATH=
 
 COPY --from=conda-test /conda/test /conda/test
 
