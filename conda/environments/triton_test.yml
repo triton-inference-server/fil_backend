@@ -19,6 +19,7 @@ dependencies:
   - rapidsai::xgboost>=3.0
   - scikit-learn>=1.5,<1.8
   - treelite>=4.6
+  - setuptools<82
   - pip:
       - tritonclient[all]
       - protobuf
