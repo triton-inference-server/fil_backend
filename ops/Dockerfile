@@ -3,7 +3,7 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=25.12
+ARG TRITON_VERSION=26.01
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to enable GPU build
@@ -212,6 +212,7 @@ FROM test-host-${USE_HOST_LIB} as test-build
 FROM ${SERVER_IMAGE} as test-stage
 ARG BACKEND_NAME=fil
 ENV BACKEND_NAME=$BACKEND_NAME
+ENV PYTHONPATH=
 
 COPY --from=conda-test /conda/test /conda/test
 
