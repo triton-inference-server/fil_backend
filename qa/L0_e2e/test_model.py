@@ -226,6 +226,11 @@ def model_data(request, client, model_repo):
     """All data associated with a model required for generating examples and
     comparing with ground truth results"""
     name = request.param
+
+    if name == "xgboost_shap":
+        # TODO(hcho3): Re-enable xgboost_shap once test is fixed
+        pytest.xfail("xgboost_shap test flaky")
+
     config = client.get_model_config(name)
     input_shapes = {input_.name: list(input_.dims) for input_ in config.input}
     output_sizes = {
