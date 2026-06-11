@@ -27,7 +27,7 @@ set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server
 
 # Specify *minimum* version for all RAPIDS dependencies
 # Some RAPIDS deps may have later versions
-set(RAPIDS_DEPENDENCIES_VERSION "25.12" CACHE STRING "RAPIDS projects dependencies version")
+set(RAPIDS_DEPENDENCIES_VERSION "26.06" CACHE STRING "RAPIDS projects dependencies version")
 set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACHE STRING "Git repository to pull rapids_triton from")
 set(RAPIDS_TRITON_REPO_TAG "v${RAPIDS_DEPENDENCIES_VERSION}.00" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
