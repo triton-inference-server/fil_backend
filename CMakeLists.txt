@@ -37,7 +37,7 @@ if(TRITON_FIL_DOCKER_BUILD)
   set(TRITON_BUILD_CONTAINER_VERSION "25.08" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
-    OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
+    OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml.so>
     COMMAND DOCKER_BUILDKIT=1 docker build -t
       triton_fil_builder
       $<$<BOOL:$ENV{CCACHE_REMOTE_STORAGE}>:--build-arg>
@@ -66,7 +66,7 @@ if(TRITON_FIL_DOCKER_BUILD)
   add_custom_target(
     fil_docker
     ALL
-    DEPENDS fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
+    DEPENDS fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml.so>
   )
   install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fil
@@ -103,7 +103,7 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
+  option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml.so" ON)
 
 
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
@@ -238,7 +238,7 @@ else()
 
   target_link_libraries(${BACKEND_TARGET}
   PRIVATE
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml>
     ${TREELITE_LIBS}
     rapids_triton::rapids_triton
     triton-core-serverstub
@@ -260,7 +260,7 @@ else()
   )
 
   if(TRITON_ENABLE_GPU)
-    list(APPEND BACKEND_TARGET "cuml++" "rmm" "rapids_logger")
+    list(APPEND BACKEND_TARGET "cuml" "rmm" "rapids_logger")
   endif()
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)

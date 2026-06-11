@@ -24,7 +24,7 @@ function(find_and_configure_cuml)
     list(APPEND CUML_ALGORITHMS "TREESHAP")
 
     rapids_cpm_find(cuml ${PKG_VERSION}
-      GLOBAL_TARGETS      cuml++
+      GLOBAL_TARGETS      cuml
       BUILD_EXPORT_SET    rapids_triton-exports
       INSTALL_EXPORT_SET  rapids_triton-exports
         CPM_ARGS
@@ -32,7 +32,6 @@ function(find_and_configure_cuml)
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
-              "BUILD_CUML_C_LIBRARY OFF"
               "BUILD_CUML_CPP_LIBRARY ON"
               "BUILD_CUML_TESTS OFF"
               "BUILD_PRIMS_TESTS OFF"
