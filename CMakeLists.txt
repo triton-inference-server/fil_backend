@@ -32,9 +32,9 @@ set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACH
 set(RAPIDS_TRITON_REPO_TAG "v${RAPIDS_DEPENDENCIES_VERSION}.00" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  project(RAPIDS_TRITON_BACKEND VERSION 25.08.00)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.08-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "25.08" CACHE STRING "Triton version for Dockerized builds")
+  project(RAPIDS_TRITON_BACKEND VERSION 26.06.00)
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:26.05-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "26.05" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
     OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml.so>

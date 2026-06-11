@@ -65,7 +65,7 @@ RUN conda run --no-capture-output -n triton_test \
 
 FROM wheel-install-${USE_CLIENT_WHEEL} as conda-test
 RUN conda run --no-capture-output -n triton_test \
-    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-25.06#subdirectory=python
+    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-26.06#subdirectory=python
 RUN conda-pack --ignore-missing-files -n triton_test -o /tmp/env.tar \
  && mkdir /conda/test/ \
  && cd /conda/test/ \
@@ -152,7 +152,7 @@ ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
 # Specify *minimum* version for all RAPIDS dependencies
 # Some RAPIDS deps may have later versions
-ARG RAPIDS_DEPENDENCIES_VERSION=25.06
+ARG RAPIDS_DEPENDENCIES_VERSION=26.06
 ENV RAPIDS_DEPENDENCIES_VERSION=$RAPIDS_DEPENDENCIES_VERSION
 
 ARG TRITON_FIL_USE_TREELITE_STATIC=ON
