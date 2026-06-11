@@ -20,8 +20,7 @@ function(find_and_configure_cuml)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
-    set(CUML_ALGORITHMS "FIL" CACHE STRING "List of algorithms to build in cuml")
-    list(APPEND CUML_ALGORITHMS "TREESHAP")
+    set(CUML_ALGORITHMS "TREESHAP" CACHE STRING "List of algorithms to build in cuml")
 
     rapids_cpm_find(cuml ${PKG_VERSION}
       GLOBAL_TARGETS      cuml
@@ -31,6 +30,7 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            GIT_SHALLOW    TRUE
             # Patch cuML to use 26.06 RMM
             # TODO(hcho3): Remove patch once cuML is upgraded to 26.08
             PATCHES        "./patches/cuml.patch"

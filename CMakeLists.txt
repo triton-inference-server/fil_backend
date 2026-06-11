@@ -180,6 +180,7 @@ else()
     include(cmake/thirdparty/get_treelite.cmake)
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
+  include(cmake/thirdparty/get_nvforest.cmake)
 
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)
@@ -240,6 +241,7 @@ else()
   PRIVATE
     $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml>
     ${TREELITE_LIBS}
+    nvforest::nvforest++
     rapids_triton::rapids_triton
     triton-core-serverstub
     triton-backend-utils
