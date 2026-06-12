@@ -65,7 +65,7 @@ RUN conda run --no-capture-output -n triton_test \
 
 FROM wheel-install-${USE_CLIENT_WHEEL} as conda-test
 RUN conda run --no-capture-output -n triton_test \
-    pip install git+https://github.com/rapidsai/rapids-triton.git@branch-26.06#subdirectory=python
+    pip install git+https://github.com/rapidsai/rapids-triton.git@v26.06.00#subdirectory=python
 RUN conda-pack --ignore-missing-files -n triton_test -o /tmp/env.tar \
  && mkdir /conda/test/ \
  && cd /conda/test/ \
