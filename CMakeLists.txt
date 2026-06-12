@@ -264,6 +264,7 @@ else()
   if(TRITON_ENABLE_GPU)
     list(APPEND BACKEND_TARGET "cuml" "rmm" "rapids_logger")
   endif()
+  list(APPEND BACKEND_TARGET "nvforest++")
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})
