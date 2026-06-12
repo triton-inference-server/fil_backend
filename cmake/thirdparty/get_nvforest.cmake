@@ -29,6 +29,9 @@ function(find_and_configure_nvforest)
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             GIT_SHALLOW    TRUE
+            # Patch nvForest to exclude RAFT if GPU is disabled
+            # TODO(hcho3): Upstream patch to nvForest
+            PATCHES        "./patches/nvforest.patch"
             OPTIONS
               "BUILD_NVFOREST_TESTS OFF"
               "BUILD_SHARED_LIBS ON"
