@@ -27,17 +27,17 @@ set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server
 
 # Specify *minimum* version for all RAPIDS dependencies
 # Some RAPIDS deps may have later versions
-set(RAPIDS_DEPENDENCIES_VERSION "25.12" CACHE STRING "RAPIDS projects dependencies version")
+set(RAPIDS_DEPENDENCIES_VERSION "26.06" CACHE STRING "RAPIDS projects dependencies version")
 set(RAPIDS_TRITON_REPO_PATH "https://github.com/rapidsai/rapids-triton.git" CACHE STRING "Git repository to pull rapids_triton from")
 set(RAPIDS_TRITON_REPO_TAG "v${RAPIDS_DEPENDENCIES_VERSION}.00" CACHE STRING "Tag for rapidsai/rapids-triton repo")
 
 if(TRITON_FIL_DOCKER_BUILD)
-  project(RAPIDS_TRITON_BACKEND VERSION 25.08.00)
-  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:25.08-py3" CACHE STRING "Build image for Dockerized builds")
-  set(TRITON_BUILD_CONTAINER_VERSION "25.08" CACHE STRING "Triton version for Dockerized builds")
+  project(RAPIDS_TRITON_BACKEND VERSION 26.06.00)
+  set(TRITON_BUILD_CONTAINER "nvcr.io/nvidia/tritonserver:26.05-py3" CACHE STRING "Build image for Dockerized builds")
+  set(TRITON_BUILD_CONTAINER_VERSION "26.05" CACHE STRING "Triton version for Dockerized builds")
 
   add_custom_command(
-    OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
+    OUTPUT fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml.so>
     COMMAND DOCKER_BUILDKIT=1 docker build -t
       triton_fil_builder
       $<$<BOOL:$ENV{CCACHE_REMOTE_STORAGE}>:--build-arg>
@@ -66,7 +66,7 @@ if(TRITON_FIL_DOCKER_BUILD)
   add_custom_target(
     fil_docker
     ALL
-    DEPENDS fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml++.so>
+    DEPENDS fil/libtriton_fil.so $<$<BOOL:${TRITON_ENABLE_GPU}>:fil/libcuml.so>
   )
   install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fil
@@ -82,9 +82,9 @@ else()
 
   ##############################################################################
   # - Prepare rapids-cmake -----------------------------------------------------
-  set(rapids-cmake-version 25.12)
+  set(rapids-cmake-version 26.06)
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/refs/tags/v25.12.00/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/refs/tags/v26.06.00/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)
@@ -103,7 +103,7 @@ else()
   option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
   option(NVTX "Enable nvtx markers" OFF)
   set(BACKEND_FOLDER "/opt/tritonserver/backends" CACHE STRING "Triton backend folder path")
-  option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml++.so" ON)
+  option(TRITON_FIL_USE_TREELITE_STATIC "Link Treelite statically in libtriton_fil.so and cuml.so" ON)
 
 
   message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
@@ -180,6 +180,7 @@ else()
     include(cmake/thirdparty/get_treelite.cmake)
   endif()
   include(cmake/thirdparty/get_rapids-triton.cmake)
+  include(cmake/thirdparty/get_nvforest.cmake)
 
   if(BUILD_TESTS)
     include(cmake/thirdparty/get_gtest.cmake)
@@ -238,8 +239,9 @@ else()
 
   target_link_libraries(${BACKEND_TARGET}
   PRIVATE
-    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml++>
+    $<$<BOOL:${TRITON_ENABLE_GPU}>:cuml>
     ${TREELITE_LIBS}
+    nvforest::nvforest++
     rapids_triton::rapids_triton
     triton-core-serverstub
     triton-backend-utils
@@ -260,8 +262,9 @@ else()
   )
 
   if(TRITON_ENABLE_GPU)
-    list(APPEND BACKEND_TARGET "cuml++" "rmm" "rapids_logger")
+    list(APPEND BACKEND_TARGET "cuml" "rmm" "rapids_logger")
   endif()
+  list(APPEND BACKEND_TARGET "nvforest++")
 
   if(NOT TRITON_FIL_USE_TREELITE_STATIC)
     list(APPEND BACKEND_TARGET ${TREELITE_LIBS_NO_PREFIX})

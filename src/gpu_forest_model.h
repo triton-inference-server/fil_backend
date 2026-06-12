@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,18 @@
 
 #include <cuda_runtime_api.h>
 #include <detail/postprocess_gpu.h>
-#include <fil_config.h>
 #include <forest_model.h>
 #include <names.h>
+#include <nvforest_config.h>
 #include <tl_model.h>
 
 #include <cstddef>
-#include <cuml/fil/detail/raft_proto/cuda_stream.hpp>
-#include <cuml/fil/detail/raft_proto/device_type.hpp>
-#include <cuml/fil/forest_model.hpp>
-#include <cuml/fil/infer_kind.hpp>
-#include <cuml/fil/treelite_importer.hpp>
 #include <memory>
+#include <nvforest/detail/raft_proto/cuda_stream.hpp>
+#include <nvforest/detail/raft_proto/device_type.hpp>
+#include <nvforest/forest_model.hpp>
+#include <nvforest/infer_kind.hpp>
+#include <nvforest/treelite_importer.hpp>
 #include <raft/core/handle.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
@@ -43,11 +43,13 @@ struct ForestModel<rapids::DeviceMemory> {
       device_id_t device_id, cudaStream_t stream,
       std::shared_ptr<TreeliteModel> tl_model)
       : device_id_{device_id}, raft_handle_{stream}, tl_model_{tl_model},
-        fil_forest_{[this, device_id, stream]() {
+        nvforest_model_{[this, device_id, stream]() {
           auto config = tl_model_->config();
-          auto result = ML::fil::import_from_treelite_handle(
-              tl_model_->handle(), detail::name_to_fil_layout(config.layout),
-              128, false, raft_proto::device_type::gpu, device_id, stream);
+          auto result = nvforest::import_from_treelite_handle(
+              tl_model_->handle(),
+              detail::name_to_nvforest_layout(config.layout), 128, false,
+              raft_proto::device_type::gpu, device_id,
+              raft_proto::cuda_stream{stream});
           return result;
         }()}
   {
@@ -69,13 +71,13 @@ struct ForestModel<rapids::DeviceMemory> {
         output.data(), output.size(), output.mem_type(), output.device(),
         output.stream()};
     auto output_size = output.size();
-    // FIL expects buffer of size samples * num_classes for multi-class
+    // nvForest expects buffer of size samples * num_classes for multi-class
     // classifiers, but output buffer may be smaller, so we need a temporary
     // buffer
     auto const num_classes = tl_model_->num_classes();
     if (!predict_proba && tl_model_->config().is_classifier &&
         num_classes > 1) {
-      fil_forest_.set_row_postprocessing(ML::fil::row_op::max_index);
+      nvforest_model_.set_row_postprocessing(nvforest::row_op::max_index);
       output_size = samples * num_classes;
       if (output_size != output.size()) {
         // If expected output size is not the same as the size of `output`,
@@ -85,7 +87,7 @@ struct ForestModel<rapids::DeviceMemory> {
             output.stream()};
       }
     }
-    // For some binary classifiers, FIL will output a single probability
+    // For some binary classifiers, nvForest will output a single probability
     // score per input, but the client may be expecting two probability
     // scores (for positive and negative classes). In this case,
     // a temp buffer is necessary.
@@ -97,10 +99,10 @@ struct ForestModel<rapids::DeviceMemory> {
       convert_binary_probs = true;
     }
 
-    fil_forest_.predict(
+    nvforest_model_.predict(
         raft_proto::handle_t{raft_handle_}, output_buffer.data(),
         const_cast<float*>(input.data()), samples, raft_proto::device_type::gpu,
-        raft_proto::device_type::gpu, ML::fil::infer_kind::default_kind,
+        raft_proto::device_type::gpu, nvforest::infer_kind::default_kind,
         tl_model_->config().chunk_size);
     raft_handle_.sync_stream();
     output_buffer.stream_synchronize();
@@ -133,7 +135,7 @@ struct ForestModel<rapids::DeviceMemory> {
  private:
   raft::handle_t raft_handle_;
   std::shared_ptr<TreeliteModel> tl_model_;
-  mutable ML::fil::forest_model fil_forest_;
+  mutable nvforest::forest_model nvforest_model_;
   device_id_t device_id_;
 };
 
