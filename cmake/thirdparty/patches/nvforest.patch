@@ -1,14 +1,15 @@
-From c443dea9bc8d2467bf6794aef4a8b0a6c4a0dc47 Mon Sep 17 00:00:00 2001
+From 5b8425686e4c3eefffc3da7a8e62fd8e2ef4c0ce Mon Sep 17 00:00:00 2001
 From: Hyunsu Cho <phcho@nvidia.com>
-Date: Thu, 11 Jun 2026 17:27:41 -0700
+Date: Thu, 11 Jun 2026 17:38:44 -0700
 Subject: [PATCH] Enable building without CUDA toolkit
 
 ---
- cpp/CMakeLists.txt | 52 +++++++++++++++++++++++++++++++---------------
- 1 file changed, 35 insertions(+), 17 deletions(-)
+ cpp/CMakeLists.txt       | 54 ++++++++++++++++++++++++++--------------
+ cpp/tests/CMakeLists.txt | 19 ++++++++++----
+ 2 files changed, 50 insertions(+), 23 deletions(-)
 
 diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
-index fb9d015..1c61e8d 100644
+index fb9d015..c7eec33 100644
 --- a/cpp/CMakeLists.txt
 +++ b/cpp/CMakeLists.txt
 @@ -24,12 +24,18 @@ include(rapids-cuda)
@@ -63,12 +64,14 @@ index fb9d015..1c61e8d 100644
 
  if(USE_CCACHE)
    set(CMAKE_C_COMPILER_LAUNCHER ccache)
-@@ -184,7 +192,9 @@ endif()
+@@ -183,8 +191,10 @@ endif()
+
  # CCCL before RMM, and RMM before RAFT
  include(cmake/thirdparty/get_cccl.cmake)
- include(cmake/thirdparty/get_rmm.cmake)
+-include(cmake/thirdparty/get_rmm.cmake)
 -include(cmake/thirdparty/get_raft.cmake)
 +if(NVFOREST_ENABLE_GPU)
++  include(cmake/thirdparty/get_rmm.cmake)
 +  include(cmake/thirdparty/get_raft.cmake)
 +endif()
  include(cmake/thirdparty/get_treelite.cmake)
@@ -96,7 +99,7 @@ index fb9d015..1c61e8d 100644
  endif()
 
 +if(NVFOREST_ENABLE_GPU)
-+  list(APPEND _nvforest_cpp_public_libs raft::raft CUDA::cudart_static)
++  list(APPEND _nvforest_cpp_public_libs rmm::rmm raft::raft CUDA::cudart_static)
 +endif()
 +
  # These are always private:
@@ -105,10 +108,54 @@ index fb9d015..1c61e8d 100644
  target_link_libraries(
    ${NVFOREST_CPP_TARGET}
 -  PUBLIC rapids_logger::rapids_logger rmm::rmm raft::raft CUDA::cudart_static ${_nvforest_cpp_public_libs}
-+  PUBLIC rapids_logger::rapids_logger rmm::rmm ${_nvforest_cpp_public_libs}
++  PUBLIC rapids_logger::rapids_logger ${_nvforest_cpp_public_libs}
    PRIVATE ${_nvforest_cpp_private_libs})
 
  # Ensure CUDA symbols aren't relocated to the middle of the debug build binaries
+diff --git a/cpp/tests/CMakeLists.txt b/cpp/tests/CMakeLists.txt
+index 4430c46..b0aee19 100644
+--- a/cpp/tests/CMakeLists.txt
++++ b/cpp/tests/CMakeLists.txt
+@@ -44,8 +44,6 @@ function(ConfigureTest)
+   target_link_libraries(
+     ${_NVFOREST_TEST_NAME}
+     PRIVATE ${NVFOREST_CPP_TARGET}
+-            rmm::rmm
+-            raft::raft
+             GTest::gtest
+             GTest::gtest_main
+             GTest::gmock
+@@ -53,6 +51,13 @@ function(ConfigureTest)
+             Threads::Threads
+             ${TREELITE_LIBS}
+             $<TARGET_NAME_IF_EXISTS:conda_env>)
++  if(NVFOREST_ENABLE_GPU)
++    target_link_libraries(
++      ${_NVFOREST_TEST_NAME}
++      PRIVATE rmm::rmm
++              raft::raft)
++  endif()
++
+
+   target_compile_options(${_NVFOREST_TEST_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${NVFOREST_CXX_FLAGS}>"
+                                                         "$<$<COMPILE_LANGUAGE:CUDA>:${NVFOREST_CUDA_FLAGS}>")
+@@ -63,9 +68,13 @@ function(ConfigureTest)
+     ${_NVFOREST_TEST_NAME}
+     PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+                CXX_STANDARD 17
+-               CXX_STANDARD_REQUIRED ON
+-               CUDA_STANDARD 17
+-               CUDA_STANDARD_REQUIRED ON)
++               CXX_STANDARD_REQUIRED ON)
++  if(NVFOREST_ENABLE_GPU)
++    set_target_properties(
++      ${_NVFOREST_TEST_NAME}
++      PROPERTIES CUDA_STANDARD 17
++                 CUDA_STANDARD_REQUIRED ON)
++  endif()
+
+   set(_NVFOREST_TEST_COMPONENT_NAME testing)
+
 --
 2.43.0
 
