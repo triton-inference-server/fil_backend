@@ -30,9 +30,36 @@
 #include <rapids_triton/memory/types.hpp>
 #include <variant>
 
-#include "herring/tl_helpers.hpp"
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton::backend { namespace NAMESPACE {
+
+namespace treelite_helper {
+auto
+get_average_factor(treelite::Model const& tl_model)
+{
+  auto num_tree = tl_model.GetNumTree();
+  if (tl_model.average_tree_output) {
+    if (tl_model.task_type == treelite::TaskType::kMultiClf &&
+        tl_model.leaf_vector_shape[1] == 1) {
+      // Check for grove-per-class layout
+      // TODO(hcho3): Remove once Herring supports Treelite 4.0 fully
+      TREELITE_CHECK_EQ(tl_model.num_target, 1)
+          << "Multi-target model not supported";
+      auto num_class = tl_model.num_class[0];
+      for (size_t i = 0; i < num_tree; ++i) {
+        TREELITE_CHECK_EQ(tl_model.class_id[i], i % num_class)
+            << "Unsupported class assignment for trees. "
+            << "Tree i should be associated with clas (i % num_class)";
+      }
+      return float(num_tree / num_class);
+    } else {
+      return float(num_tree);
+    }
+  }
+  return 1.0f;
+}
+
+}  // namespace treelite_helper
 
 template <typename tl_threshold_t, typename tl_output_t>
 double
@@ -344,7 +371,7 @@ struct TreeShapModel<rapids::HostMemory> {
                 typename std::remove_reference<decltype(info)>::type::
                     value_type(model_preset.trees.at(tree_idx), class_idx));
           }
-          average_factor_ = herring::get_average_factor(model);
+          average_factor_ = treelite_helper::get_average_factor(model);
           base_scores_.resize(model.num_class[0]);
           for (int i = 0; i < model.num_class[0]; ++i) {
             base_scores_[i] = model.base_scores[i];
@@ -399,4 +426,4 @@ struct TreeShapModel<rapids::HostMemory> {
       std::vector<TreeMetaInfo<double, double>>>
       meta_infos_;
 };
-}}}  // namespace triton::backend::NAMESPACE
+}}  // namespace triton::backend::NAMESPACE
