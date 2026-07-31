@@ -30,7 +30,6 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            GIT_SHALLOW    TRUE
             OPTIONS
               "BUILD_CUML_CPP_LIBRARY ON"
               "BUILD_CUML_TESTS OFF"
