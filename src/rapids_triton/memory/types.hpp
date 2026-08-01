@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,21 @@
 #pragma once
 #include <triton/core/tritonserver.h>
 
-namespace triton { namespace backend { namespace rapids {
+#include <string>
+
+namespace triton::backend::rapids {
 using MemoryType = TRITONSERVER_MemoryType;
 auto constexpr DeviceMemory = TRITONSERVER_MEMORY_GPU;
 auto constexpr HostMemory = TRITONSERVER_MEMORY_CPU;
-}}}  // namespace triton::backend::rapids
+
+inline std::string
+memory_type_to_string(MemoryType t)
+{
+  if (t == DeviceMemory) {
+    return "DeviceMemory";
+  } else {
+    return "HostMemory";
+  }
+}
+
+}  // namespace triton::backend::rapids

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <detail/omp_helpers.h>
 #include <float.h>
 #include <linear_treeshap_constants.h>
 #include <names.h>
@@ -42,7 +43,7 @@ get_average_factor(treelite::Model const& tl_model)
     if (tl_model.task_type == treelite::TaskType::kMultiClf &&
         tl_model.leaf_vector_shape[1] == 1) {
       // Check for grove-per-class layout
-      // TODO(hcho3): Remove once Herring supports Treelite 4.0 fully
+      // TODO(hcho3): Remove once CPU Treeshap supports Treelite 4.0 fully
       TREELITE_CHECK_EQ(tl_model.num_target, 1)
           << "Multi-target model not supported";
       auto num_class = tl_model.num_class[0];
@@ -384,7 +385,7 @@ struct TreeShapModel<rapids::HostMemory> {
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t n_rows, std::size_t n_cols) const
   {
-    thread_count<int> nthread(tl_model_->config().cpu_nthread);
+    detail::thread_count<int> nthread(tl_model_->config().cpu_nthread);
     std::visit(
         [&](const auto& info) {
 #pragma omp parallel for num_threads(static_cast<int>(nthread))

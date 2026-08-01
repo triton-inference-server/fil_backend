@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton::backend { namespace NAMESPACE {
 
 /* This struct defines a unified prediction interface to both FIL and GTIL.
  * Template specializations are provided based on the type of memory the model
@@ -63,4 +63,4 @@ struct ForestModel {
         "ForestModel invoked with a memory type unsupported by this build");
   }
 };
-}}}  // namespace triton::backend::NAMESPACE
+}}  // namespace triton::backend::NAMESPACE

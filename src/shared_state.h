@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,6 +72,14 @@ struct RapidsSharedState : rapids::SharedModelState {
       }
     }
 
+    if (!get_config_param<std::string>(
+             "use_experimental_optimizations", std::string{})
+             .empty()) {
+      rapids::log_warn(__FILE__, __LINE__)
+          << "The `use_experimental_optimizations` parameter has been removed "
+             "in 26.08 release.";
+    }
+
     predict_proba_ = get_config_param<bool>("predict_proba", false);
     model_format_ = string_to_serialization(
         get_config_param<std::string>("model_type", std::string{"xgboost"}));
@@ -95,8 +103,6 @@ struct RapidsSharedState : rapids::SharedModelState {
     tl_config_->chunk_size =
         std::max(1, get_config_param<int>("chunk_size", 1));
     tl_config_->cpu_nthread = get_config_param<int>("cpu_nthread", -1);
-    use_herring_ =
-        get_config_param<bool>("use_experimental_optimizations", false);
   }
 
   auto predict_proba() const { return predict_proba_; }
@@ -107,7 +113,6 @@ struct RapidsSharedState : rapids::SharedModelState {
   }
   auto transfer_threshold() const { return transfer_threshold_; }
   auto config() const { return tl_config_; }
-  auto use_herring() const { return use_herring_; }
 
  private:
   bool predict_proba_{};
@@ -116,7 +121,6 @@ struct RapidsSharedState : rapids::SharedModelState {
   std::size_t transfer_threshold_{};
   std::shared_ptr<treelite_config> tl_config_ =
       std::make_shared<treelite_config>();
-  bool use_herring_{};
 };
 
 }}}  // namespace triton::backend::NAMESPACE

@@ -193,7 +193,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     // Load model via Treelite
     auto tl_model = std::make_shared<TreeliteModel>(
         model_file(), shared_state->model_format(), shared_state->config(),
-        shared_state->predict_proba(), shared_state->use_herring(),
+        shared_state->predict_proba(),
         shared_state->xgboost_allow_unknown_field());
 
 

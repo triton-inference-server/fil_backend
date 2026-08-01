@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,30 +18,56 @@
 
 #include <forest_model.h>
 #include <names.h>
+#include <nvforest_config.h>
+#include <nvforest_predict.h>
 #include <tl_model.h>
 
 #include <cstddef>
 #include <memory>
+#include <nvforest/device_type.hpp>
+#include <nvforest/forest_model.hpp>
+#include <nvforest/handle.hpp>
+#include <nvforest/treelite_importer.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton::backend { namespace NAMESPACE {
 
 template <>
 struct ForestModel<rapids::HostMemory> {
   ForestModel() = default;
-  ForestModel(std::shared_ptr<TreeliteModel> tl_model) : tl_model_{tl_model} {}
+  ForestModel(std::shared_ptr<TreeliteModel> tl_model)
+      : tl_model_{tl_model}, nvforest_model_{[this]() {
+          auto config = tl_model_->config();
+          auto result = nvforest::import_from_treelite_handle(
+              tl_model_->handle(),
+              detail::name_to_nvforest_layout(config.layout), 128, false,
+              nvforest::device_type::cpu);
+          return result;
+        }()}
+  {
+  }
+
+  ForestModel(ForestModel const& other) = default;
+  ForestModel& operator=(ForestModel const& other) = default;
+  ForestModel(ForestModel&& other) = default;
+  ForestModel& operator=(ForestModel&& other) = default;
+
+  ~ForestModel() noexcept {}
 
   void predict(
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    tl_model_->predict(output, input, samples, predict_proba);
+    detail::nvforest_predict<rapids::HostMemory>(
+        nvforest_model_, nvforest::handle_t{}, *tl_model_, output, input,
+        samples, predict_proba);
   }
 
 
  private:
   std::shared_ptr<TreeliteModel> tl_model_;
+  mutable nvforest::forest_model nvforest_model_;
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}}  // namespace triton::backend::NAMESPACE

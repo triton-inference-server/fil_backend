@@ -21,6 +21,7 @@
 #include <forest_model.h>
 #include <names.h>
 #include <nvforest_config.h>
+#include <nvforest_predict.h>
 #include <tl_model.h>
 
 #include <cstddef>
@@ -29,13 +30,12 @@
 #include <nvforest/device_type.hpp>
 #include <nvforest/forest_model.hpp>
 #include <nvforest/handle.hpp>
-#include <nvforest/infer_kind.hpp>
 #include <nvforest/treelite_importer.hpp>
 #include <raft/core/handle.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 
-namespace triton { namespace backend { namespace NAMESPACE {
+namespace triton::backend { namespace NAMESPACE {
 
 template <>
 struct ForestModel<rapids::DeviceMemory> {
@@ -67,70 +67,9 @@ struct ForestModel<rapids::DeviceMemory> {
       rapids::Buffer<float>& output, rapids::Buffer<float const> const& input,
       std::size_t samples, bool predict_proba) const
   {
-    // Create non-owning Buffer to same memory as `output`
-    auto output_buffer = rapids::Buffer<float>{
-        output.data(), output.size(), output.mem_type(), output.device(),
-        output.stream()};
-    auto output_size = output.size();
-    // nvForest expects buffer of size samples * num_classes for multi-class
-    // classifiers, but output buffer may be smaller, so we need a temporary
-    // buffer
-    auto const num_classes = tl_model_->num_classes();
-    if (!predict_proba && tl_model_->config().is_classifier &&
-        num_classes > 1) {
-      nvforest_model_.set_row_postprocessing(nvforest::row_op::max_index);
-      output_size = samples * num_classes;
-      if (output_size != output.size()) {
-        // If expected output size is not the same as the size of `output`,
-        // create a temporary buffer of the correct size
-        output_buffer = rapids::Buffer<float>{
-            output_size, rapids::DeviceMemory, output.device(),
-            output.stream()};
-      }
-    }
-    // For some binary classifiers, nvForest will output a single probability
-    // score per input, but the client may be expecting two probability
-    // scores (for positive and negative classes). In this case,
-    // a temp buffer is necessary.
-    bool convert_binary_probs = false;
-    if (predict_proba && tl_model_->config().is_classifier &&
-        num_classes == 1 && output.size() == samples * 2) {
-      output_buffer = rapids::Buffer<float>{
-          samples, rapids::DeviceMemory, output.device(), output.stream()};
-      convert_binary_probs = true;
-    }
-
-    nvforest_model_.predict(
-        nvforest::handle_t{raft_handle_}, output_buffer.data(),
-        const_cast<float*>(input.data()), samples, nvforest::device_type::gpu,
-        nvforest::device_type::gpu, nvforest::infer_kind::default_kind,
-        tl_model_->config().chunk_size);
-    raft_handle_.sync_stream();
-    output_buffer.stream_synchronize();
-
-    if (!predict_proba && tl_model_->config().is_classifier) {
-      if (num_classes > 1) {
-        // Multi-class classifiers
-        // Gather class outputs into the output array by setting
-        //   output[i] := output_buffer[i * num_classes]
-        detail::multiclass_classifier::gather_class_output(
-            samples, num_classes, output, output_buffer);
-      } else if (num_classes == 1) {
-        // Binary classifiers (predict_proba=False):
-        // Apply thresholding to convert probability scores to class predictions
-        //   output[i] := (1 if output[i] > threshold else 0)
-        detail::binary_classifier::convert_probability_to_class(
-            samples, output, tl_model_->config().threshold);
-      }
-    }
-    // Binary classifiers (predict_proba=True):
-    // Convert (n, 1) probability score matrix to (n, 2) matrix
-    //   output[i, 0] := 1 - output_buffer[i, 0]
-    //   output[i, 1] := output_buffer[i, 0]
-    if (convert_binary_probs) {
-      detail::binary_classifier::convert_probability(
-          samples, output, output_buffer);
-    }
+    detail::nvforest_predict<rapids::DeviceMemory>(
+        nvforest_model_, nvforest::handle_t{raft_handle_}, *tl_model_, output,
+        input, samples, predict_proba);
   }
 
  private:
@@ -140,4 +79,4 @@ struct ForestModel<rapids::DeviceMemory> {
   device_id_t device_id_;
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}}  // namespace triton::backend::NAMESPACE

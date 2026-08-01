@@ -190,6 +190,7 @@ else()
     ${BACKEND_TARGET} SHARED
     src/api.cc
     src/detail/postprocess_gpu.cu
+    src/detail/postprocess_cpu.cc
   )
 
   IF(TRITON_ENABLE_GPU)

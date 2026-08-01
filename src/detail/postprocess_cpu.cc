@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
+ * Copyright (c) 2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-#include <detail/postprocess_gpu.h>
+#include <detail/postprocess_cpu.h>
 #include <names.h>
-#include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
-#include <thrust/for_each.h>
-#include <thrust/host_vector.h>
-#include <thrust/iterator/counting_iterator.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
@@ -31,30 +27,26 @@ namespace binary_classifier {
 
 template <>
 void
-convert_probability_to_class<rapids::DeviceMemory>(
+convert_probability_to_class<rapids::HostMemory>(
     std::size_t n_samples, rapids::Buffer<float>& output, float threshold)
 {
-  thrust::for_each(
-      thrust::device, output.data(), output.data() + n_samples,
-      [threshold] __device__(float& e) {
-        return (e > threshold) ? 1.0f : 0.0f;
-      });
+  std::for_each(
+      output.data(), output.data() + n_samples,
+      [threshold](float& e) { return (e > threshold) ? 1.0f : 0.0f; });
 }
 
 template <>
 void
-convert_probability<rapids::DeviceMemory>(
+convert_probability<rapids::HostMemory>(
     std::size_t n_samples, rapids::Buffer<float>& output,
     rapids::Buffer<float>& input)
 {
-  thrust::counting_iterator<std::size_t> cnt_iter =
-      thrust::make_counting_iterator<std::size_t>(0);
-  thrust::for_each(
-      thrust::device, cnt_iter, cnt_iter + n_samples,
-      [dest = output.data(), src = input.data()] __device__(std::size_t i) {
-        dest[i * 2] = 1.0 - src[i];
-        dest[i * 2 + 1] = src[i];
-      });
+  float* dest = output.data();
+  const float* src = input.data();
+  for (std::size_t i = 0; i < n_samples; ++i) {
+    dest[i * 2] = 1.0 - src[i];
+    dest[i * 2 + 1] = src[i];
+  }
 }
 
 }  // namespace binary_classifier
@@ -63,16 +55,15 @@ namespace multiclass_classifier {
 
 template <>
 void
-gather_class_output<rapids::DeviceMemory>(
+gather_class_output<rapids::HostMemory>(
     std::size_t n_samples, std::size_t n_classes, rapids::Buffer<float>& output,
     rapids::Buffer<float>& input)
 {
-  thrust::counting_iterator<std::size_t> cnt_iter =
-      thrust::make_counting_iterator<std::size_t>(0);
-  thrust::for_each(
-      thrust::device, cnt_iter, cnt_iter + n_samples,
-      [dest = output.data(), src = input.data(),
-       n_classes] __device__(std::size_t i) { dest[i] = src[i * n_classes]; });
+  float* dest = output.data();
+  const float* src = input.data();
+  for (std::size_t i = 0; i < n_samples; ++i) {
+    dest[i] = src[i * n_classes];
+  }
 }
 
 }  // namespace multiclass_classifier
