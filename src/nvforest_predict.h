@@ -19,6 +19,11 @@
 #include <detail/postprocess.h>
 #include <tl_model.h>
 
+#ifdef TRITON_ENABLE_GPU
+#include <detail/postprocess_gpu.h>
+#endif
+#include <detail/postprocess_cpu.h>
+
 #include <cstddef>
 #include <nvforest/forest_model.hpp>
 #include <rapids_triton/memory/buffer.hpp>
