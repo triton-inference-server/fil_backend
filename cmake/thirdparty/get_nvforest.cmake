@@ -28,6 +28,7 @@ function(find_and_configure_nvforest)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/nvforest.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            PATCHES        "./patches/nvforest.patch"
             OPTIONS
               "BUILD_NVFOREST_TESTS OFF"
               "BUILD_SHARED_LIBS ON"
@@ -42,7 +43,7 @@ endfunction()
 
 find_and_configure_nvforest(VERSION    26.08
                             FORK       rapidsai
-                            PINNED_TAG dd49f1a906654f59f20023849b2f1cae820f601f
+                            PINNED_TAG 948c3526b37cea774697a02407705d7345105099
                             USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                             ENABLE_GPU ${TRITON_ENABLE_GPU}
                             )
