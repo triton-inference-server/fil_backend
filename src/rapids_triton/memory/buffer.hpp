@@ -178,7 +178,9 @@ struct Buffer {
   void stream_synchronize() const
   {
     if constexpr (IS_GPU_BUILD) {
-      cuda_check(cudaStreamSynchronize(stream_));
+      if (mem_type() == DeviceMemory) {
+        cuda_check(cudaStreamSynchronize(stream_));
+      }
     }
   }
 
