@@ -80,7 +80,7 @@ else()
   # - Prepare rapids-cmake -----------------------------------------------------
   set(rapids-cmake-version 26.08)
   file(DOWNLOAD
-    https://raw.githubusercontent.com/rapidsai/rapids-cmake/691ccac03770627311b271e9dc5820f6ea2b6346/RAPIDS.cmake
+    https://raw.githubusercontent.com/rapidsai/rapids-cmake/refs/tags/v26.08.00/RAPIDS.cmake
       ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
   include(rapids-cmake)

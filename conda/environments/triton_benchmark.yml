@@ -5,7 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - cuda-version=12.8
-  - cudf=26.06
+  - cudf=26.08
   - libcusolver
   - libcusparse
   - matplotlib
