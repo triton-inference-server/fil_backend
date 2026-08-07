@@ -64,6 +64,9 @@ RUN conda run --no-capture-output -n triton_test \
  && rm -r /sdk_install
 
 FROM wheel-install-${USE_CLIENT_WHEEL} as conda-test
+COPY ./rapids_triton_python /workspace/rapids_triton_python
+RUN conda run --no-capture-output -n triton_test \
+    pip install /workspace/rapids_triton_python
 RUN conda-pack --ignore-missing-files -n triton_test -o /tmp/env.tar \
  && mkdir /conda/test/ \
  && cd /conda/test/ \
@@ -98,16 +101,16 @@ RUN apt-get update \
 # Stage immediately before building; useful for build iteration
 FROM base as build-prep
 
-RUN mkdir -p /rapids_triton/build /rapids_triton/install
+RUN mkdir -p /workspace/build /workspace/install
 
-COPY ./src /rapids_triton/src
-COPY ./CMakeLists.txt /rapids_triton
-COPY ./cmake /rapids_triton/cmake
+COPY ./src /workspace/src
+COPY ./CMakeLists.txt /workspace
+COPY ./cmake /workspace/cmake
 
 ARG BACKEND_NAME=fil
 ENV BACKEND_NAME=$BACKEND_NAME
 
-WORKDIR /rapids_triton/build
+WORKDIR /workspace/build
 
 # Remove potentially stale build artifacts
 RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
@@ -170,7 +173,7 @@ RUN source /conda/dev/bin/activate \
       -DTRITON_ENABLE_STATS="${TRITON_ENABLE_STATS}" \
       -DRAPIDS_DEPENDENCIES_VERSION="${RAPIDS_DEPENDENCIES_VERSION}" \
       -DTRITON_FIL_USE_TREELITE_STATIC="${TRITON_FIL_USE_TREELITE_STATIC}" \
-      -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
+      -DCMAKE_INSTALL_PREFIX=/workspace/install \
       ..;
 
 ENV CCACHE_DIR=/ccache
