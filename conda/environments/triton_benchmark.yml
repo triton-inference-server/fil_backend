@@ -4,7 +4,7 @@ channels:
   - nvidia
   - rapidsai
 dependencies:
-  - cuda-version=12.8
+  - cuda-version=13.3
   - cudf=26.08
   - libcusolver
   - libcusparse
@@ -15,4 +15,3 @@ dependencies:
   - pip:
       - tritonclient[all]
       - protobuf
-      - git+https://github.com/rapidsai/rapids-triton.git@branch-25.08#subdirectory=python
