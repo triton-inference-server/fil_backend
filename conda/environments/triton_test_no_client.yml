@@ -9,6 +9,7 @@ dependencies:
   - cuda-version=12.8
   - cudf=26.08
   - cuml=26.08
+  - nvforest=26.08
   - flake8
   - hypothesis
   - lightgbm

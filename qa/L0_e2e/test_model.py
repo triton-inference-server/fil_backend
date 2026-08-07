@@ -18,9 +18,17 @@ from collections import defaultdict, namedtuple
 from functools import lru_cache
 
 try:
-    import cuml
+    import nvforest
 except Exception:
-    cuml = None
+    nvforest = None
+try:
+    from cupy import asnumpy
+except Exception:
+
+    def asnumpy(x):
+        return x
+
+
 import numpy as np
 import pytest
 import treelite
@@ -199,20 +207,20 @@ class GroundTruthModel:
                 with open(model_path, "rb") as pkl_file:
                     self._base_model = pickle.load(pkl_file)
             else:
-                self._base_model = cuml.ForestInference.load(
-                    model_path, is_classifier=is_classifier, model_type=model_format
+                self._base_model = nvforest.load_model(
+                    model_file=model_path, model_type=model_format
                 )
 
     def predict(self, inputs):
         if self.predict_proba:
-            result = self._base_model.predict_proba(inputs["input__0"])
+            result = asnumpy(self._base_model.predict_proba(inputs["input__0"]))
             if len(result.shape) == 1 or (
                 len(result.shape) == 2 and result.shape[1] == 1
             ):
                 result = result.reshape((-1, 1))
                 result = np.concatenate((1 - result, result), axis=1)
         else:
-            result = self._base_model.predict(inputs["input__0"])
+            result = asnumpy(self._base_model.predict(inputs["input__0"]))
         output = {"output__0": result.squeeze()}
         if self._run_treeshap:
             treeshap_result = self._xgb_model.predict(
