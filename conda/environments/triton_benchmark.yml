@@ -5,6 +5,7 @@ channels:
   - rapidsai
 dependencies:
   - cuda-version=13.3
+  - cuda-python=13.3
   - cudf=26.08
   - libcusolver
   - libcusparse
