@@ -67,10 +67,10 @@ function(ConfigureTest)
   set_target_properties(
     ${_TRITON_FIL_TEST_NAME}
     PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
-               CXX_STANDARD 17
+               CXX_STANDARD 20
                CXX_STANDARD_REQUIRED ON)
   if(TRITON_ENABLE_GPU)
-    set_target_properties(${_TRITON_FIL_TEST_NAME} PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON)
+    set_target_properties(${_TRITON_FIL_TEST_NAME} PROPERTIES CUDA_STANDARD 20 CUDA_STANDARD_REQUIRED ON)
   endif()
 
   set(_TRITON_FIL_TEST_COMPONENT_NAME testing)
