@@ -28,7 +28,9 @@ function(find_and_configure_nvforest)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/nvforest.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            PATCHES        "./patches/nvforest.patch"
+            PATCHES
+              "./patches/nvforest.patch"
+              "./patches/nvforest_rmm_pin.patch"
             OPTIONS
               "BUILD_NVFOREST_TESTS OFF"
               "BUILD_SHARED_LIBS ON"
