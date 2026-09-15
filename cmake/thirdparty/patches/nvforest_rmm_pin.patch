@@ -1,0 +1,130 @@
+From 872324af64823053cb46d425b16cbb576fb5045e Mon Sep 17 00:00:00 2001
+From: Hyunsu Cho <phcho@nvidia.com>
+Date: Mon, 14 Sep 2026 14:22:57 -0700
+Subject: [PATCH] Use 26.08 RMM
+
+---
+ cpp/cmake/thirdparty/get_raft.cmake           | 10 ++--
+ cpp/cmake/thirdparty/get_rmm.cmake            | 24 ++++++++--
+ .../thirdparty/patches/raft_rmm_pin.patch     | 47 +++++++++++++++++++
+ 3 files changed, 72 insertions(+), 9 deletions(-)
+ create mode 100644 cpp/cmake/thirdparty/patches/raft_rmm_pin.patch
+
+diff --git a/cpp/cmake/thirdparty/get_raft.cmake b/cpp/cmake/thirdparty/get_raft.cmake
+index 1265804..42016e9 100644
+--- a/cpp/cmake/thirdparty/get_raft.cmake
++++ b/cpp/cmake/thirdparty/get_raft.cmake
+@@ -46,6 +46,7 @@ function(find_and_configure_raft)
+     CPM_ARGS
+     GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
+     GIT_TAG ${PKG_PINNED_TAG} SOURCE_SUBDIR cpp
++    PATCHES "./patches/raft_rmm_pin.patch"
+     EXCLUDE_FROM_ALL ${PKG_EXCLUDE_FROM_ALL}
+     OPTIONS "BUILD_TESTS OFF" "BUILD_PRIMS_BENCH OFF" "BUILD_CAGRA_HNSWLIB OFF" "RAFT_COMPILE_LIBRARY OFF")
+
+@@ -60,12 +61,9 @@ endfunction()
+ # Change pinned tag here to test a commit in CI To use a different RAFT locally, set the CMake variable
+ # CPM_raft_SOURCE=/path/to/local/raft
+ find_and_configure_raft(
+-  VERSION
+-  ${NVFOREST_MIN_VERSION_raft}
+-  FORK
+-  rapidsai
+-  PINNED_TAG
+-  ${rapids-cmake-checkout-tag}
++  VERSION  26.08
++  FORK   rapidsai
++  PINNED_TAG v26.08.00
+   EXCLUDE_FROM_ALL
+   ${NVFOREST_EXCLUDE_RAFT_FROM_ALL}
+   # When PINNED_TAG above doesn't match nvforest, force local raft clone in build directory even if it's already
+diff --git a/cpp/cmake/thirdparty/get_rmm.cmake b/cpp/cmake/thirdparty/get_rmm.cmake
+index b476b09..c07fa05 100644
+--- a/cpp/cmake/thirdparty/get_rmm.cmake
++++ b/cpp/cmake/thirdparty/get_rmm.cmake
+@@ -6,8 +6,26 @@
+ # =============================================================================
+
+ function(find_and_configure_rmm)
+-  include(${rapids-cmake-dir}/cpm/rmm.cmake)
+-  rapids_cpm_rmm(BUILD_EXPORT_SET nvforest-exports INSTALL_EXPORT_SET nvforest-exports)
++  set(oneValueArgs VERSION FORK PINNED_TAG)
++  cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
++                        "${multiValueArgs}" ${ARGN} )
++
++  rapids_cpm_find(rmm ${PKG_VERSION}
++    GLOBAL_TARGETS      rmm::rmm rmm::rmm_logger rmm::rmm_logger_impl
++    BUILD_EXPORT_SET    rapids_triton-exports
++    INSTALL_EXPORT_SET  rapids_triton-exports
++      CPM_ARGS
++          GIT_REPOSITORY https://github.com/${PKG_FORK}/rmm.git
++          GIT_TAG        ${PKG_PINNED_TAG}
++          SOURCE_SUBDIR  cpp
++          OPTIONS
++            "BUILD_TESTS OFF"
++            "BUILD_BENCHMARKS OFF"
++  )
++
++message(VERBOSE "nvForest: Using RMM located in ${rmm_SOURCE_DIR}")
+ endfunction()
+
+-find_and_configure_rmm()
++find_and_configure_rmm(VERSION     26.08
++                       FORK        rapidsai
++                       PINNED_TAG  v26.08.00)
+diff --git a/cpp/cmake/thirdparty/patches/raft_rmm_pin.patch b/cpp/cmake/thirdparty/patches/raft_rmm_pin.patch
+new file mode 100644
+index 0000000..9450748
+--- /dev/null
++++ b/cpp/cmake/thirdparty/patches/raft_rmm_pin.patch
+@@ -0,0 +1,47 @@
++From 0382730ed601e0485474add922a5616962ef3228 Mon Sep 17 00:00:00 2001
++From: Hyunsu Cho <phcho@nvidia.com>
++Date: Mon, 14 Sep 2026 14:01:34 -0700
++Subject: [PATCH] Use 26.08 RMM
++
++---
++ cpp/cmake/thirdparty/get_rmm.cmake | 25 +++++++++++++++++++++----
++ 1 file changed, 21 insertions(+), 4 deletions(-)
++
++diff --git a/cpp/cmake/thirdparty/get_rmm.cmake b/cpp/cmake/thirdparty/get_rmm.cmake
++index f1efc7bf..f8be2a61 100644
++--- a/cpp/cmake/thirdparty/get_rmm.cmake
+++++ b/cpp/cmake/thirdparty/get_rmm.cmake
++@@ -6,9 +6,26 @@
++ #=============================================================================
++
++ function(find_and_configure_rmm)
++-    include(${rapids-cmake-dir}/cpm/rmm.cmake)
++-    rapids_cpm_rmm(BUILD_EXPORT_SET raft-exports
++-                   INSTALL_EXPORT_SET raft-exports)
+++  set(oneValueArgs VERSION FORK PINNED_TAG)
+++  cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
+++                        "${multiValueArgs}" ${ARGN} )
+++
+++  rapids_cpm_find(rmm ${PKG_VERSION}
+++    GLOBAL_TARGETS      rmm::rmm rmm::rmm_logger rmm::rmm_logger_impl
+++    BUILD_EXPORT_SET    rapids_triton-exports
+++    INSTALL_EXPORT_SET  rapids_triton-exports
+++      CPM_ARGS
+++          GIT_REPOSITORY https://github.com/${PKG_FORK}/rmm.git
+++          GIT_TAG        ${PKG_PINNED_TAG}
+++          SOURCE_SUBDIR  cpp
+++          OPTIONS
+++            "BUILD_TESTS OFF"
+++            "BUILD_BENCHMARKS OFF"
+++  )
+++
+++  message(VERBOSE "cuML: Using RMM located in ${rmm_SOURCE_DIR}")
++ endfunction()
++
++-find_and_configure_rmm()
+++find_and_configure_rmm(VERSION    26.08
+++                       FORK       rapidsai
+++                       PINNED_TAG v26.08.00)
++--
++2.54.0
++
+--
+2.54.0
+
