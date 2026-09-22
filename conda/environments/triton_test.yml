@@ -18,7 +18,7 @@ dependencies:
   - pip
   - pytest
   - python
-  - rapidsai::xgboost>=3.2
+  - conda-forge::xgboost>=3.4
   - scikit-learn>=1.8
   - treelite>=4.6
   - setuptools<82
