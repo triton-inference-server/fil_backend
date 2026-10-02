@@ -163,6 +163,16 @@ else()
     include(cmake/modules/ConfigureCUDA.cmake)
   endif()
 
+  # RAPIDS sources include <cub/cub.cuh> directly and build with -Werror, so
+  # CCCL's deprecation warning on that umbrella header becomes a fatal error.
+  # Set on the CMake-wide flags rather than RAPIDS_TRITON_*_FLAGS so it reaches
+  # the cuML and nvforest sub-builds pulled in below, which compile with their
+  # own flags. Mirrors NVIDIA/cccl ci/rapids/post-create-command.sh.
+  string(APPEND CMAKE_CXX_FLAGS " -DCCCL_DISABLE_CUB_UMBRELLA_HEADER_WARNING")
+  if(TRITON_ENABLE_GPU)
+    string(APPEND CMAKE_CUDA_FLAGS " -DCCCL_DISABLE_CUB_UMBRELLA_HEADER_WARNING")
+  endif()
+
   ##############################################################################
   # - Requirements -------------------------------------------------------------
 
