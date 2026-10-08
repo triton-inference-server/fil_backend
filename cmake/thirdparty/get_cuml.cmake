@@ -30,7 +30,7 @@ function(find_and_configure_cuml)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cuml.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            # Patch cuML to use 26.08 RMM
+            # Patch cuML to use 26.10 RMM
             PATCHES        "./patches/cuml_rmm_pin.patch"
             OPTIONS
               "BUILD_CUML_CPP_LIBRARY ON"
@@ -55,8 +55,8 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_cuml(VERSION    26.08
+find_and_configure_cuml(VERSION    26.10
                         FORK       rapidsai
-                        PINNED_TAG 265b9da6a0e75dbef071a3168398b993a5ff6f0e
+                        PINNED_TAG 8a30864a3f5afe387d8d7b043351d4f60587b34d
                         USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                         )

@@ -1,6 +1,6 @@
-From 60c8df5adef69291d4978b4631d58b2ab9ac6429 Mon Sep 17 00:00:00 2001
+From 09449118c18d69ebd1adc7af2648d9b13b44f1fb Mon Sep 17 00:00:00 2001
 From: Hyunsu Cho <phcho@nvidia.com>
-Date: Tue, 4 Aug 2026 03:06:43 -0700
+Date: Thu, 8 Oct 2026 15:19:24 -0700
 Subject: [PATCH] Check raft_handle_ for nullptr
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Check raft_handle_ for nullptr
  1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/cpp/include/nvforest/handle.hpp b/cpp/include/nvforest/handle.hpp
-index fd1f3bb..42066c8 100644
+index 34e7d79..bf2e59e 100644
 --- a/cpp/include/nvforest/handle.hpp
 +++ b/cpp/include/nvforest/handle.hpp
 @@ -18,14 +18,20 @@ struct handle_t {
@@ -16,7 +16,7 @@ index fd1f3bb..42066c8 100644
    auto get_next_usable_stream() const
    {
 +    if (!raft_handle_) { return cuda_stream{}; }
-     return cuda_stream{raft_handle_->get_next_usable_stream().value()};
+     return cuda_stream{raft_handle_->get_next_usable_stream().get()};
    }
 -  auto get_stream_pool_size() const { return raft_handle_->get_stream_pool_size(); }
 +  auto get_stream_pool_size() const {
