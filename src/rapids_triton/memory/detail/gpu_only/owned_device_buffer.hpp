@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2026, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #pragma once
 #include <cstddef>
+#include <cuda/stream>
 #include <rapids_triton/memory/detail/owned_device_buffer.hpp>
 #include <rapids_triton/triton/device.hpp>
 #include <rapids_triton/utils/device_setter.hpp>
@@ -33,7 +34,7 @@ struct owned_device_buffer<T, true> {
           auto device_context = device_setter{device_id};
           return rmm::device_buffer{
               safe_multiply<std::size_t>(size, sizeof(T)),
-              rmm::cuda_stream_view{stream}};
+              cuda::stream_ref{stream}};
         }()}
   {
   }

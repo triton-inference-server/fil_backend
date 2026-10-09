@@ -43,9 +43,9 @@ function(find_and_configure_nvforest)
 
 endfunction()
 
-find_and_configure_nvforest(VERSION    26.08
+find_and_configure_nvforest(VERSION    26.10
                             FORK       rapidsai
-                            PINNED_TAG cef3a50da0f74b0015876b9d6d424c86141898dc
+                            PINNED_TAG e4042640f68e487fb0f2ea71b70ecbd4adf37848
                             USE_TREELITE_STATIC ${TRITON_FIL_USE_TREELITE_STATIC}
                             ENABLE_GPU ${TRITON_ENABLE_GPU}
                             )
