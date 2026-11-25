@@ -173,6 +173,16 @@ else()
     string(APPEND CMAKE_CUDA_FLAGS " -DCCCL_DISABLE_CUB_UMBRELLA_HEADER_WARNING")
   endif()
 
+  # RapidJSON 1.1.0 (pinned in conda/environments/rapids_triton_dev.yml)
+  # defines a GenericStringRef::operator= that assigns to a const member.
+  # It is never instantiated, but GCC 14+ diagnoses template bodies and makes
+  # that an error by default (-Wtemplate-body), which breaks the treelite
+  # sub-build on Ubuntu 26.04 (GCC 15). Drop this with the RapidJSON pin.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+     AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
+    string(APPEND CMAKE_CXX_FLAGS " -Wno-template-body")
+  endif()
+
   ##############################################################################
   # - Requirements -------------------------------------------------------------
 
